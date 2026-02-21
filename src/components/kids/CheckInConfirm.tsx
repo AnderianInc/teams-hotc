@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Printer } from "lucide-react";
+import { printNameTag, getPrinterStatus } from "@/lib/brotherPrinter";
+import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 
 interface CheckInConfirmProps {
   child: {
@@ -28,10 +30,12 @@ interface CheckInConfirmProps {
 export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const { user } = useAuth();
   const [success, setSuccess] = useState(false);
+  const isOnline = navigator.onLine;
 
   // Find matching room by grade_group
   const { data: rooms } = useQuery({
     queryKey: ["rooms"],
+    enabled: isOnline,
     queryFn: async () => {
       const { data } = await supabase.from("rooms").select("*");
       return data || [];
@@ -41,6 +45,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   // Get active service
   const { data: activeService } = useQuery({
     queryKey: ["active-service"],
+    enabled: isOnline,
     queryFn: async () => {
       const { data } = await supabase
         .from("services")
@@ -60,17 +65,56 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
 
   const checkIn = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("check_ins").insert({
+      const checkInData = {
+        id: crypto.randomUUID(),
         child_id: child.id,
-        service_id: activeService?.id || null as any,
+        service_id: activeService?.id || null,
         room_id: assignedRoom?.id || null,
         checked_in_by: user?.id || null,
-      });
-      if (error) throw error;
+        checked_in_at: new Date().toISOString(),
+      };
+
+      if (isOnline) {
+        const { error } = await supabase.from("check_ins").insert({
+          child_id: checkInData.child_id,
+          service_id: checkInData.service_id as any,
+          room_id: checkInData.room_id,
+          checked_in_by: checkInData.checked_in_by,
+        });
+        if (error) throw error;
+      } else {
+        // Queue for later sync
+        await queueCheckIn(checkInData);
+      }
+
+      // Try to print if printer connected
+      const printerStatus = getPrinterStatus();
+      if (printerStatus.connected) {
+        try {
+          let roomName = assignedRoom?.name || "TBD";
+          if (!isOnline && !assignedRoom) {
+            const offlineRooms = await getRoomsOffline();
+            const match = offlineRooms.find(
+              (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
+            );
+            if (match) roomName = match.name;
+          }
+
+          await printNameTag({
+            childName: `${child.first_name} ${child.last_name}`,
+            roomName,
+            allergies: child.allergies,
+            parentName: child.families?.parent1_name,
+          });
+          toast.success("Label printed!");
+        } catch (e: any) {
+          toast.error(`Print failed: ${e.message}`);
+        }
+      }
     },
     onSuccess: () => {
       setSuccess(true);
-      toast.success(`${child.first_name} checked in!`);
+      toast.success(`${child.first_name} checked in!${!isOnline ? " (offline — will sync later)" : ""}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -87,6 +131,9 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           </h2>
           {assignedRoom && (
             <p className="text-muted-foreground mt-1">Room: {assignedRoom.name}</p>
+          )}
+          {!isOnline && (
+            <Badge variant="outline" className="mt-2">Queued for sync</Badge>
           )}
         </div>
         <Button onClick={onBack}>Check in another child</Button>
@@ -129,16 +176,22 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
-          {!activeService && (
+          {!activeService && isOnline && (
             <p className="text-sm text-warning">
               ⚠ No active service. Ask an admin to create one in Settings.
             </p>
           )}
 
+          {!isOnline && (
+            <Badge variant="secondary" className="gap-1">
+              Offline mode — check-in will sync when back online
+            </Badge>
+          )}
+
           <Button
             className="w-full h-12 text-base"
             onClick={() => checkIn.mutate()}
-            disabled={checkIn.isPending || !activeService}
+            disabled={checkIn.isPending || (isOnline && !activeService)}
           >
             <Printer className="h-5 w-5 mr-2" />
             {checkIn.isPending ? "Checking in..." : "Check In & Print Tag"}
