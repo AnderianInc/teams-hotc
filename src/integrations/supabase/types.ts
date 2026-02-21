@@ -323,6 +323,10 @@ export type Database = {
         Returns: boolean
       }
       is_kids_ministry_member: { Args: { _user_id: string }; Returns: boolean }
+      is_team_lead: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "team_lead" | "member"
