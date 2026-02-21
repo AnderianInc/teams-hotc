@@ -19,6 +19,7 @@ interface CheckInConfirmProps {
     date_of_birth: string | null;
     grade_group: string | null;
     allergies: string | null;
+    family_id: string;
     families: {
       family_name: string;
       parent1_name: string;
@@ -148,7 +149,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         <Button variant="ghost" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to search
         </Button>
-        <EditFamily familyId={child.families ? (child as any).family_id : ""} />
+        <EditFamily familyId={child.family_id} />
       </div>
 
       <Card>

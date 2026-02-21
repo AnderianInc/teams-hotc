@@ -15,6 +15,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     // Verify the caller
     const authHeader = req.headers.get("Authorization")!;
@@ -37,7 +38,6 @@ serve(async (req) => {
     const isAdmin = callerRoles && callerRoles.length > 0;
 
     if (!isAdmin) {
-      // Check if team lead of this specific team
       const { data: membership } = await adminClient
         .from("team_members")
         .select("role")
@@ -49,7 +49,6 @@ serve(async (req) => {
         throw new Error("Only admins and team leads can invite volunteers");
       }
 
-      // Team leads can only invite as 'member', not 'team_lead' or 'admin'
       if (role === "admin") {
         throw new Error("Team leads cannot assign admin role");
       }
@@ -64,15 +63,48 @@ serve(async (req) => {
     let userId: string;
 
     if (existingUsers && existingUsers.length > 0) {
-      // User exists — just add to team
       userId = existingUsers[0].user_id;
     } else {
-      // Invite new user via Supabase auth
+      // Create the user via admin API
       const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         data: { invited_team_id: teamId, invited_role: role },
       });
       if (inviteError) throw inviteError;
       userId = inviteData.user.id;
+
+      // Send custom invite email via Resend if configured
+      if (resendApiKey) {
+        // Get the team name for the email
+        const { data: team } = await adminClient
+          .from("teams")
+          .select("name")
+          .eq("id", teamId)
+          .single();
+
+        const teamName = team?.name || "the team";
+        const siteUrl = supabaseUrl.replace(".supabase.co", "");
+
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "HOTC <hotc@pneumanation.com>",
+            to: [email],
+            subject: `You've been invited to join ${teamName}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+                <h2>You're invited!</h2>
+                <p>You've been invited to join <strong>${teamName}</strong> at House on the Corner.</p>
+                <p>Check your email for a confirmation link from our system to set up your account and get started.</p>
+                <p style="color: #666; font-size: 14px; margin-top: 24px;">— The HOTC Team</p>
+              </div>
+            `,
+          }),
+        });
+      }
 
       // Add user role
       await adminClient.from("user_roles").upsert({
@@ -81,7 +113,7 @@ serve(async (req) => {
       });
     }
 
-    // Add to team (upsert to avoid duplicates)
+    // Add to team
     const { error: teamError } = await adminClient.from("team_members").upsert(
       { team_id: teamId, user_id: userId, role: role || "member" },
       { onConflict: "team_id,user_id" }
