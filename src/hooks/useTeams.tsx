@@ -7,6 +7,7 @@ export interface Team {
   name: string;
   slug: string;
   description: string | null;
+  team_type: string;
 }
 
 export interface TeamMembership {
