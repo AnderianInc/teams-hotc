@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useAllTeams } from "@/hooks/useTeams";
 
 export default function TeamManagement() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: teams, isLoading } = useAllTeams();
   const [addOpen, setAddOpen] = useState(false);
@@ -84,13 +87,27 @@ export default function TeamManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {teams?.map((t) => (
+              {teams?.map((t: any) => (
                 <TableRow key={t.id}>
-                  <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => navigate(`/team/${t.slug}`)}
+                      className="font-medium text-primary hover:underline flex items-center gap-1"
+                    >
+                      {t.name}
+                      <ExternalLink className="h-3 w-3" />
+                    </button>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={t.team_type === "ministry" ? "default" : "secondary"} className="capitalize text-xs">
+                      {t.team_type}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{t.description || "—"}</TableCell>
                 </TableRow>
               ))}
