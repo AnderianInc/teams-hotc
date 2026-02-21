@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_records: {
+        Row: {
+          attendee_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          service_id: string | null
+          visit_date: string
+        }
+        Insert: {
+          attendee_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          service_id?: string | null
+          visit_date?: string
+        }
+        Update: {
+          attendee_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          service_id?: string | null
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendees: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          first_name: string
+          first_visit_date: string | null
+          id: string
+          is_member: boolean
+          last_name: string
+          notes: string | null
+          phone: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          first_name: string
+          first_visit_date?: string | null
+          id?: string
+          is_member?: boolean
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          first_visit_date?: string | null
+          id?: string
+          is_member?: boolean
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       check_ins: {
         Row: {
           checked_in_at: string
@@ -146,6 +233,53 @@ export type Database = {
         }
         Relationships: []
       }
+      follow_ups: {
+        Row: {
+          assigned_to: string | null
+          attendee_id: string
+          completed_at: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          method: string | null
+          notes: string | null
+          status: Database["public"]["Enums"]["followup_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          attendee_id: string
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          status?: Database["public"]["Enums"]["followup_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          attendee_id?: string
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          status?: Database["public"]["Enums"]["followup_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_ups_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -205,6 +339,44 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      roster_entries: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          role_description: string | null
+          scheduled_date: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role_description?: string | null
+          scheduled_date: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role_description?: string | null
+          scheduled_date?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_entries_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {
@@ -272,6 +444,7 @@ export type Database = {
           id: string
           name: string
           slug: string
+          team_type: string
           updated_at: string
         }
         Insert: {
@@ -280,6 +453,7 @@ export type Database = {
           id?: string
           name: string
           slug: string
+          team_type?: string
           updated_at?: string
         }
         Update: {
@@ -288,6 +462,7 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
+          team_type?: string
           updated_at?: string
         }
         Relationships: []
@@ -322,14 +497,28 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_first_impressions_member: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_kids_ministry_member: { Args: { _user_id: string }; Returns: boolean }
       is_team_lead: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_team_member: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
     }
     Enums: {
       app_role: "admin" | "team_lead" | "member"
+      followup_status:
+        | "pending"
+        | "contacted"
+        | "connected"
+        | "no_response"
+        | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -458,6 +647,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "team_lead", "member"],
+      followup_status: [
+        "pending",
+        "contacted",
+        "connected",
+        "no_response",
+        "closed",
+      ],
     },
   },
 } as const

@@ -1,0 +1,34 @@
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sparkles } from "lucide-react";
+import AttendeeList from "./AttendeeList";
+import FollowUpList from "./FollowUpList";
+
+export default function FirstImpressionsDashboard() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent">
+          <Sparkles className="h-5 w-5 text-accent-foreground" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">First Impressions</h1>
+          <p className="text-muted-foreground">Welcome & follow-up with church visitors and members</p>
+        </div>
+      </div>
+
+      <Tabs defaultValue="attendees" className="w-full">
+        <TabsList>
+          <TabsTrigger value="attendees">Visitors & Members</TabsTrigger>
+          <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
+        </TabsList>
+        <TabsContent value="attendees">
+          <AttendeeList />
+        </TabsContent>
+        <TabsContent value="followups">
+          <FollowUpList />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
