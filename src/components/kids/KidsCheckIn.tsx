@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, AlertTriangle } from "lucide-react";
 import RegisterChild from "./RegisterChild";
 import CheckInConfirm from "./CheckInConfirm";
+import PrinterConnect from "./PrinterConnect";
+import OfflineStatusBar from "./OfflineStatusBar";
+import { searchChildrenOffline, hasLocalData } from "@/lib/offlineSync";
 
 interface ChildResult {
   id: string;
@@ -28,10 +31,40 @@ export default function KidsCheckIn() {
   const [search, setSearch] = useState("");
   const [selectedChild, setSelectedChild] = useState<ChildResult | null>(null);
   const [showRegister, setShowRegister] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [offlineResults, setOfflineResults] = useState<any[]>([]);
+
+  // Detect offline and use cached data
+  useEffect(() => {
+    const check = async () => {
+      if (!navigator.onLine) {
+        setIsOfflineMode(true);
+      }
+    };
+    check();
+    window.addEventListener("offline", () => setIsOfflineMode(true));
+    window.addEventListener("online", () => setIsOfflineMode(false));
+  }, []);
+
+  // Offline search
+  useEffect(() => {
+    if (isOfflineMode && search.length >= 2) {
+      searchChildrenOffline(search).then((results) => {
+        setOfflineResults(
+          results.map((r) => ({
+            ...r,
+            families: r.family
+              ? { family_name: r.family.family_name, parent1_name: r.family.parent1_name, parent1_phone: r.family.parent1_phone }
+              : { family_name: "", parent1_name: "", parent1_phone: "" },
+          }))
+        );
+      });
+    }
+  }, [isOfflineMode, search]);
 
   const { data: children, isLoading } = useQuery({
     queryKey: ["children-search", search],
-    enabled: search.length >= 2,
+    enabled: search.length >= 2 && !isOfflineMode,
     queryFn: async () => {
       const term = `%${search}%`;
       const { data, error } = await supabase
@@ -43,6 +76,8 @@ export default function KidsCheckIn() {
       return data as unknown as ChildResult[];
     },
   });
+
+  const displayChildren = isOfflineMode ? offlineResults : children;
 
   if (selectedChild) {
     return (
@@ -67,9 +102,15 @@ export default function KidsCheckIn() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-display font-bold tracking-tight">Kids Check-In</h1>
-        <p className="text-muted-foreground mt-1">Search for a child or register a new one</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">Kids Check-In</h1>
+          <p className="text-muted-foreground mt-1">Search for a child or register a new one</p>
+        </div>
+        <div className="flex flex-col gap-2 items-end">
+          <PrinterConnect />
+          <OfflineStatusBar />
+        </div>
       </div>
 
       <div className="relative max-w-xl">
@@ -85,10 +126,10 @@ export default function KidsCheckIn() {
 
       {search.length >= 2 && (
         <div className="space-y-2 max-w-xl">
-          {isLoading ? (
+          {isLoading && !isOfflineMode ? (
             <p className="text-muted-foreground py-4 text-center">Searching...</p>
-          ) : children && children.length > 0 ? (
-            children.map((child) => (
+          ) : displayChildren && displayChildren.length > 0 ? (
+            displayChildren.map((child) => (
               <Card
                 key={child.id}
                 className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30"

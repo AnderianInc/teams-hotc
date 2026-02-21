@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Calendar, Users, Plus } from "lucide-react";
+import TeamMemberManager from "@/components/teams/TeamMemberManager";
 
 interface VolunteerTeamDashboardProps {
   teamId: string;
@@ -44,68 +44,13 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
           </TabsTrigger>
         </TabsList>
         <TabsContent value="members">
-          <TeamMembersList teamId={teamId} />
+          <TeamMemberManager teamId={teamId} teamName={teamName} />
         </TabsContent>
         <TabsContent value="roster">
           <RosterSchedule teamId={teamId} />
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function TeamMembersList({ teamId }: { teamId: string }) {
-  const { data: members, isLoading } = useQuery({
-    queryKey: ["team-members", teamId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("team_members")
-        .select("*, profiles:user_id(full_name, email)")
-        .eq("team_id", teamId);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  if (isLoading) return <div className="py-8 text-center text-muted-foreground">Loading...</div>;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Team Members</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {members?.map((m: any) => (
-              <TableRow key={m.id}>
-                <TableCell className="font-medium">{m.profiles?.full_name || "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{m.profiles?.email || "—"}</TableCell>
-                <TableCell>
-                  <Badge variant={m.role === "team_lead" ? "default" : "secondary"} className="capitalize">
-                    {m.role.replace("_", " ")}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(!members || members.length === 0) && (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                  No members assigned yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
   );
 }
 
