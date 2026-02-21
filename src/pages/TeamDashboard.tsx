@@ -1,6 +1,8 @@
 import { useParams, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams, useAllTeams } from "@/hooks/useTeams";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Baby, Users } from "lucide-react";
 import KidsCheckIn from "@/components/kids/KidsCheckIn";
 import FirstImpressionsDashboard from "@/components/first-impressions/FirstImpressionsDashboard";
 import VolunteerTeamDashboard from "@/components/teams/VolunteerTeamDashboard";
@@ -26,9 +28,34 @@ export default function TeamDashboard() {
     return <Navigate to="/" replace />;
   }
 
-  // Route to team-specific modules
-  if (slug === "childrens-ministry") {
-    return <KidsCheckIn />;
+  // Children's Ministry: tabs for App (Kids Check-In) + Volunteers
+  if (slug === "childrens-ministry" && team) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">{team.name}</h1>
+          <p className="text-muted-foreground mt-1">Ministry dashboard</p>
+        </div>
+        <Tabs defaultValue="app" className="w-full">
+          <TabsList>
+            <TabsTrigger value="app">
+              <Baby className="h-4 w-4 mr-2" />
+              Kids Check-In
+            </TabsTrigger>
+            <TabsTrigger value="volunteers">
+              <Users className="h-4 w-4 mr-2" />
+              Volunteers
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="app">
+            <KidsCheckIn />
+          </TabsContent>
+          <TabsContent value="volunteers">
+            <VolunteerTeamDashboard teamId={team.id} teamName={team.name} teamSlug={team.slug} hideHeader />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
   }
 
   if (slug === "first-impressions") {

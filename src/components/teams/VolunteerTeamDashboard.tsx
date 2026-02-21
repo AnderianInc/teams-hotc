@@ -17,17 +17,20 @@ interface VolunteerTeamDashboardProps {
   teamId: string;
   teamName: string;
   teamSlug: string;
+  hideHeader?: boolean;
 }
 
-export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug }: VolunteerTeamDashboardProps) {
+export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hideHeader }: VolunteerTeamDashboardProps) {
   const { isAdmin } = useAuth();
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-display font-bold tracking-tight">{teamName}</h1>
-        <p className="text-muted-foreground mt-1">Team dashboard</p>
-      </div>
+      {!hideHeader && (
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">{teamName}</h1>
+          <p className="text-muted-foreground mt-1">Team dashboard</p>
+        </div>
+      )}
 
       <Tabs defaultValue="members" className="w-full">
         <TabsList>
