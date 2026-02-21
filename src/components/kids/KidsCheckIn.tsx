@@ -67,13 +67,41 @@ export default function KidsCheckIn() {
     enabled: search.length >= 2 && !isOfflineMode,
     queryFn: async () => {
       const term = `%${search}%`;
-      const { data, error } = await supabase
+      // Search children by name
+      const { data: byName, error: nameErr } = await supabase
         .from("children")
         .select("id, first_name, last_name, date_of_birth, grade_group, allergies, family_id, families(family_name, parent1_name, parent1_phone)")
-        .or(`first_name.ilike.${term},last_name.ilike.${term},families.family_name.ilike.${term},families.parent1_phone.ilike.${term}`)
+        .or(`first_name.ilike.${term},last_name.ilike.${term}`)
         .limit(20);
-      if (error) throw error;
-      return data as unknown as ChildResult[];
+      if (nameErr) throw nameErr;
+
+      // Search families by family_name or phone, then fetch their children
+      const { data: matchedFamilies } = await supabase
+        .from("families")
+        .select("id")
+        .or(`family_name.ilike.${term},parent1_phone.ilike.${term}`)
+        .limit(10);
+
+      let byFamily: any[] = [];
+      if (matchedFamilies && matchedFamilies.length > 0) {
+        const familyIds = matchedFamilies.map((f) => f.id);
+        const { data } = await supabase
+          .from("children")
+          .select("id, first_name, last_name, date_of_birth, grade_group, allergies, family_id, families(family_name, parent1_name, parent1_phone)")
+          .in("family_id", familyIds)
+          .limit(20);
+        byFamily = data || [];
+      }
+
+      // Merge & deduplicate
+      const merged = [...(byName || []), ...byFamily];
+      const seen = new Set<string>();
+      const unique = merged.filter((c) => {
+        if (seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+      });
+      return unique as unknown as ChildResult[];
     },
   });
 

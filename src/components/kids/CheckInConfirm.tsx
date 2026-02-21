@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Printer } from "lucide-react";
+import EditFamily from "./EditFamily";
 import { printNameTag, getPrinterStatus } from "@/lib/brotherPrinter";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 
@@ -143,9 +144,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
 
   return (
     <div className="max-w-md space-y-4">
-      <Button variant="ghost" onClick={onBack} className="gap-2">
-        <ArrowLeft className="h-4 w-4" /> Back to search
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" onClick={onBack} className="gap-2">
+          <ArrowLeft className="h-4 w-4" /> Back to search
+        </Button>
+        <EditFamily familyId={child.families ? (child as any).family_id : ""} />
+      </div>
 
       <Card>
         <CardHeader>
