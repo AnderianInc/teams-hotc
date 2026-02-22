@@ -102,10 +102,10 @@ export default function Feedback() {
               </div>
               <div className="space-y-2">
                 <Label>On behalf of team (optional)</Label>
-                <Select value={teamId} onValueChange={setTeamId}>
+                <Select value={teamId} onValueChange={(v) => setTeamId(v === "personal" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Personal feedback" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Personal</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
                     {memberships?.map((m) => (
                       <SelectItem key={m.team_id} value={m.team_id}>{m.teams.name}</SelectItem>
                     ))}
