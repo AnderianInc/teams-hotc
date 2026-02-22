@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield } from "lucide-react";
 import TeamManagement from "@/components/admin/TeamManagement";
 import VolunteerManagement from "@/components/admin/VolunteerManagement";
+import ChurchDirectory from "@/components/admin/ChurchDirectory";
 
 export default function AdminPanel() {
   return (
@@ -21,12 +21,16 @@ export default function AdminPanel() {
         <TabsList>
           <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
+          <TabsTrigger value="directory">Church Directory</TabsTrigger>
         </TabsList>
         <TabsContent value="volunteers">
           <VolunteerManagement />
         </TabsContent>
         <TabsContent value="teams">
           <TeamManagement />
+        </TabsContent>
+        <TabsContent value="directory">
+          <ChurchDirectory />
         </TabsContent>
       </Tabs>
     </div>
