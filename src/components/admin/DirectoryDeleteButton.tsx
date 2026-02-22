@@ -26,34 +26,27 @@ export default function DirectoryDeleteButton({ entryId, entryName, isVolunteerO
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (isVolunteerOnly) {
-      toast.error("This person is a volunteer-only profile. Remove them via Team Management instead.");
-      return;
-    }
     setDeleting(true);
-    const { error } = await supabase.from("attendees").delete().eq("id", entryId);
-    if (error) {
-      toast.error("Failed to delete: " + error.message);
+    if (isVolunteerOnly) {
+      // No attendee record — delete the profile instead
+      const { error } = await supabase.from("profiles").delete().eq("user_id", entryId);
+      if (error) {
+        toast.error("Failed to delete: " + error.message);
+      } else {
+        toast.success(`${entryName} has been removed`);
+        onDeleted();
+      }
     } else {
-      toast.success(`${entryName} has been removed`);
-      onDeleted();
+      const { error } = await supabase.from("attendees").delete().eq("id", entryId);
+      if (error) {
+        toast.error("Failed to delete: " + error.message);
+      } else {
+        toast.success(`${entryName} has been removed`);
+        onDeleted();
+      }
     }
     setDeleting(false);
   };
-
-  if (isVolunteerOnly) {
-    return (
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-8 w-8 text-muted-foreground"
-        onClick={() => toast.info("This volunteer must be removed via Team Management.")}
-        title="Remove via Team Management"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    );
-  }
 
   return (
     <AlertDialog>
