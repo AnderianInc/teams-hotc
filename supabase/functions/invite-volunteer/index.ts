@@ -72,6 +72,51 @@ serve(async (req) => {
 
     if (existingUsers && existingUsers.length > 0) {
       userId = existingUsers[0].user_id;
+
+      // Generate a fresh magic link for resending
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+      });
+
+      if (!linkError && linkData && resendApiKey) {
+        const appUrl = Deno.env.get("SITE_URL") || `https://id-preview--ec8a92d7-c2a0-437b-b7a0-bd32f8d55569.lovable.app`;
+        const confirmUrl = `${supabaseUrl}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(appUrl + "/complete-profile")}`;
+
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "HOTC <hotc@pneumanation.com>",
+            to: [email],
+            subject: `You've been invited to join ${teamName} at House of Transformation Church`,
+            html: `
+              <div style="font-family: 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px; background: #f8f8fc; border-radius: 12px;">
+                <h2 style="color: #2d2b6b; margin-bottom: 8px;">Welcome to House of Transformation Church!</h2>
+                <p style="color: #333; font-size: 16px; line-height: 1.6;">
+                  You've been invited to join <strong>${teamName}</strong> as a volunteer.
+                </p>
+                <p style="color: #333; font-size: 16px; line-height: 1.6;">
+                  Click the button below to accept your invitation, set up your profile, and get started.
+                </p>
+                <div style="text-align: center; margin: 32px 0;">
+                  <a href="${confirmUrl}" 
+                     style="display: inline-block; background: #4338ca; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                    Accept Invitation
+                  </a>
+                </div>
+                <p style="color: #888; font-size: 13px; margin-top: 24px;">
+                  If you didn't expect this invitation, you can safely ignore this email.
+                </p>
+                <p style="color: #888; font-size: 13px;">— The HOTC Team</p>
+              </div>
+            `,
+          }),
+        });
+      }
     } else {
       // Create the user silently (no system email)
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -109,8 +154,6 @@ serve(async (req) => {
 
       if (linkError) throw linkError;
 
-      // Build the redirect URL — the hashed_token is used with verifyOtp
-      const siteUrl = supabaseUrl.replace(".supabase.co", "");
       const appUrl = Deno.env.get("SITE_URL") || `https://id-preview--ec8a92d7-c2a0-437b-b7a0-bd32f8d55569.lovable.app`;
       const confirmUrl = `${supabaseUrl}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(appUrl + "/complete-profile")}`;
 
