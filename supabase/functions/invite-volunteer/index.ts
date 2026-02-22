@@ -80,7 +80,7 @@ serve(async (req) => {
       });
 
       if (!linkError && linkData && resendApiKey) {
-        const appUrl = Deno.env.get("SITE_URL") || `https://id-preview--ec8a92d7-c2a0-437b-b7a0-bd32f8d55569.lovable.app`;
+        const appUrl = Deno.env.get("SITE_URL") || `https://teams.hotc.life`;
         const confirmUrl = `${supabaseUrl}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(appUrl + "/complete-profile")}`;
 
         await fetch("https://api.resend.com/emails", {
@@ -154,7 +154,7 @@ serve(async (req) => {
 
       if (linkError) throw linkError;
 
-      const appUrl = Deno.env.get("SITE_URL") || `https://id-preview--ec8a92d7-c2a0-437b-b7a0-bd32f8d55569.lovable.app`;
+      const appUrl = Deno.env.get("SITE_URL") || `https://teams.hotc.life`;
       const confirmUrl = `${supabaseUrl}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(appUrl + "/complete-profile")}`;
 
       // Send ONE branded email via Resend
