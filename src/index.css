@@ -98,6 +98,17 @@
   }
 }
 
+@layer components {
+  .row-actions {
+    @apply opacity-0 transition-opacity duration-150;
+  }
+  tr:hover .row-actions,
+  .row-actions[data-state="open"],
+  .row-actions:focus-visible {
+    @apply opacity-100;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
