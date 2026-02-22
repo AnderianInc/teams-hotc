@@ -1,76 +1,52 @@
 
 
-# Plan: Enhanced Church Directory, Birthday Messages, and Invite Management
+# Plan: Fix Redirect URLs and Admin Team Visibility
 
-## Overview
-Three enhancements: (1) add birthday column to attendees and directory with automated birthday email, (2) add team membership info to the directory view, and (3) add resend/edit capability for volunteer invitations.
+## 1. Set SITE_URL to `https://teams.hotc.life`
 
----
+The invite emails and password reset links currently redirect to the Lovable preview URL. Two changes are needed:
 
-## 1. Add Birthday Field and Birthday Email System
+### Edge Function (`invite-volunteer/index.ts`)
+- Change the fallback URL on lines 83 and 157 from `https://id-preview--ec8a92d7-c2a0-437b-b7a0-bd32f8d55569.lovable.app` to `https://teams.hotc.life`
+- This is used for the magic link redirect in invitation emails
 
-### Database Migration
-- Add `date_of_birth date` column to the `attendees` table (nullable)
+### Auth config (`supabase/config.toml`)
+- Add `site_url` and `redirect_urls` configuration so the authentication system uses `teams.hotc.life` for all email links (confirmation, password reset, etc.)
 
-### Church Directory Update (`ChurchDirectory.tsx`)
-- Add a "Birthday" column showing the date (formatted as month/day)
-- Also fetch team membership info: query `team_members` joined with `teams` via profiles' `attendee_id` to show which team(s) each person belongs to
-- Add a "Team" column displaying team name badges
+### Login page (`Login.tsx`)
+- The password reset already uses `window.location.origin` which will work correctly once the app is published at `teams.hotc.life`, so no change needed there
 
-### Birthday Email Edge Function
-- Create `supabase/functions/send-birthday-emails/index.ts`
-- Queries `attendees` where `date_of_birth` month/day matches today and email is not null
-- Sends a branded birthday email via Resend from `hotc@pneumanation.com`
-- Designed to be called daily via a cron job (pg_cron + pg_net)
-- Set up the cron schedule to invoke this function once per day
-
-### Profile Completion Page Update (`CompleteProfile.tsx`)
-- Add a "Date of Birth" field so new volunteers can provide their birthday during onboarding
-- Save it to the linked `attendees` record
+### Custom Domains
+- You will need to connect `teams.hotc.life` as a custom domain in Project Settings > Domains
+- Add DNS records: A record for `teams` subdomain pointing to `185.158.133.1`, plus the TXT verification record
+- Also connect `houseoftransformationchurch.com` and `houseoftransformation.church` if desired (these can redirect to the primary `teams.hotc.life` domain)
 
 ---
 
-## 2. Enhanced Church Directory with Team Info
+## 2. Admins See All Teams Under "My Teams"
 
-### Update `ChurchDirectory.tsx`
-- Fetch `team_members` with `teams` and `profiles` to map attendee_id to team names
-- Add "Team(s)" column showing team badges (e.g., "Worship", "First Impressions")
-- Add "Birthday" column
-- Keep existing status badges (Member, Volunteer, Visitor, First Timer)
+Currently `useMyTeams()` only queries `team_members` for the logged-in user's rows. Admins who aren't explicitly added to every team see nothing.
 
----
+### Update `useMyTeams()` in `src/hooks/useTeams.tsx`
+- Accept `isAdmin` from `useAuth()`
+- If `isAdmin` is true, fetch ALL teams from the `teams` table and return them as virtual memberships with role `"admin"`
+- If not admin, keep the existing `team_members` query
 
-## 3. Resend/Edit Invitations
+This single change automatically fixes both:
+- **Dashboard** (`Dashboard.tsx`) -- admin sees all team cards
+- **Sidebar** (`AppSidebar.tsx`) -- admin sees all teams in the sidebar nav
 
-### Update `VolunteerManagement.tsx`
-- Show invite status: for each profile, indicate if they've completed setup (have a `full_name` set) or are still pending
-- Add a "Resend Invite" button per pending volunteer that calls `invite-volunteer` again with the same email/team/role -- this generates a fresh magic link and re-sends the email
-- Add an "Edit" button that opens a dialog to change the volunteer's assigned team or role, then updates `team_members` accordingly
-
-### Update `invite-volunteer/index.ts`
-- When the user already exists (existing user path), also generate a new magic link and send a fresh invite email via Resend (currently it skips the email for existing users)
-- This enables the "resend" functionality
+No changes needed to Dashboard, AppSidebar, or TeamDashboard since they already consume `useMyTeams()` and admins are already allowed access in `TeamDashboard.tsx` via the `isAdmin` check.
 
 ---
 
-## Technical Summary
+## Technical Details
 
-| Task | Files Changed |
-|------|--------------|
-| Add birthday column | New migration |
-| Birthday email function | New `send-birthday-emails/index.ts`, cron SQL |
-| Enhanced directory | `ChurchDirectory.tsx` |
-| Profile completion birthday | `CompleteProfile.tsx` |
-| Resend/edit invites | `VolunteerManagement.tsx`, `invite-volunteer/index.ts` |
-| Config update | `supabase/config.toml` (add `send-birthday-emails`) |
+| File | Change |
+|------|--------|
+| `supabase/functions/invite-volunteer/index.ts` | Replace preview URL with `https://teams.hotc.life` (lines 83, 157) |
+| `supabase/config.toml` | Add auth site_url and redirect_urls config |
+| `src/hooks/useTeams.tsx` | Update `useMyTeams()` to return all teams for admins |
 
-## Implementation Order
-
-1. Database migration (add `date_of_birth` to attendees)
-2. Update `invite-volunteer` edge function to support resending for existing users
-3. Update `VolunteerManagement.tsx` with resend/edit invite buttons
-4. Update `ChurchDirectory.tsx` with birthday and team columns
-5. Update `CompleteProfile.tsx` with birthday field
-6. Create `send-birthday-emails` edge function
-7. Set up daily cron job for birthday emails
+No database migrations needed.
 
