@@ -248,6 +248,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          body_html: string
+          created_at: string | null
+          id: string
+          name: string
+          placeholders: string[] | null
+          slug: string
+          subject: string
+          updated_at: string | null
+        }
+        Insert: {
+          body_html: string
+          created_at?: string | null
+          id?: string
+          name: string
+          placeholders?: string[] | null
+          slug: string
+          subject: string
+          updated_at?: string | null
+        }
+        Update: {
+          body_html?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          placeholders?: string[] | null
+          slug?: string
+          subject?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           created_at: string
