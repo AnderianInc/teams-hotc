@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.register-visitor]
 verify_jwt = false
+
+[functions.send-birthday-emails]
+verify_jwt = false

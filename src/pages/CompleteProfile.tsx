@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function CompleteProfile() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,13 +45,23 @@ export default function CompleteProfile() {
       const { error: pwError } = await supabase.auth.updateUser({ password });
       if (pwError) throw pwError;
 
-      // Update profile
+      // Update profile and attendee birthday
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .update({ full_name: fullName.trim() })
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .select("attendee_id")
+          .single();
+
+        // Save birthday to attendee record if linked
+        if (profile?.attendee_id && dateOfBirth) {
+          await supabase
+            .from("attendees")
+            .update({ date_of_birth: dateOfBirth } as any)
+            .eq("id", profile.attendee_id);
+        }
       }
 
       toast({ title: "Profile completed! Welcome to HOTC." });
@@ -92,6 +103,15 @@ export default function CompleteProfile() {
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Your phone number"
                 maxLength={20}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dob">Date of Birth (optional)</Label>
+              <Input
+                id="dob"
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
               />
             </div>
             <div className="space-y-2">
