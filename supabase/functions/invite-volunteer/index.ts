@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function replacePlaceholders(template: string, values: Record<string, string>): string {
+  let result = template;
+  for (const [key, val] of Object.entries(values)) {
+    result = result.split(`{{${key}}}`).join(val);
+  }
+  return result;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -17,7 +25,6 @@ serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
-    // Verify the caller
     const authHeader = req.headers.get("Authorization")!;
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -28,7 +35,7 @@ serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { email, teamId, role } = await req.json();
 
-    // Check if caller is admin OR team lead of the target team
+    // Check if caller is admin OR team lead
     const { data: callerRoles } = await adminClient
       .from("user_roles")
       .select("role")
@@ -54,7 +61,6 @@ serve(async (req) => {
       }
     }
 
-    // Get team name for the email
     const { data: team } = await adminClient
       .from("teams")
       .select("name")
@@ -62,7 +68,13 @@ serve(async (req) => {
       .single();
     const teamName = team?.name || "the team";
 
-    // Check if user already exists
+    // Load template from DB
+    const { data: tpl } = await adminClient
+      .from("email_templates")
+      .select("subject, body_html")
+      .eq("slug", "volunteer-invite")
+      .single();
+
     const { data: existingUsers } = await adminClient
       .from("profiles")
       .select("user_id")
@@ -70,55 +82,50 @@ serve(async (req) => {
 
     let userId: string;
 
+    const sendInviteEmail = async (confirmUrl: string) => {
+      if (!resendApiKey) return;
+
+      const values: Record<string, string> = {
+        teamName,
+        confirmUrl,
+      };
+
+      const subject = tpl
+        ? replacePlaceholders(tpl.subject, values)
+        : `You've been invited to join ${teamName} at House of Transformation Church`;
+      const html = tpl
+        ? replacePlaceholders(tpl.body_html, values)
+        : `<p>You've been invited to join <strong>${teamName}</strong>. <a href="${confirmUrl}">Accept Invitation</a></p>`;
+
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "HOTC <hotc@pneumanation.com>",
+          to: [email],
+          subject,
+          html,
+        }),
+      });
+    };
+
     if (existingUsers && existingUsers.length > 0) {
       userId = existingUsers[0].user_id;
 
-      // Generate a fresh magic link for resending
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: "magiclink",
         email,
       });
 
-      if (!linkError && linkData && resendApiKey) {
+      if (!linkError && linkData) {
         const appUrl = Deno.env.get("SITE_URL") || `https://teams.hotc.life`;
         const confirmUrl = `${supabaseUrl}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(appUrl + "/complete-profile")}`;
-
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "HOTC <hotc@pneumanation.com>",
-            to: [email],
-            subject: `You've been invited to join ${teamName} at House of Transformation Church`,
-            html: `
-              <div style="font-family: 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px; background: #f8f8fc; border-radius: 12px;">
-                <h2 style="color: #2d2b6b; margin-bottom: 8px;">Welcome to House of Transformation Church!</h2>
-                <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                  You've been invited to join <strong>${teamName}</strong> as a volunteer.
-                </p>
-                <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                  Click the button below to accept your invitation, set up your profile, and get started.
-                </p>
-                <div style="text-align: center; margin: 32px 0;">
-                  <a href="${confirmUrl}" 
-                     style="display: inline-block; background: #4338ca; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                    Accept Invitation
-                  </a>
-                </div>
-                <p style="color: #888; font-size: 13px; margin-top: 24px;">
-                  If you didn't expect this invitation, you can safely ignore this email.
-                </p>
-                <p style="color: #888; font-size: 13px;">— The HOTC Team</p>
-              </div>
-            `,
-          }),
-        });
+        await sendInviteEmail(confirmUrl);
       }
     } else {
-      // Create the user silently (no system email)
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
         email,
         email_confirm: true,
@@ -127,7 +134,6 @@ serve(async (req) => {
       if (createError) throw createError;
       userId = newUser.user.id;
 
-      // Create an attendee record and link to profile
       const { data: attendee } = await adminClient
         .from("attendees")
         .insert({
@@ -146,7 +152,6 @@ serve(async (req) => {
           .eq("user_id", userId);
       }
 
-      // Generate magic link for the single invite email
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: "magiclink",
         email,
@@ -156,52 +161,14 @@ serve(async (req) => {
 
       const appUrl = Deno.env.get("SITE_URL") || `https://teams.hotc.life`;
       const confirmUrl = `${supabaseUrl}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(appUrl + "/complete-profile")}`;
+      await sendInviteEmail(confirmUrl);
 
-      // Send ONE branded email via Resend
-      if (resendApiKey) {
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "HOTC <hotc@pneumanation.com>",
-            to: [email],
-            subject: `You've been invited to join ${teamName} at House of Transformation Church`,
-            html: `
-              <div style="font-family: 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px; background: #f8f8fc; border-radius: 12px;">
-                <h2 style="color: #2d2b6b; margin-bottom: 8px;">Welcome to House of Transformation Church!</h2>
-                <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                  You've been invited to join <strong>${teamName}</strong> as a volunteer.
-                </p>
-                <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                  Click the button below to accept your invitation, set up your profile, and get started.
-                </p>
-                <div style="text-align: center; margin: 32px 0;">
-                  <a href="${confirmUrl}" 
-                     style="display: inline-block; background: #4338ca; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                    Accept Invitation
-                  </a>
-                </div>
-                <p style="color: #888; font-size: 13px; margin-top: 24px;">
-                  If you didn't expect this invitation, you can safely ignore this email.
-                </p>
-                <p style="color: #888; font-size: 13px;">— The HOTC Team</p>
-              </div>
-            `,
-          }),
-        });
-      }
-
-      // Add user role
       await adminClient.from("user_roles").upsert({
         user_id: userId,
         role: role || "member",
       });
     }
 
-    // Add to team
     const { error: teamError } = await adminClient.from("team_members").upsert(
       { team_id: teamId, user_id: userId, role: role || "member" },
       { onConflict: "team_id,user_id" }
