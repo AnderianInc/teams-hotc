@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,9 +9,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -20,52 +17,59 @@ interface Props {
   entryName: string;
   isVolunteerOnly: boolean;
   onDeleted: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function DirectoryDeleteButton({ entryId, entryName, isVolunteerOnly, onDeleted }: Props) {
+export default function DirectoryDeleteButton({ entryId, entryName, isVolunteerOnly, onDeleted, open, onOpenChange }: Props) {
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
     setDeleting(true);
-    if (isVolunteerOnly) {
-      // No attendee record — delete the profile instead
-      const { error } = await supabase.from("profiles").delete().eq("user_id", entryId);
-      if (error) {
-        toast.error("Failed to delete: " + error.message);
+    try {
+      if (isVolunteerOnly) {
+        // Remove team memberships first, then profile
+        await supabase.from("team_members").delete().eq("user_id", entryId);
+        const { error } = await supabase.from("profiles").delete().eq("user_id", entryId);
+        if (error) throw error;
       } else {
-        toast.success(`${entryName} has been removed`);
-        onDeleted();
+        // For attendees: also clean up linked profile & team memberships
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("attendee_id", entryId)
+          .maybeSingle();
+
+        if (profile) {
+          await supabase.from("team_members").delete().eq("user_id", profile.user_id);
+          await supabase.from("profiles").delete().eq("user_id", profile.user_id);
+        }
+
+        const { error } = await supabase.from("attendees").delete().eq("id", entryId);
+        if (error) throw error;
       }
-    } else {
-      const { error } = await supabase.from("attendees").delete().eq("id", entryId);
-      if (error) {
-        toast.error("Failed to delete: " + error.message);
-      } else {
-        toast.success(`${entryName} has been removed`);
-        onDeleted();
-      }
+      toast.success(`${entryName} has been removed`);
+      onDeleted();
+    } catch (e: any) {
+      toast.error("Failed to delete: " + e.message);
     }
     setDeleting(false);
+    onOpenChange(false);
   };
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" disabled={deleting}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {entryName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will permanently remove this person from the directory. This action cannot be undone.
+            This will permanently remove this person from the directory and any team memberships. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Delete
+          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {deleting ? "Deleting..." : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
