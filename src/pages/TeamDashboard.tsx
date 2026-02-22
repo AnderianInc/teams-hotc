@@ -2,7 +2,7 @@ import { useParams, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams, useAllTeams } from "@/hooks/useTeams";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Users } from "lucide-react";
+import { Baby, Users, Sparkles } from "lucide-react";
 import KidsCheckIn from "@/components/kids/KidsCheckIn";
 import FirstImpressionsDashboard from "@/components/first-impressions/FirstImpressionsDashboard";
 import VolunteerTeamDashboard from "@/components/teams/VolunteerTeamDashboard";
@@ -58,8 +58,33 @@ export default function TeamDashboard() {
     );
   }
 
-  if (slug === "first-impressions") {
-    return <FirstImpressionsDashboard />;
+  if (slug === "first-impressions" && team) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">{team.name}</h1>
+          <p className="text-muted-foreground mt-1">Ministry dashboard</p>
+        </div>
+        <Tabs defaultValue="app" className="w-full">
+          <TabsList>
+            <TabsTrigger value="app">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Visitors & Follow-Ups
+            </TabsTrigger>
+            <TabsTrigger value="volunteers">
+              <Users className="h-4 w-4 mr-2" />
+              Volunteers
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="app">
+            <FirstImpressionsDashboard />
+          </TabsContent>
+          <TabsContent value="volunteers">
+            <VolunteerTeamDashboard teamId={team.id} teamName={team.name} teamSlug={team.slug} hideHeader />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
   }
 
   // All other teams get the volunteer dashboard with members + roster

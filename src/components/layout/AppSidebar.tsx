@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
   Shield,
   User,
+  MessageSquare,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
@@ -112,6 +113,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to="/feedback" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <MessageSquare className="h-4 w-4" />
+                <span>Feedback</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink to="/profile" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">

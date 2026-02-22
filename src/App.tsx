@@ -14,6 +14,7 @@ import Dashboard from "@/pages/Dashboard";
 import TeamDashboard from "@/pages/TeamDashboard";
 import AdminPanel from "@/pages/AdminPanel";
 import Profile from "@/pages/Profile";
+import Feedback from "@/pages/Feedback";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,8 @@ const App = () => (
             >
               <Route path="/" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/feedback" element={<Feedback />} />
+              <Route path="/team/:slug" element={<TeamDashboard />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
               <Route
                 path="/admin"

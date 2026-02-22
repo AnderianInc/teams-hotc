@@ -4,6 +4,9 @@ import TeamManagement from "@/components/admin/TeamManagement";
 import VolunteerManagement from "@/components/admin/VolunteerManagement";
 import ChurchDirectory from "@/components/admin/ChurchDirectory";
 import CommunicationsPanel from "@/components/admin/CommunicationsPanel";
+import DeletionRequests from "@/components/admin/DeletionRequests";
+import FeedbackReview from "@/components/admin/FeedbackReview";
+import ChurchRoster from "@/components/admin/ChurchRoster";
 
 export default function AdminPanel() {
   return (
@@ -19,11 +22,14 @@ export default function AdminPanel() {
       </div>
 
       <Tabs defaultValue="volunteers" className="w-full">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
-          <TabsTrigger value="directory">Church Directory</TabsTrigger>
+          <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
+          <TabsTrigger value="feedback">Feedback</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
         </TabsList>
         <TabsContent value="volunteers">
           <VolunteerManagement />
@@ -31,11 +37,20 @@ export default function AdminPanel() {
         <TabsContent value="teams">
           <TeamManagement />
         </TabsContent>
+        <TabsContent value="roster">
+          <ChurchRoster />
+        </TabsContent>
         <TabsContent value="directory">
           <ChurchDirectory />
         </TabsContent>
         <TabsContent value="communications">
           <CommunicationsPanel />
+        </TabsContent>
+        <TabsContent value="feedback">
+          <FeedbackReview />
+        </TabsContent>
+        <TabsContent value="requests">
+          <DeletionRequests />
         </TabsContent>
       </Tabs>
     </div>
