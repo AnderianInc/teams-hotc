@@ -10,10 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, ExternalLink } from "lucide-react";
+import { Plus, ExternalLink, Pencil } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { useAllTeams } from "@/hooks/useTeams";
+import { useAllTeams, Team } from "@/hooks/useTeams";
 
 export default function TeamManagement() {
   const navigate = useNavigate();
@@ -23,6 +23,10 @@ export default function TeamManagement() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [teamType, setTeamType] = useState<string>("volunteer");
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTeam, setEditTeam] = useState<Team | null>(null);
+  const [editType, setEditType] = useState<string>("volunteer");
 
   const addTeam = useMutation({
     mutationFn: async () => {
@@ -36,6 +40,21 @@ export default function TeamManagement() {
       setName("");
       setDescription("");
       setTeamType("volunteer");
+      queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateType = useMutation({
+    mutationFn: async () => {
+      if (!editTeam) return;
+      const { error } = await supabase.from("teams").update({ team_type: editType }).eq("id", editTeam.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Team type updated!");
+      setEditOpen(false);
+      setEditTeam(null);
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -105,6 +124,7 @@ export default function TeamManagement() {
                 <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -125,11 +145,42 @@ export default function TeamManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{t.description || "—"}</TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" onClick={() => { setEditTeam(t); setEditType(t.team_type); setEditOpen(true); }}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
+
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Team — {editTeam?.name}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={(e) => { e.preventDefault(); updateType.mutate(); }} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Team Type</Label>
+                <RadioGroup value={editType} onValueChange={setEditType} className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="volunteer" id="edit-type-volunteer" />
+                    <Label htmlFor="edit-type-volunteer" className="font-normal">Volunteer</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="ministry" id="edit-type-ministry" />
+                    <Label htmlFor="edit-type-ministry" className="font-normal">Ministry</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              <Button type="submit" className="w-full" disabled={updateType.isPending}>
+                {updateType.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
