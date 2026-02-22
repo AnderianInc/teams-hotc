@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EmailComposer from "@/components/admin/EmailComposer";
 
 const statusColors: Record<string, string> = {
@@ -183,34 +184,46 @@ export default function FollowUpList() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {fu.attendees?.email && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {fu.attendees?.email && (
+                            <DropdownMenuItem onClick={() => {
                               setEmailTarget({
                                 email: fu.attendees.email,
                                 name: `${fu.attendees.first_name} ${fu.attendees.last_name}`,
                                 attendeeId: fu.attendee_id,
                               });
                               setEmailOpen(true);
-                            }}
-                          >
-                            <Mail className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {fu.status === "pending" && (
-                          <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: fu.id, status: "contacted" })}>
-                            Mark Contacted
-                          </Button>
-                        )}
-                        {fu.status === "contacted" && (
-                          <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: fu.id, status: "connected" })}>
-                            Mark Connected
-                          </Button>
-                        )}
-                      </div>
+                            }}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Send Email
+                            </DropdownMenuItem>
+                          )}
+                          {fu.status === "pending" && (
+                            <DropdownMenuItem onClick={() => updateStatus.mutate({ id: fu.id, status: "contacted" })}>
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Mark Contacted
+                            </DropdownMenuItem>
+                          )}
+                          {fu.status === "contacted" && (
+                            <DropdownMenuItem onClick={() => updateStatus.mutate({ id: fu.id, status: "connected" })}>
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Mark Connected
+                            </DropdownMenuItem>
+                          )}
+                          {(fu.status === "pending" || fu.status === "contacted") && (
+                            <DropdownMenuItem onClick={() => updateStatus.mutate({ id: fu.id, status: "closed" })}>
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Close
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 );

@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Mail, Trash2, Shield } from "lucide-react";
+import { UserPlus, Mail, Trash2, Shield, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface TeamMemberManagerProps {
   teamId: string;
@@ -24,6 +26,7 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
+  const [removeMember, setRemoveMember] = useState<any>(null);
 
   const { data: members, isLoading } = useQuery({
     queryKey: ["team-members", teamId],
@@ -156,32 +159,37 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
                 <TableCell className="font-medium">{m.profiles?.full_name || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{m.profiles?.email || "—"}</TableCell>
                 <TableCell>
-                  <Select
-                    value={m.role}
-                    onValueChange={(val) => updateRoleMutation.mutate({ memberId: m.id, newRole: val })}
-                  >
-                    <SelectTrigger className="w-[130px] h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="team_lead">Team Lead</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Badge variant={m.role === "team_lead" ? "default" : "secondary"} className="capitalize text-xs">
+                    {m.role === "team_lead" ? "Team Lead" : "Member"}
+                  </Badge>
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => {
-                      if (confirm("Remove this member from the team?")) {
-                        removeMutation.mutate(m.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {m.role !== "team_lead" && (
+                        <DropdownMenuItem onClick={() => updateRoleMutation.mutate({ memberId: m.id, newRole: "team_lead" })}>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Promote to Lead
+                        </DropdownMenuItem>
+                      )}
+                      {m.role === "team_lead" && (
+                        <DropdownMenuItem onClick={() => updateRoleMutation.mutate({ memberId: m.id, newRole: "member" })}>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Set as Member
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRemoveMember(m)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Remove
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
@@ -195,6 +203,23 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
           </TableBody>
         </Table>
       </CardContent>
+
+      <AlertDialog open={!!removeMember} onOpenChange={(open) => !open && setRemoveMember(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove {removeMember?.profiles?.full_name || "this member"} from {teamName}? They can be re-invited later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { removeMutation.mutate(removeMember.id); setRemoveMember(null); }}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

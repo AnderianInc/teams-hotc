@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Check, X } from "lucide-react";
+import { Check, X, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function DeletionRequests() {
   const { toast } = useToast();
@@ -73,14 +74,23 @@ export default function DeletionRequests() {
                   {r.reason && <p className="text-sm text-muted-foreground mt-0.5">{r.reason}</p>}
                   <p className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="destructive" onClick={() => updateRequest.mutate({ id: r.id, status: "approved" })}>
-                    <Check className="h-4 w-4 mr-1" /> Approve
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => updateRequest.mutate({ id: r.id, status: "denied" })}>
-                    <X className="h-4 w-4 mr-1" /> Deny
-                  </Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => updateRequest.mutate({ id: r.id, status: "approved" })}>
+                      <Check className="h-4 w-4 mr-2" />
+                      Approve Deletion
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => updateRequest.mutate({ id: r.id, status: "denied" })}>
+                      <X className="h-4 w-4 mr-2" />
+                      Deny
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
           </div>

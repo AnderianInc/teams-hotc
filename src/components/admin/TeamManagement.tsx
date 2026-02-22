@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { useAllTeams, Team } from "@/hooks/useTeams";
@@ -163,13 +164,28 @@ export default function TeamManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{t.description || "—"}</TableCell>
-                  <TableCell className="flex gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => { setEditTeam(t); setEditName(t.name); setEditDescription(t.description || ""); setEditType(t.team_type); setEditOpen(true); }}>
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTeam(t)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/team/${t.slug}`)}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View Team
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setEditTeam(t); setEditName(t.name); setEditDescription(t.description || ""); setEditType(t.team_type); setEditOpen(true); }}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTeam(t)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Mail, Eye } from "lucide-react";
+import { Mail, Eye, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 
 export default function EmailLog() {
@@ -44,7 +45,7 @@ export default function EmailLog() {
                   <TableHead>To</TableHead>
                   <TableHead>Subject</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>View</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -68,8 +69,8 @@ export default function EmailLog() {
                     <TableCell>
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
