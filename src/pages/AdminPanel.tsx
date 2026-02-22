@@ -3,6 +3,7 @@ import { Shield } from "lucide-react";
 import TeamManagement from "@/components/admin/TeamManagement";
 import VolunteerManagement from "@/components/admin/VolunteerManagement";
 import ChurchDirectory from "@/components/admin/ChurchDirectory";
+import CommunicationsPanel from "@/components/admin/CommunicationsPanel";
 
 export default function AdminPanel() {
   return (
@@ -22,6 +23,7 @@ export default function AdminPanel() {
           <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="directory">Church Directory</TabsTrigger>
+          <TabsTrigger value="communications">Communications</TabsTrigger>
         </TabsList>
         <TabsContent value="volunteers">
           <VolunteerManagement />
@@ -31,6 +33,9 @@ export default function AdminPanel() {
         </TabsContent>
         <TabsContent value="directory">
           <ChurchDirectory />
+        </TabsContent>
+        <TabsContent value="communications">
+          <CommunicationsPanel />
         </TabsContent>
       </Tabs>
     </div>

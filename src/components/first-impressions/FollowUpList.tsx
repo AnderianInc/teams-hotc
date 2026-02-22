@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, XCircle, MessageSquare } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail } from "lucide-react";
+import EmailComposer from "@/components/admin/EmailComposer";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/30",
@@ -32,6 +33,8 @@ const statusIcons: Record<string, React.ElementType> = {
 export default function FollowUpList() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<{ email: string; name: string; attendeeId: string } | null>(null);
   const [attendeeId, setAttendeeId] = useState("");
   const [method, setMethod] = useState("");
   const [notes, setNotes] = useState("");
@@ -42,7 +45,7 @@ export default function FollowUpList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("follow_ups")
-        .select("*, attendees(first_name, last_name), profiles:assigned_to(full_name)")
+        .select("*, attendees(first_name, last_name, email), profiles:assigned_to(full_name)")
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -180,16 +183,34 @@ export default function FollowUpList() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {fu.status === "pending" && (
-                        <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: fu.id, status: "contacted" })}>
-                          Mark Contacted
-                        </Button>
-                      )}
-                      {fu.status === "contacted" && (
-                        <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: fu.id, status: "connected" })}>
-                          Mark Connected
-                        </Button>
-                      )}
+                      <div className="flex gap-1">
+                        {fu.attendees?.email && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEmailTarget({
+                                email: fu.attendees.email,
+                                name: `${fu.attendees.first_name} ${fu.attendees.last_name}`,
+                                attendeeId: fu.attendee_id,
+                              });
+                              setEmailOpen(true);
+                            }}
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {fu.status === "pending" && (
+                          <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: fu.id, status: "contacted" })}>
+                            Mark Contacted
+                          </Button>
+                        )}
+                        {fu.status === "contacted" && (
+                          <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: fu.id, status: "connected" })}>
+                            Mark Connected
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -204,6 +225,24 @@ export default function FollowUpList() {
             </TableBody>
           </Table>
         )}
+
+        {/* Email composer dialog */}
+        <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Send Follow-Up Email</DialogTitle>
+            </DialogHeader>
+            {emailTarget && (
+              <EmailComposer
+                defaultTo={emailTarget.email}
+                defaultToName={emailTarget.name}
+                defaultSubject={`Follow-Up from House of Transformation Church`}
+                relatedAttendeeId={emailTarget.attendeeId}
+                onSent={() => setEmailOpen(false)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
