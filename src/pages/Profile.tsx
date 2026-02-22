@@ -1,0 +1,189 @@
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, Save, User } from "lucide-react";
+
+interface ProfileData {
+  full_name: string;
+  email: string;
+  phone: string;
+  date_of_birth: string;
+  address: string;
+  bio: string;
+  avatar_url: string;
+}
+
+export default function Profile() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<ProfileData>({
+    full_name: "",
+    email: "",
+    phone: "",
+    date_of_birth: "",
+    address: "",
+    bio: "",
+    avatar_url: "",
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, email, phone, date_of_birth, address, bio, avatar_url")
+        .eq("user_id", user.id)
+        .single();
+
+      if (data) {
+        setProfile({
+          full_name: data.full_name ?? "",
+          email: data.email ?? "",
+          phone: (data as any).phone ?? "",
+          date_of_birth: (data as any).date_of_birth ?? "",
+          address: (data as any).address ?? "",
+          bio: (data as any).bio ?? "",
+          avatar_url: data.avatar_url ?? "",
+        });
+      }
+      if (error) console.error("Error loading profile:", error);
+      setLoading(false);
+    })();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: profile.full_name,
+        phone: profile.phone,
+        date_of_birth: profile.date_of_birth || null,
+        address: profile.address,
+        bio: profile.bio,
+        avatar_url: profile.avatar_url || null,
+      } as any)
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to save profile.", variant: "destructive" });
+    } else {
+      toast({ title: "Saved", description: "Your profile has been updated." });
+    }
+    setSaving(false);
+  };
+
+  const initials = profile.full_name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6">
+      <h1 className="text-2xl font-bold tracking-tight">My Profile</h1>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-4">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={profile.avatar_url} />
+            <AvatarFallback className="text-lg">{initials || <User className="h-6 w-6" />}</AvatarFallback>
+          </Avatar>
+          <div>
+            <CardTitle>{profile.full_name || "Your Name"}</CardTitle>
+            <CardDescription>{profile.email}</CardDescription>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input
+                id="full_name"
+                value={profile.full_name}
+                onChange={(e) => setProfile((p) => ({ ...p, full_name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="(555) 123-4567"
+                value={profile.phone}
+                onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="dob">Date of Birth</Label>
+              <Input
+                id="dob"
+                type="date"
+                value={profile.date_of_birth}
+                onChange={(e) => setProfile((p) => ({ ...p, date_of_birth: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="avatar_url">Avatar URL</Label>
+              <Input
+                id="avatar_url"
+                placeholder="https://..."
+                value={profile.avatar_url}
+                onChange={(e) => setProfile((p) => ({ ...p, avatar_url: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              placeholder="123 Main St, City, State"
+              value={profile.address}
+              onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio / About Me</Label>
+            <Textarea
+              id="bio"
+              placeholder="Tell us a little about yourself..."
+              rows={3}
+              value={profile.bio}
+              onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))}
+            />
+          </div>
+
+          <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Profile
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
