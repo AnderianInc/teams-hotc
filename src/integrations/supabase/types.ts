@@ -363,32 +363,44 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           attendee_id: string | null
           avatar_url: string | null
+          bio: string | null
           created_at: string
+          date_of_birth: string | null
           email: string
           full_name: string
           id: string
+          phone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          address?: string | null
           attendee_id?: string | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string
           full_name?: string
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          address?: string | null
           attendee_id?: string | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string
           full_name?: string
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id?: string
         }

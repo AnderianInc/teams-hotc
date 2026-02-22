@@ -25,6 +25,7 @@ import {
   LogOut,
   LayoutDashboard,
   Shield,
+  User,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
@@ -111,6 +112,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to="/profile" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <User className="h-4 w-4" />
+                <span>My Profile</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="text-sidebar-foreground/70 hover:text-sidebar-foreground">
               <LogOut className="h-4 w-4" />
