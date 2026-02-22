@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { QrCode, Download } from "lucide-react";
 
 export default function QRCodeDisplay() {
-  const welcomeUrl = "https://hotc.life/welcome";
+  const welcomeUrl = "https://teams.hotc.life/welcome";
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
