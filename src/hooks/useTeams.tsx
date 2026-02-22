@@ -17,11 +17,23 @@ export interface TeamMembership {
 }
 
 export function useMyTeams() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   return useQuery({
-    queryKey: ["my-teams", user?.id],
+    queryKey: ["my-teams", user?.id, isAdmin],
     enabled: !!user,
     queryFn: async () => {
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from("teams")
+          .select("*")
+          .order("name");
+        if (error) throw error;
+        return (data || []).map((t) => ({
+          team_id: t.id,
+          role: "admin",
+          teams: t,
+        })) as TeamMembership[];
+      }
       const { data, error } = await supabase
         .from("team_members")
         .select("team_id, role, teams:teams(id, name, slug, description)")
