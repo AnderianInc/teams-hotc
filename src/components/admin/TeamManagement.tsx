@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, ExternalLink, Pencil } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { useAllTeams, Team } from "@/hooks/useTeams";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function TeamManagement() {
   const navigate = useNavigate();
@@ -27,6 +28,10 @@ export default function TeamManagement() {
   const [editOpen, setEditOpen] = useState(false);
   const [editTeam, setEditTeam] = useState<Team | null>(null);
   const [editType, setEditType] = useState<string>("volunteer");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+
+  const [deleteTeam, setDeleteTeam] = useState<Team | null>(null);
 
   const addTeam = useMutation({
     mutationFn: async () => {
@@ -45,16 +50,29 @@ export default function TeamManagement() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const updateType = useMutation({
+  const updateTeam = useMutation({
     mutationFn: async () => {
       if (!editTeam) return;
-      const { error } = await supabase.from("teams").update({ team_type: editType }).eq("id", editTeam.id);
+      const { error } = await supabase.from("teams").update({ team_type: editType, name: editName, description: editDescription || null }).eq("id", editTeam.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Team type updated!");
+      toast.success("Team updated!");
       setEditOpen(false);
       setEditTeam(null);
+      queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeTeam = useMutation({
+    mutationFn: async (teamId: string) => {
+      const { error } = await supabase.from("teams").delete().eq("id", teamId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Team deleted!");
+      setDeleteTeam(null);
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -145,9 +163,12 @@ export default function TeamManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{t.description || "—"}</TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => { setEditTeam(t); setEditType(t.team_type); setEditOpen(true); }}>
+                  <TableCell className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => { setEditTeam(t); setEditName(t.name); setEditDescription(t.description || ""); setEditType(t.team_type); setEditOpen(true); }}>
                       <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTeam(t)}>
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -159,9 +180,13 @@ export default function TeamManagement() {
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Team — {editTeam?.name}</DialogTitle>
+              <DialogTitle>Edit Team</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); updateType.mutate(); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); updateTeam.mutate(); }} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Team Name</Label>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} required />
+              </div>
               <div className="space-y-2">
                 <Label>Team Type</Label>
                 <RadioGroup value={editType} onValueChange={setEditType} className="flex gap-4">
@@ -175,12 +200,31 @@ export default function TeamManagement() {
                   </div>
                 </RadioGroup>
               </div>
-              <Button type="submit" className="w-full" disabled={updateType.isPending}>
-                {updateType.isPending ? "Saving..." : "Save Changes"}
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+              </div>
+              <Button type="submit" className="w-full" disabled={updateTeam.isPending}>
+                {updateTeam.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={!!deleteTeam} onOpenChange={(open) => !open && setDeleteTeam(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete "{deleteTeam?.name}"?</AlertDialogTitle>
+              <AlertDialogDescription>This will permanently remove this team and all its member associations. This action cannot be undone.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteTeam && removeTeam.mutate(deleteTeam.id)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
