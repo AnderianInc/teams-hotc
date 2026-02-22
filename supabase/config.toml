@@ -1,1 +1,10 @@
 project_id = "bkrjpqdsnmysxloadmev"
+
+[functions.invite-volunteer]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.register-visitor]
+verify_jwt = false

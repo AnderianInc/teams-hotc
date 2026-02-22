@@ -63,11 +63,13 @@ export type Database = {
           email: string | null
           first_name: string
           first_visit_date: string | null
+          how_heard: string | null
           id: string
           is_member: boolean
           last_name: string
           notes: string | null
           phone: string | null
+          prayer_requests: string | null
           tags: string[] | null
           updated_at: string
         }
@@ -77,11 +79,13 @@ export type Database = {
           email?: string | null
           first_name: string
           first_visit_date?: string | null
+          how_heard?: string | null
           id?: string
           is_member?: boolean
           last_name: string
           notes?: string | null
           phone?: string | null
+          prayer_requests?: string | null
           tags?: string[] | null
           updated_at?: string
         }
@@ -91,11 +95,13 @@ export type Database = {
           email?: string | null
           first_name?: string
           first_visit_date?: string | null
+          how_heard?: string | null
           id?: string
           is_member?: boolean
           last_name?: string
           notes?: string | null
           phone?: string | null
+          prayer_requests?: string | null
           tags?: string[] | null
           updated_at?: string
         }
@@ -282,6 +288,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          attendee_id: string | null
           avatar_url: string | null
           created_at: string
           email: string
@@ -291,6 +298,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attendee_id?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
@@ -300,6 +308,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attendee_id?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
@@ -308,7 +317,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rooms: {
         Row: {

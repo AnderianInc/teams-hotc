@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles } from "lucide-react";
 import AttendeeList from "./AttendeeList";
 import FollowUpList from "./FollowUpList";
+import QRCodeDisplay from "./QRCodeDisplay";
 
 export default function FirstImpressionsDashboard() {
   return (
@@ -21,12 +21,16 @@ export default function FirstImpressionsDashboard() {
         <TabsList>
           <TabsTrigger value="attendees">Visitors & Members</TabsTrigger>
           <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
+          <TabsTrigger value="qrcode">QR Code</TabsTrigger>
         </TabsList>
         <TabsContent value="attendees">
           <AttendeeList />
         </TabsContent>
         <TabsContent value="followups">
           <FollowUpList />
+        </TabsContent>
+        <TabsContent value="qrcode">
+          <QRCodeDisplay />
         </TabsContent>
       </Tabs>
     </div>

@@ -8,6 +8,8 @@ import { ProtectedRoute, AdminRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
 import ResetPassword from "@/pages/ResetPassword";
+import CompleteProfile from "@/pages/CompleteProfile";
+import Welcome from "@/pages/Welcome";
 import Dashboard from "@/pages/Dashboard";
 import TeamDashboard from "@/pages/TeamDashboard";
 import AdminPanel from "@/pages/AdminPanel";
@@ -25,6 +27,8 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/complete-profile" element={<CompleteProfile />} />
+            <Route path="/welcome" element={<Welcome />} />
             <Route
               element={
                 <ProtectedRoute>
