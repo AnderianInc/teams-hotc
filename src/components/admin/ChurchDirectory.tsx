@@ -4,10 +4,41 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users } from "lucide-react";
+import { Search, Users, MoreHorizontal, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
 import DirectoryDeleteButton from "./DirectoryDeleteButton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+
+function DirectoryActionMenu({ entry, onDeleted }: { entry: DirectoryEntry; onDeleted: () => void }) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon" variant="ghost" className="h-8 w-8">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DirectoryDeleteButton
+        entryId={entry.id}
+        entryName={`${entry.first_name} ${entry.last_name}`}
+        isVolunteerOnly={entry.isVolunteerOnly}
+        onDeleted={onDeleted}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
+    </>
+  );
+}
 
 interface DirectoryEntry {
   id: string;
@@ -200,10 +231,8 @@ export default function ChurchDirectory() {
                       </TableCell>
                       {isAdmin && (
                         <TableCell>
-                          <DirectoryDeleteButton
-                            entryId={entry.id}
-                            entryName={`${entry.first_name} ${entry.last_name}`}
-                            isVolunteerOnly={entry.isVolunteerOnly}
+                          <DirectoryActionMenu
+                            entry={entry}
                             onDeleted={fetchDirectory}
                           />
                         </TableCell>

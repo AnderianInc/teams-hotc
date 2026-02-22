@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Mail, RefreshCw, Pencil } from "lucide-react";
+import { UserPlus, Mail, RefreshCw, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
 import { useAllTeams } from "@/hooks/useTeams";
 
 interface ProfileWithTeam {
@@ -33,6 +35,9 @@ export default function VolunteerManagement() {
   const [editProfile, setEditProfile] = useState<ProfileWithTeam | null>(null);
   const [editTeam, setEditTeam] = useState("");
   const [editRole, setEditRole] = useState("member");
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteProfile, setDeleteProfile] = useState<ProfileWithTeam | null>(null);
 
   const { data: teams } = useAllTeams();
 
@@ -80,11 +85,9 @@ export default function VolunteerManagement() {
 
   const editMutation = useMutation({
     mutationFn: async ({ userId, oldTeamId, newTeamId, newRole }: { userId: string; oldTeamId: string; newTeamId: string; newRole: string }) => {
-      // Remove old membership
       if (oldTeamId !== newTeamId) {
         await supabase.from("team_members").delete().eq("user_id", userId).eq("team_id", oldTeamId);
       }
-      // Upsert new membership
       const { error } = await supabase.from("team_members").upsert(
         { user_id: userId, team_id: newTeamId, role: newRole as any },
         { onConflict: "team_id,user_id" } as any
@@ -95,6 +98,21 @@ export default function VolunteerManagement() {
       toast.success("Updated!");
       setEditOpen(false);
       setEditProfile(null);
+      queryClient.invalidateQueries({ queryKey: ["all-profiles-with-teams"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await supabase.from("team_members").delete().eq("user_id", userId);
+      const { error } = await supabase.from("profiles").delete().eq("user_id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Volunteer removed!");
+      setDeleteOpen(false);
+      setDeleteProfile(null);
       queryClient.invalidateQueries({ queryKey: ["all-profiles-with-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -174,7 +192,7 @@ export default function VolunteerManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Team</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -198,30 +216,43 @@ export default function VolunteerManagement() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
-                      {isPending(p) && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={resendMutation.isPending}
-                          onClick={() => {
-                            const firstTeam = p.team_members?.[0];
-                            resendMutation.mutate({
-                              email: p.email,
-                              teamId: firstTeam?.team_id || "",
-                              role: firstTeam?.role || "member",
-                            });
-                          }}
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Resend
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
-                        <Pencil className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                    </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(p)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        {isPending(p) && (
+                          <DropdownMenuItem
+                            disabled={resendMutation.isPending}
+                            onClick={() => {
+                              const firstTeam = p.team_members?.[0];
+                              resendMutation.mutate({
+                                email: p.email,
+                                teamId: firstTeam?.team_id || "",
+                                role: firstTeam?.role || "member",
+                              });
+                            }}
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Resend Invite
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => { setDeleteProfile(p); setDeleteOpen(true); }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -276,6 +307,28 @@ export default function VolunteerManagement() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {deleteProfile?.full_name || deleteProfile?.email}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove this volunteer and their team memberships. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteProfile && deleteMutation.mutate(deleteProfile.user_id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
