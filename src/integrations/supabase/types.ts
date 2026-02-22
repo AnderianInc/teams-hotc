@@ -209,6 +209,45 @@ export type Database = {
           },
         ]
       }
+      email_log: {
+        Row: {
+          body_html: string | null
+          created_at: string | null
+          id: string
+          related_attendee_id: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: string | null
+          subject: string
+          to_email: string
+          to_name: string | null
+        }
+        Insert: {
+          body_html?: string | null
+          created_at?: string | null
+          id?: string
+          related_attendee_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string | null
+          subject: string
+          to_email: string
+          to_name?: string | null
+        }
+        Update: {
+          body_html?: string | null
+          created_at?: string | null
+          id?: string
+          related_attendee_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string | null
+          subject?: string
+          to_email?: string
+          to_name?: string | null
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           created_at: string

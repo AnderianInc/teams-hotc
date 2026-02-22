@@ -33,11 +33,10 @@ export default function ChurchDirectory() {
         .select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth")
         .order("last_name");
 
-      // Get profiles with attendee_id to know who's a volunteer
+      // Get all profiles
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("attendee_id, user_id")
-        .not("attendee_id", "is", null);
+        .select("attendee_id, user_id, full_name, email");
 
       // Get team memberships with team names
       const { data: teamMembers } = await supabase
@@ -52,27 +51,53 @@ export default function ChurchDirectory() {
         userTeamMap.set(tm.user_id, names);
       });
 
-      // Map attendee_id -> { isVolunteer, teamNames }
-      const attendeeInfoMap = new Map<string, { isVolunteer: boolean; teamNames: string[] }>();
+      // Build set of attendee_ids that are linked to profiles
+      const linkedAttendeeIds = new Set<string>();
+      const profilesByAttendeeId = new Map<string, any>();
+      const unlinkedProfiles: any[] = [];
+
       (profiles || []).forEach((p) => {
         if (p.attendee_id) {
-          attendeeInfoMap.set(p.attendee_id, {
-            isVolunteer: true,
-            teamNames: userTeamMap.get(p.user_id) || [],
-          });
+          linkedAttendeeIds.add(p.attendee_id);
+          profilesByAttendeeId.set(p.attendee_id, p);
+        } else {
+          unlinkedProfiles.push(p);
         }
       });
 
-      setEntries(
-        (attendees || []).map((a) => {
-          const info = attendeeInfoMap.get(a.id);
-          return {
-            ...a,
-            isVolunteer: info?.isVolunteer || false,
-            teamNames: info?.teamNames || [],
-          };
-        })
-      );
+      // Build entries from attendees
+      const result: DirectoryEntry[] = (attendees || []).map((a) => {
+        const profile = profilesByAttendeeId.get(a.id);
+        return {
+          ...a,
+          isVolunteer: !!profile,
+          teamNames: profile ? (userTeamMap.get(profile.user_id) || []) : [],
+        };
+      });
+
+      // Add unlinked profiles (volunteers not in attendees table)
+      unlinkedProfiles.forEach((p) => {
+        const nameParts = (p.full_name || "").trim().split(/\s+/);
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+        result.push({
+          id: p.user_id,
+          first_name: firstName,
+          last_name: lastName,
+          email: p.email || null,
+          phone: null,
+          is_member: false,
+          date_of_birth: null,
+          isVolunteer: true,
+          tags: null,
+          teamNames: userTeamMap.get(p.user_id) || [],
+        });
+      });
+
+      // Sort by last name
+      result.sort((a, b) => a.last_name.localeCompare(b.last_name));
+
+      setEntries(result);
       setLoading(false);
     };
     fetchDirectory();

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, ExternalLink } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { useAllTeams } from "@/hooks/useTeams";
 
@@ -21,11 +22,12 @@ export default function TeamManagement() {
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [teamType, setTeamType] = useState<string>("volunteer");
 
   const addTeam = useMutation({
     mutationFn: async () => {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const { error } = await supabase.from("teams").insert({ name, slug, description: description || null });
+      const { error } = await supabase.from("teams").insert({ name, slug, description: description || null, team_type: teamType });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -33,6 +35,7 @@ export default function TeamManagement() {
       setAddOpen(false);
       setName("");
       setDescription("");
+      setTeamType("volunteer");
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -63,6 +66,19 @@ export default function TeamManagement() {
               <div className="space-y-2">
                 <Label>Team Name</Label>
                 <Input placeholder="e.g. Prayer Team" value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Team Type</Label>
+                <RadioGroup value={teamType} onValueChange={setTeamType} className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="volunteer" id="type-volunteer" />
+                    <Label htmlFor="type-volunteer" className="font-normal">Volunteer</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="ministry" id="type-ministry" />
+                    <Label htmlFor="type-ministry" className="font-normal">Ministry</Label>
+                  </div>
+                </RadioGroup>
               </div>
               <div className="space-y-2">
                 <Label>Description (optional)</Label>
