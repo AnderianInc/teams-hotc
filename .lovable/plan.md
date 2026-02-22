@@ -1,114 +1,47 @@
 
 
-# Plan: Address Autocomplete, Editable Email Templates, and Directory Deletion
+# Volunteer Profile Page
 
-## 1. Real-Time Address Lookup on Welcome Form
+## Overview
+Add a dedicated profile page where volunteers can view and edit their personal bio information like phone number, date of birth, address, and a short bio/about section.
 
-Use the **Google Places Autocomplete API** to provide real-time address suggestions as visitors type in the address field.
+## What You'll See
+- A new "My Profile" link in the sidebar (available to all logged-in users)
+- A profile page at `/profile` showing your current info with editable fields:
+  - **Full Name**
+  - **Phone Number**
+  - **Date of Birth**
+  - **Address**
+  - **Bio / About Me** (short text about yourself)
+  - **Avatar URL** (existing field, now editable)
+- A save button to update your information
 
-### Approach
-- Create a new edge function `address-autocomplete` that proxies requests to the Google Places API (keeps the API key server-side and secure)
-- Replace the plain `Input` for address in `Welcome.tsx` with a custom `AddressAutocomplete` component that calls this edge function as the user types (debounced) and displays suggestions in a dropdown
-- A Google Maps API key will be needed as a secret
+## Technical Details
 
-### New Files
-- `supabase/functions/address-autocomplete/index.ts` -- proxies to Google Places Autocomplete API
-- `src/components/welcome/AddressAutocomplete.tsx` -- debounced input with suggestion dropdown
+### 1. Database Changes
+Add new columns to the `profiles` table for the additional bio fields:
 
-### Modified Files
-- `src/pages/Welcome.tsx` -- swap plain `Input` for `AddressAutocomplete`
-- `supabase/config.toml` -- add `[functions.address-autocomplete]` with `verify_jwt = false`
-
----
-
-## 2. Editable Email Templates
-
-Currently, all email HTML is hardcoded inside the edge functions (`register-visitor`, `invite-volunteer`, `send-birthday-emails`). There is no way for admins to edit these templates.
-
-### Approach
-- Create an `email_templates` database table to store templates by a unique slug (e.g., `welcome-visitor`, `volunteer-invite`, `birthday`)
-- Each template has a `subject` pattern and `body_html` pattern with `{{placeholder}}` merge tags (e.g., `{{firstName}}`, `{{teamName}}`)
-- Build an **Email Templates** management UI in the Admin Panel Communications tab where admins can view, edit, and preview each template
-- Update the three edge functions to load the template from the database and perform placeholder substitution instead of using hardcoded HTML
-- Seed the database with the current hardcoded templates so nothing breaks
-
-### Database Migration
 ```sql
-CREATE TABLE public.email_templates (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug text UNIQUE NOT NULL,
-  name text NOT NULL,
-  subject text NOT NULL,
-  body_html text NOT NULL,
-  placeholders text[] DEFAULT '{}',
-  updated_at timestamptz DEFAULT now(),
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.email_templates ENABLE ROW LEVEL SECURITY;
-
--- Only admins can manage templates
-CREATE POLICY "Admins can manage email templates"
-  ON public.email_templates FOR ALL
-  USING (has_role(auth.uid(), 'admin'));
-
--- Seed with current templates
-INSERT INTO public.email_templates (slug, name, subject, body_html, placeholders) VALUES
-  ('welcome-visitor', 'Welcome Visitor', 'Welcome to House of Transformation Church!', '<current welcome HTML with {{firstName}} etc>', ARRAY['firstName', 'prayerRequests']),
-  ('volunteer-invite', 'Volunteer Invitation', 'You''ve been invited to join {{teamName}} at House of Transformation Church', '<current invite HTML with {{teamName}}, {{confirmUrl}}>', ARRAY['teamName', 'confirmUrl']),
-  ('birthday', 'Birthday Greeting', '{{birthdayEmoji}} Happy Birthday, {{firstName}}!', '<current birthday HTML with {{firstName}}>', ARRAY['firstName']);
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS phone text,
+  ADD COLUMN IF NOT EXISTS date_of_birth date,
+  ADD COLUMN IF NOT EXISTS address text,
+  ADD COLUMN IF NOT EXISTS bio text;
 ```
 
-### New Files
-- `src/components/admin/EmailTemplates.tsx` -- list, edit, and preview templates
+No RLS changes needed -- the existing policy already allows users to update their own profile (`auth.uid() = user_id`).
 
-### Modified Files
-- `src/components/admin/CommunicationsPanel.tsx` -- add a "Templates" tab alongside Composer and Log
-- `supabase/functions/register-visitor/index.ts` -- load template by slug, replace placeholders
-- `supabase/functions/invite-volunteer/index.ts` -- load template by slug, replace placeholders
-- `supabase/functions/send-birthday-emails/index.ts` -- load template by slug, replace placeholders
+### 2. New Files
+- **`src/pages/Profile.tsx`** -- The profile page with a form to view/edit bio fields. Loads the current user's profile on mount, allows editing, and saves via Supabase update.
 
----
+### 3. Modified Files
+- **`src/App.tsx`** -- Add a `/profile` route inside the protected layout
+- **`src/components/layout/AppSidebar.tsx`** -- Add a "My Profile" link (User icon) in the sidebar footer, above the sign-out button
 
-## 3. Admin-Only Directory Deletion
-
-Currently the Church Directory table is read-only. Add a delete button visible only to admins.
-
-### Approach
-- Add a **Delete** button (trash icon) in each row of the directory table, visible only when the current user is an admin
-- Deleting an attendee-based entry removes the record from the `attendees` table
-- Deleting a volunteer-only entry (profile with no attendee link) shows a message that the volunteer must be removed via team management (since deleting a profile would orphan their auth account)
-- Add an `AlertDialog` confirmation before deletion
-- Pass `isAdmin` from `useAuth()` into `ChurchDirectory` or use it directly
-
-### Database Change
-- Add a DELETE RLS policy on `attendees` for admins:
-```sql
-CREATE POLICY "Admins can delete attendees"
-  ON public.attendees FOR DELETE
-  USING (has_role(auth.uid(), 'admin'));
-```
-
-### Modified Files
-- `src/components/admin/ChurchDirectory.tsx` -- add delete button, confirmation dialog, and delete mutation
-
----
-
-## Technical Summary
-
-| Task | Files Changed/Created |
-|------|----------------------|
-| Address autocomplete | New: `address-autocomplete/index.ts`, `AddressAutocomplete.tsx`. Modified: `Welcome.tsx`, `config.toml` |
-| Email templates | New migration, new: `EmailTemplates.tsx`. Modified: `CommunicationsPanel.tsx`, `register-visitor`, `invite-volunteer`, `send-birthday-emails` |
-| Directory deletion | New migration (DELETE policy). Modified: `ChurchDirectory.tsx` |
-
-## Implementation Order
-
-1. Request Google Maps API key secret
-2. Database migrations (email_templates table + seed data, attendees DELETE policy)
-3. Address autocomplete edge function and component
-4. Update Welcome.tsx with autocomplete
-5. Email templates management UI
-6. Update edge functions to use database templates
-7. Directory delete functionality
+### 4. Implementation Approach
+- On page load, fetch the user's profile row from the `profiles` table
+- Display all fields in a clean card layout with input fields
+- On save, update the `profiles` table (RLS ensures only own profile)
+- Show success/error toast notifications
+- The `CompleteProfile` page (onboarding) will also save phone to the new `phone` column
 
