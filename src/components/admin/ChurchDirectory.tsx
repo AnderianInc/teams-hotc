@@ -45,10 +45,12 @@ export default function ChurchDirectory() {
       .select("user_id, teams:teams(name)");
 
     const userTeamMap = new Map<string, string[]>();
+    const usersWithTeams = new Set<string>();
     (teamMembers || []).forEach((tm: any) => {
       const names = userTeamMap.get(tm.user_id) || [];
       if (tm.teams?.name) names.push(tm.teams.name);
       userTeamMap.set(tm.user_id, names);
+      usersWithTeams.add(tm.user_id);
     });
 
     const profilesByAttendeeId = new Map<string, any>();
@@ -73,6 +75,7 @@ export default function ChurchDirectory() {
     });
 
     unlinkedProfiles.forEach((p) => {
+      const hasTeams = usersWithTeams.has(p.user_id);
       const nameParts = (p.full_name || "").trim().split(/\s+/);
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ") || "";
@@ -84,8 +87,8 @@ export default function ChurchDirectory() {
         phone: null,
         is_member: false,
         date_of_birth: null,
-        isVolunteer: true,
-        isVolunteerOnly: true,
+        isVolunteer: hasTeams,
+        isVolunteerOnly: hasTeams,
         tags: null,
         teamNames: userTeamMap.get(p.user_id) || [],
       });

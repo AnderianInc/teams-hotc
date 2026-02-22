@@ -7,6 +7,7 @@ import CommunicationsPanel from "@/components/admin/CommunicationsPanel";
 import DeletionRequests from "@/components/admin/DeletionRequests";
 import FeedbackReview from "@/components/admin/FeedbackReview";
 import ChurchRoster from "@/components/admin/ChurchRoster";
+import RosterCalendarView from "@/components/admin/RosterCalendarView";
 
 export default function AdminPanel() {
   return (
@@ -38,7 +39,10 @@ export default function AdminPanel() {
           <TeamManagement />
         </TabsContent>
         <TabsContent value="roster">
-          <ChurchRoster />
+          <div className="space-y-6">
+            <RosterCalendarView />
+            <ChurchRoster />
+          </div>
         </TabsContent>
         <TabsContent value="directory">
           <ChurchDirectory />
