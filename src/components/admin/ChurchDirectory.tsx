@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
+import DirectoryDeleteButton from "./DirectoryDeleteButton";
 
 interface DirectoryEntry {
   id: string;
@@ -16,92 +18,85 @@ interface DirectoryEntry {
   is_member: boolean;
   date_of_birth: string | null;
   isVolunteer: boolean;
+  isVolunteerOnly: boolean;
   tags: string[] | null;
   teamNames: string[];
 }
 
 export default function ChurchDirectory() {
+  const { isAdmin } = useAuth();
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDirectory = async () => {
-      // Get all attendees
-      const { data: attendees } = await supabase
-        .from("attendees")
-        .select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth")
-        .order("last_name");
+  const fetchDirectory = useCallback(async () => {
+    setLoading(true);
+    const { data: attendees } = await supabase
+      .from("attendees")
+      .select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth")
+      .order("last_name");
 
-      // Get all profiles
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("attendee_id, user_id, full_name, email");
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("attendee_id, user_id, full_name, email");
 
-      // Get team memberships with team names
-      const { data: teamMembers } = await supabase
-        .from("team_members")
-        .select("user_id, teams:teams(name)");
+    const { data: teamMembers } = await supabase
+      .from("team_members")
+      .select("user_id, teams:teams(name)");
 
-      // Map user_id -> team names
-      const userTeamMap = new Map<string, string[]>();
-      (teamMembers || []).forEach((tm: any) => {
-        const names = userTeamMap.get(tm.user_id) || [];
-        if (tm.teams?.name) names.push(tm.teams.name);
-        userTeamMap.set(tm.user_id, names);
+    const userTeamMap = new Map<string, string[]>();
+    (teamMembers || []).forEach((tm: any) => {
+      const names = userTeamMap.get(tm.user_id) || [];
+      if (tm.teams?.name) names.push(tm.teams.name);
+      userTeamMap.set(tm.user_id, names);
+    });
+
+    const profilesByAttendeeId = new Map<string, any>();
+    const unlinkedProfiles: any[] = [];
+
+    (profiles || []).forEach((p) => {
+      if (p.attendee_id) {
+        profilesByAttendeeId.set(p.attendee_id, p);
+      } else {
+        unlinkedProfiles.push(p);
+      }
+    });
+
+    const result: DirectoryEntry[] = (attendees || []).map((a) => {
+      const profile = profilesByAttendeeId.get(a.id);
+      return {
+        ...a,
+        isVolunteer: !!profile,
+        isVolunteerOnly: false,
+        teamNames: profile ? (userTeamMap.get(profile.user_id) || []) : [],
+      };
+    });
+
+    unlinkedProfiles.forEach((p) => {
+      const nameParts = (p.full_name || "").trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      result.push({
+        id: p.user_id,
+        first_name: firstName,
+        last_name: lastName,
+        email: p.email || null,
+        phone: null,
+        is_member: false,
+        date_of_birth: null,
+        isVolunteer: true,
+        isVolunteerOnly: true,
+        tags: null,
+        teamNames: userTeamMap.get(p.user_id) || [],
       });
+    });
 
-      // Build set of attendee_ids that are linked to profiles
-      const linkedAttendeeIds = new Set<string>();
-      const profilesByAttendeeId = new Map<string, any>();
-      const unlinkedProfiles: any[] = [];
-
-      (profiles || []).forEach((p) => {
-        if (p.attendee_id) {
-          linkedAttendeeIds.add(p.attendee_id);
-          profilesByAttendeeId.set(p.attendee_id, p);
-        } else {
-          unlinkedProfiles.push(p);
-        }
-      });
-
-      // Build entries from attendees
-      const result: DirectoryEntry[] = (attendees || []).map((a) => {
-        const profile = profilesByAttendeeId.get(a.id);
-        return {
-          ...a,
-          isVolunteer: !!profile,
-          teamNames: profile ? (userTeamMap.get(profile.user_id) || []) : [],
-        };
-      });
-
-      // Add unlinked profiles (volunteers not in attendees table)
-      unlinkedProfiles.forEach((p) => {
-        const nameParts = (p.full_name || "").trim().split(/\s+/);
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
-        result.push({
-          id: p.user_id,
-          first_name: firstName,
-          last_name: lastName,
-          email: p.email || null,
-          phone: null,
-          is_member: false,
-          date_of_birth: null,
-          isVolunteer: true,
-          tags: null,
-          teamNames: userTeamMap.get(p.user_id) || [],
-        });
-      });
-
-      // Sort by last name
-      result.sort((a, b) => a.last_name.localeCompare(b.last_name));
-
-      setEntries(result);
-      setLoading(false);
-    };
-    fetchDirectory();
+    result.sort((a, b) => a.last_name.localeCompare(b.last_name));
+    setEntries(result);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchDirectory(); }, [fetchDirectory]);
 
   const filtered = entries.filter((e) => {
     const q = search.toLowerCase();
@@ -158,12 +153,13 @@ export default function ChurchDirectory() {
                   <TableHead>Birthday</TableHead>
                   <TableHead>Team(s)</TableHead>
                   <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="w-12"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">
                       No members found
                     </TableCell>
                   </TableRow>
@@ -199,6 +195,16 @@ export default function ChurchDirectory() {
                           )}
                         </div>
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <DirectoryDeleteButton
+                            entryId={entry.id}
+                            entryName={`${entry.first_name} ${entry.last_name}`}
+                            isVolunteerOnly={entry.isVolunteerOnly}
+                            onDeleted={fetchDirectory}
+                          />
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}

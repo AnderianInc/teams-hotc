@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function replacePlaceholders(template: string, values: Record<string, string>): string {
+  let result = template;
+  for (const [key, val] of Object.entries(values)) {
+    result = result.split(`{{${key}}}`).join(val);
+  }
+  return result;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -25,12 +33,10 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get today's month and day
     const today = new Date();
     const month = today.getMonth() + 1;
     const day = today.getDate();
 
-    // Query attendees whose birthday is today and have an email
     const { data: birthdayPeople, error } = await adminClient
       .from("attendees")
       .select("id, first_name, last_name, email, date_of_birth")
@@ -39,17 +45,31 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    // Filter for today's birthdays (month/day match)
     const todaysBirthdays = (birthdayPeople || []).filter((p) => {
       if (!p.date_of_birth) return false;
       const dob = new Date(p.date_of_birth + "T00:00:00");
       return dob.getMonth() + 1 === month && dob.getDate() === day;
     });
 
+    // Load template from DB
+    const { data: tpl } = await adminClient
+      .from("email_templates")
+      .select("subject, body_html")
+      .eq("slug", "birthday")
+      .single();
+
     let sent = 0;
 
     for (const person of todaysBirthdays) {
       if (!person.email) continue;
+
+      const values: Record<string, string> = {
+        firstName: person.first_name,
+        birthdayEmoji: "🎂",
+      };
+
+      const subject = tpl ? replacePlaceholders(tpl.subject, values) : `🎂 Happy Birthday, ${person.first_name}!`;
+      const html = tpl ? replacePlaceholders(tpl.body_html, values) : `<p>Happy Birthday, ${person.first_name}!</p>`;
 
       await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -60,22 +80,8 @@ serve(async (req) => {
         body: JSON.stringify({
           from: "HOTC <hotc@pneumanation.com>",
           to: [person.email],
-          subject: `🎂 Happy Birthday, ${person.first_name}!`,
-          html: `
-            <div style="font-family: 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px; background: #f8f8fc; border-radius: 12px;">
-              <h2 style="color: #2d2b6b; margin-bottom: 8px;">🎂 Happy Birthday, ${person.first_name}!</h2>
-              <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                From all of us at <strong>House of Transformation Church</strong>, we want to wish you the happiest of birthdays!
-              </p>
-              <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                May God bless you abundantly in this new year of life. We are so grateful to have you as part of our church family. 🙏
-              </p>
-              <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                Enjoy your special day!
-              </p>
-              <p style="color: #888; font-size: 13px; margin-top: 24px;">— With love, The HOTC Family</p>
-            </div>
-          `,
+          subject,
+          html,
         }),
       });
       sent++;
