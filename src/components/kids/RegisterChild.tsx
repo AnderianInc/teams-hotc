@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, Plus, X, Copy } from "lucide-react";
 
 interface RegisterChildProps {
   onBack: () => void;
@@ -15,6 +15,7 @@ interface RegisterChildProps {
 }
 
 interface SiblingEntry {
+  id: string;
   firstName: string;
   lastName: string;
   dob: string;
@@ -24,6 +25,7 @@ interface SiblingEntry {
 }
 
 const emptySibling = (): SiblingEntry => ({
+  id: crypto.randomUUID(),
   firstName: "",
   lastName: "",
   dob: "",
@@ -31,6 +33,67 @@ const emptySibling = (): SiblingEntry => ({
   allergies: "",
   medicalNotes: "",
 });
+
+/* ── Extracted to module level so React preserves identity across renders ── */
+function ChildFields({
+  label,
+  data,
+  onChange,
+  onRemove,
+  extraAction,
+}: {
+  label: string;
+  data: { firstName: string; lastName: string; dob: string; gradeGroup: string; allergies: string; medicalNotes: string };
+  onChange: (field: string, value: string) => void;
+  onRemove?: () => void;
+  extraAction?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+          {label}
+        </h3>
+        {onRemove && (
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemove}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>First Name</Label>
+          <Input value={data.firstName} onChange={(e) => onChange("firstName", e.target.value)} required />
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <Label>Last Name</Label>
+            {extraAction}
+          </div>
+          <Input value={data.lastName} onChange={(e) => onChange("lastName", e.target.value)} required />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>Date of Birth</Label>
+          <Input type="date" value={data.dob} onChange={(e) => onChange("dob", e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <Label>Grade/Age Group</Label>
+          <Input placeholder="e.g. Pre-K" value={data.gradeGroup} onChange={(e) => onChange("gradeGroup", e.target.value)} />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label>Allergies</Label>
+        <Input placeholder="e.g. Peanuts, dairy" value={data.allergies} onChange={(e) => onChange("allergies", e.target.value)} />
+      </div>
+      <div className="space-y-1">
+        <Label>Medical Notes</Label>
+        <Textarea placeholder="Any other medical info..." value={data.medicalNotes} onChange={(e) => onChange("medicalNotes", e.target.value)} />
+      </div>
+    </div>
+  );
+}
 
 export default function RegisterChild({ onBack, onRegistered }: RegisterChildProps) {
   const queryClient = useQueryClient();
@@ -63,9 +126,13 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
     setSiblings((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const applyLastNameToAll = () => {
+    setSiblings((prev) => prev.map((s) => ({ ...s, lastName: form.lastName })));
+    toast.success("Last name applied to all siblings");
+  };
+
   const register = useMutation({
     mutationFn: async () => {
-      // Create family
       const { data: family, error: famErr } = await supabase
         .from("families")
         .insert({
@@ -79,7 +146,6 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
         .single();
       if (famErr) throw famErr;
 
-      // Build all children rows (primary + siblings)
       const allChildren = [
         {
           family_id: family.id,
@@ -107,7 +173,6 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
         .select("id, first_name, last_name, date_of_birth, grade_group, allergies, family_id, families(family_name, parent1_name, parent1_phone)");
       if (childErr) throw childErr;
 
-      // Return first child for check-in flow
       return children[0];
     },
     onSuccess: (child) => {
@@ -118,59 +183,6 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const ChildFields = ({
-    label,
-    data,
-    onChange,
-    onRemove,
-  }: {
-    label: string;
-    data: { firstName: string; lastName: string; dob: string; gradeGroup: string; allergies: string; medicalNotes: string };
-    onChange: (field: string, value: string) => void;
-    onRemove?: () => void;
-  }) => (
-    <div className="space-y-3 rounded-lg border border-border p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-          {label}
-        </h3>
-        {onRemove && (
-          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemove}>
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>First Name</Label>
-          <Input value={data.firstName} onChange={(e) => onChange("firstName", e.target.value)} required />
-        </div>
-        <div className="space-y-1">
-          <Label>Last Name</Label>
-          <Input value={data.lastName} onChange={(e) => onChange("lastName", e.target.value)} required />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>Date of Birth</Label>
-          <Input type="date" value={data.dob} onChange={(e) => onChange("dob", e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <Label>Grade/Age Group</Label>
-          <Input placeholder="e.g. Pre-K" value={data.gradeGroup} onChange={(e) => onChange("gradeGroup", e.target.value)} />
-        </div>
-      </div>
-      <div className="space-y-1">
-        <Label>Allergies</Label>
-        <Input placeholder="e.g. Peanuts, dairy" value={data.allergies} onChange={(e) => onChange("allergies", e.target.value)} />
-      </div>
-      <div className="space-y-1">
-        <Label>Medical Notes</Label>
-        <Textarea placeholder="Any other medical info..." value={data.medicalNotes} onChange={(e) => onChange("medicalNotes", e.target.value)} />
-      </div>
-    </div>
-  );
 
   return (
     <div className="max-w-lg space-y-4">
@@ -226,12 +238,25 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
               label="Child Information"
               data={form}
               onChange={(field, value) => update(field, value)}
+              extraAction={
+                siblings.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-xs text-muted-foreground gap-1"
+                    onClick={applyLastNameToAll}
+                  >
+                    <Copy className="h-3 w-3" /> Apply to all
+                  </Button>
+                ) : undefined
+              }
             />
 
             {/* Siblings */}
             {siblings.map((sib, i) => (
               <ChildFields
-                key={i}
+                key={sib.id}
                 label={`Sibling ${i + 1}`}
                 data={sib}
                 onChange={(field, value) => updateSibling(i, field as keyof SiblingEntry, value)}
