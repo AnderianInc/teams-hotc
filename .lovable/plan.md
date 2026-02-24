@@ -1,47 +1,26 @@
 
 
-# Volunteer Profile Page
+## Register New Family Improvements
 
-## Overview
-Add a dedicated profile page where volunteers can view and edit their personal bio information like phone number, date of birth, address, and a short bio/about section.
+### Bug Fix: Input loses focus after each keystroke
 
-## What You'll See
-- A new "My Profile" link in the sidebar (available to all logged-in users)
-- A profile page at `/profile` showing your current info with editable fields:
-  - **Full Name**
-  - **Phone Number**
-  - **Date of Birth**
-  - **Address**
-  - **Bio / About Me** (short text about yourself)
-  - **Avatar URL** (existing field, now editable)
-- A save button to update your information
+**Root cause:** The `ChildFields` component is defined as a function **inside** the `RegisterChild` component body (line 122). Every time state changes (i.e., every keystroke), `RegisterChild` re-renders, creating a brand-new `ChildFields` function reference. React treats this as a completely different component and unmounts/remounts it, destroying the focused input.
 
-## Technical Details
+**Fix:** Move `ChildFields` outside of `RegisterChild` as a standalone component at module level. This ensures React reuses the same component identity across renders and preserves input focus.
 
-### 1. Database Changes
-Add new columns to the `profiles` table for the additional bio fields:
+### Feature: Copy family last name to all children
 
-```sql
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS phone text,
-  ADD COLUMN IF NOT EXISTS date_of_birth date,
-  ADD COLUMN IF NOT EXISTS address text,
-  ADD COLUMN IF NOT EXISTS bio text;
-```
+Add a small "Apply to all" button next to the primary child's Last Name field. When clicked, it copies the current last name value to all sibling entries at once. This saves time when registering multiple children from the same family.
 
-No RLS changes needed -- the existing policy already allows users to update their own profile (`auth.uid() = user_id`).
+---
 
-### 2. New Files
-- **`src/pages/Profile.tsx`** -- The profile page with a form to view/edit bio fields. Loads the current user's profile on mount, allows editing, and saves via Supabase update.
+### Technical Details
 
-### 3. Modified Files
-- **`src/App.tsx`** -- Add a `/profile` route inside the protected layout
-- **`src/components/layout/AppSidebar.tsx`** -- Add a "My Profile" link (User icon) in the sidebar footer, above the sign-out button
+**File:** `src/components/kids/RegisterChild.tsx`
 
-### 4. Implementation Approach
-- On page load, fetch the user's profile row from the `profiles` table
-- Display all fields in a clean card layout with input fields
-- On save, update the `profiles` table (RLS ensures only own profile)
-- Show success/error toast notifications
-- The `CompleteProfile` page (onboarding) will also save phone to the new `phone` column
+1. **Extract `ChildFields`** -- Move the component definition (currently lines 122-173) above and outside of the `RegisterChild` function. Pass the same props interface.
+
+2. **Add "Apply last name to all" button** -- After the primary child's Last Name input (rendered via `ChildFields`), add a small button that sets `lastName` on every sibling entry to match the primary child's `form.lastName`. This button only appears when siblings exist. It will be placed in the Parent/Guardian section near Family Name, or as a subtle link-style button next to the primary child's last name field.
+
+3. **Stable keys for siblings** -- Replace `key={i}` with a stable unique ID per sibling (e.g., add an `id` field using `crypto.randomUUID()` to each `SiblingEntry`). This further prevents unnecessary re-mounting when siblings are added/removed.
 
