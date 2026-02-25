@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +85,7 @@ function DirectoryActionMenu({ entry, onRefresh }: { entry: DirectoryEntry; onRe
 
 export default function ChurchDirectory() {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -264,7 +266,11 @@ export default function ChurchDirectory() {
                   </TableRow>
                 ) : (
                   filtered.map((entry) => (
-                    <TableRow key={`${entry.source}-${entry.id}`}>
+                    <TableRow
+                      key={`${entry.source}-${entry.id}`}
+                      className={entry.source !== "family" ? "cursor-pointer hover:bg-muted/50" : ""}
+                      onClick={() => entry.source !== "family" && !entry.isVolunteerOnly && navigate(`/admin/directory/${entry.id}`)}
+                    >
                       <TableCell className="font-medium">
                         {entry.source === "family" ? (
                           <div>
@@ -308,7 +314,7 @@ export default function ChurchDirectory() {
                         </div>
                       </TableCell>
                       {isAdmin && (
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DirectoryActionMenu entry={entry} onRefresh={fetchDirectory} />
                         </TableCell>
                       )}
