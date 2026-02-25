@@ -263,8 +263,11 @@ export default function ChurchDirectory() {
                   filtered.map((entry) => (
                     <TableRow
                       key={`${entry.source}-${entry.id}`}
-                      className={entry.source !== "family" ? "cursor-pointer hover:bg-muted/50" : ""}
-                      onClick={() => entry.source !== "family" && !entry.isVolunteerOnly && navigate(`/admin/directory/${entry.id}`)}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        if (entry.source === "family") navigate(`/admin/directory/family/${entry.id}`);
+                        else if (!entry.isVolunteerOnly) navigate(`/admin/directory/${entry.id}`);
+                      }}
                     >
                       <TableCell className="font-medium">
                         {entry.source === "family" ? (

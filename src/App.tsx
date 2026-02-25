@@ -14,6 +14,7 @@ import Dashboard from "@/pages/Dashboard";
 import TeamDashboard from "@/pages/TeamDashboard";
 import AdminPanel from "@/pages/AdminPanel";
 import DirectoryEntryDetail from "@/pages/DirectoryEntryDetail";
+import FamilyDetail from "@/pages/FamilyDetail";
 import Profile from "@/pages/Profile";
 import Feedback from "@/pages/Feedback";
 import NotFound from "@/pages/NotFound";
@@ -49,6 +50,14 @@ const App = () => (
                 element={
                   <AdminRoute>
                     <AdminPanel />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/directory/family/:id"
+                element={
+                  <AdminRoute>
+                    <FamilyDetail />
                   </AdminRoute>
                 }
               />
