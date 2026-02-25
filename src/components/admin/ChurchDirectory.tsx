@@ -158,8 +158,7 @@ export default function ChurchDirectory() {
       });
     });
 
-    // Add family entries (grouped) — skip families whose children are already linked as attendees
-    const attendeeNames = new Set(attendees.map((a) => `${a.first_name.toLowerCase()}|${a.last_name.toLowerCase()}`));
+    // Add family entries (grouped) — always show families with children
     const childrenByFamily = new Map<string, typeof children>();
     children.forEach((c) => {
       const list = childrenByFamily.get(c.family_id) || [];
@@ -169,11 +168,7 @@ export default function ChurchDirectory() {
 
     families.forEach((fam) => {
       const famChildren = childrenByFamily.get(fam.id) || [];
-      // Skip if all children already exist as attendees
-      const unlinkedChildren = famChildren.filter(
-        (c) => !attendeeNames.has(`${c.first_name.toLowerCase()}|${c.last_name.toLowerCase()}`)
-      );
-      if (unlinkedChildren.length === 0) return;
+      if (famChildren.length === 0) return;
 
       result.push({
         id: fam.id,
@@ -188,7 +183,7 @@ export default function ChurchDirectory() {
         tags: null,
         teamNames: [],
         source: "family",
-        familyChildren: unlinkedChildren.map((c) => ({
+        familyChildren: famChildren.map((c) => ({
           id: c.id,
           first_name: c.first_name,
           last_name: c.last_name,

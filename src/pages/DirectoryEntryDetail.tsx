@@ -400,10 +400,29 @@ function RelationshipsCard({ attendeeId, relationships, onRefresh }: { attendeeI
   useEffect(() => {
     if (search.length < 2) { setResults([]); return; }
     const timer = setTimeout(async () => {
-      const { data } = await supabase.from("attendees").select("id, first_name, last_name")
-        .or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`)
-        .neq("id", attendeeId).limit(10);
-      setResults(data || []);
+      // Search both attendees and profiles to find all people
+      const [attendeesRes, profilesRes] = await Promise.all([
+        supabase.from("attendees").select("id, first_name, last_name")
+          .or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`)
+          .neq("id", attendeeId).limit(10),
+        supabase.from("profiles").select("attendee_id, full_name")
+          .ilike("full_name", `%${search}%`)
+          .limit(10),
+      ]);
+
+      const attendees = attendeesRes.data || [];
+      const profiles = profilesRes.data || [];
+
+      // Merge: use attendees as primary, add profiles that have attendee_id but weren't in attendees result
+      const attendeeIds = new Set(attendees.map((a) => a.id));
+      const fromProfiles = profiles
+        .filter((p) => p.attendee_id && !attendeeIds.has(p.attendee_id) && p.attendee_id !== attendeeId)
+        .map((p) => {
+          const parts = (p.full_name || "").trim().split(/\s+/);
+          return { id: p.attendee_id!, first_name: parts[0] || "", last_name: parts.slice(1).join(" ") || "" };
+        });
+
+      setResults([...attendees, ...fromProfiles]);
     }, 300);
     return () => clearTimeout(timer);
   }, [search, attendeeId]);

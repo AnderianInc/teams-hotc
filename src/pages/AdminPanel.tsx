@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield } from "lucide-react";
 import TeamManagement from "@/components/admin/TeamManagement";
@@ -8,8 +9,16 @@ import DeletionRequests from "@/components/admin/DeletionRequests";
 import FeedbackReview from "@/components/admin/FeedbackReview";
 import ChurchRoster from "@/components/admin/ChurchRoster";
 import RosterCalendarView from "@/components/admin/RosterCalendarView";
+import WeeklyAttendance from "@/components/admin/WeeklyAttendance";
 
 export default function AdminPanel() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "volunteers";
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -22,11 +31,12 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      <Tabs defaultValue="volunteers" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="flex-wrap">
           <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
@@ -43,6 +53,9 @@ export default function AdminPanel() {
             <RosterCalendarView />
             <ChurchRoster />
           </div>
+        </TabsContent>
+        <TabsContent value="attendance">
+          <WeeklyAttendance />
         </TabsContent>
         <TabsContent value="directory">
           <ChurchDirectory />
