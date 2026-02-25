@@ -13,6 +13,7 @@ import Welcome from "@/pages/Welcome";
 import Dashboard from "@/pages/Dashboard";
 import TeamDashboard from "@/pages/TeamDashboard";
 import AdminPanel from "@/pages/AdminPanel";
+import DirectoryEntryDetail from "@/pages/DirectoryEntryDetail";
 import Profile from "@/pages/Profile";
 import Feedback from "@/pages/Feedback";
 import NotFound from "@/pages/NotFound";
@@ -48,6 +49,14 @@ const App = () => (
                 element={
                   <AdminRoute>
                     <AdminPanel />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/directory/:id"
+                element={
+                  <AdminRoute>
+                    <DirectoryEntryDetail />
                   </AdminRoute>
                 }
               />
