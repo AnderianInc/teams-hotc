@@ -89,6 +89,45 @@ export type Database = {
           },
         ]
       }
+      attendee_relationships: {
+        Row: {
+          created_at: string
+          from_attendee_id: string
+          id: string
+          relationship_type: string
+          to_attendee_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_attendee_id: string
+          id?: string
+          relationship_type: string
+          to_attendee_id: string
+        }
+        Update: {
+          created_at?: string
+          from_attendee_id?: string
+          id?: string
+          relationship_type?: string
+          to_attendee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendee_relationships_from_attendee_id_fkey"
+            columns: ["from_attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendee_relationships_to_attendee_id_fkey"
+            columns: ["to_attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendees: {
         Row: {
           address: string | null
