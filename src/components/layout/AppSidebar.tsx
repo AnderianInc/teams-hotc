@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams } from "@/hooks/useTeams";
 import { NavLink } from "@/components/NavLink";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -12,10 +13,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Users,
-  Settings,
   Baby,
   Music,
   Monitor,
@@ -27,6 +35,15 @@ import {
   Shield,
   User,
   MessageSquare,
+  ChevronDown,
+  UserCheck,
+  UsersRound,
+  CalendarDays,
+  BookOpen,
+  Mail,
+  MessageCircle,
+  Inbox,
+  ClipboardCheck,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
@@ -38,11 +55,33 @@ const teamIcons: Record<string, React.ElementType> = {
   "first-impressions": Sparkles,
 };
 
+const adminSubItems = [
+  { label: "Volunteers", value: "volunteers", icon: UserCheck },
+  { label: "Teams", value: "teams", icon: UsersRound },
+  { label: "Roster", value: "roster", icon: CalendarDays },
+  { label: "Attendance", value: "attendance", icon: ClipboardCheck },
+  { label: "Directory", value: "directory", icon: BookOpen },
+  { label: "Communications", value: "communications", icon: Mail },
+  { label: "Feedback", value: "feedback", icon: MessageCircle },
+  { label: "Requests", value: "requests", icon: Inbox },
+];
+
 export function AppSidebar() {
   const { user, isAdmin, signOut } = useAuth();
   const { data: memberships } = useMyTeams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const profile = user?.email ?? "";
+  const isOnAdmin = location.pathname.startsWith("/admin");
+
+  // Extract active tab from URL search params
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get("tab") || "volunteers";
+
+  const handleAdminTab = (tab: string) => {
+    navigate(`/admin?tab=${tab}`);
+  };
 
   return (
     <Sidebar>
@@ -68,14 +107,33 @@ export function AppSidebar() {
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink to="/admin" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
-                      <Shield className="h-4 w-4" />
-                      <span>Admin Panel</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <Collapsible defaultOpen={isOnAdmin} className="group/collapsible">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className={isOnAdmin ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}>
+                        <Shield className="h-4 w-4" />
+                        <span>Admin Panel</span>
+                        <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {adminSubItems.map((item) => (
+                          <SidebarMenuSubItem key={item.value}>
+                            <SidebarMenuSubButton
+                              onClick={() => handleAdminTab(item.value)}
+                              isActive={isOnAdmin && activeTab === item.value}
+                              className="cursor-pointer"
+                            >
+                              <item.icon className="h-3.5 w-3.5" />
+                              <span>{item.label}</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

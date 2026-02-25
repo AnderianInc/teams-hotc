@@ -728,6 +728,50 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_attendance: {
+        Row: {
+          attendee_id: string | null
+          checked_in_by: string | null
+          created_at: string
+          id: string
+          is_self_reported: boolean
+          notes: string | null
+          service_date: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attendee_id?: string | null
+          checked_in_by?: string | null
+          created_at?: string
+          id?: string
+          is_self_reported?: boolean
+          notes?: string | null
+          service_date?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attendee_id?: string | null
+          checked_in_by?: string | null
+          created_at?: string
+          id?: string
+          is_self_reported?: boolean
+          notes?: string | null
+          service_date?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_attendance_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -755,7 +799,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "team_lead" | "member"
+      app_role: "admin" | "team_lead" | "member" | "staff"
       followup_status:
         | "pending"
         | "contacted"
@@ -889,7 +933,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "team_lead", "member"],
+      app_role: ["admin", "team_lead", "member", "staff"],
       followup_status: [
         "pending",
         "contacted",
