@@ -9,6 +9,7 @@ import { Search, Users, MoreHorizontal, Trash2, Pencil, Heart } from "lucide-rea
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
 import DirectoryDeleteButton from "./DirectoryDeleteButton";
+import FamilyDeleteDialog from "./FamilyDeleteDialog";
 import DirectoryEditDialog from "./DirectoryEditDialog";
 import DirectoryRelationships from "./DirectoryRelationships";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -53,15 +54,21 @@ function DirectoryActionMenu({ entry, onRefresh }: { entry: DirectoryEntry; onRe
               <Heart className="h-4 w-4 mr-2" /> Relationships
             </DropdownMenuItem>
           )}
-          {!isFamily && (
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-2" /> Delete
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-4 w-4 mr-2" /> Delete
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <DirectoryEditDialog entry={entry} open={editOpen} onOpenChange={setEditOpen} onUpdated={onRefresh} />
-      {!isFamily && (
+      {isFamily ? (
+        <FamilyDeleteDialog
+          familyId={entry.id}
+          familyName={entry.first_name}
+          onDeleted={onRefresh}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+        />
+      ) : (
         <>
           <DirectoryDeleteButton
             entryId={entry.id}
