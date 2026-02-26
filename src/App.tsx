@@ -18,6 +18,7 @@ import FamilyDetail from "@/pages/FamilyDetail";
 import Profile from "@/pages/Profile";
 import Feedback from "@/pages/Feedback";
 import NotFound from "@/pages/NotFound";
+import CheckIn from "@/pages/CheckIn";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/welcome" element={<Welcome />} />
+            <Route path="/check-in" element={<CheckIn />} />
             <Route
               element={
                 <ProtectedRoute>

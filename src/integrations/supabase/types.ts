@@ -738,7 +738,7 @@ export type Database = {
           notes: string | null
           service_date: string
           status: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           attendee_id?: string | null
@@ -749,7 +749,7 @@ export type Database = {
           notes?: string | null
           service_date?: string
           status?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           attendee_id?: string | null
@@ -760,7 +760,7 @@ export type Database = {
           notes?: string | null
           service_date?: string
           status?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
