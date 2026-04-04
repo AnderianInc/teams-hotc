@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Calendar, Users, Plus, Settings } from "lucide-react";
+import { Calendar, Users, Plus, Settings, CalendarPlus } from "lucide-react";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 
