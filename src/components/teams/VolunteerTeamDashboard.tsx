@@ -40,6 +40,10 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
             <Users className="h-4 w-4 mr-2" />
             Members
           </TabsTrigger>
+          <TabsTrigger value="events">
+            <CalendarPlus className="h-4 w-4 mr-2" />
+            Events
+          </TabsTrigger>
           <TabsTrigger value="roster">
             <Calendar className="h-4 w-4 mr-2" />
             Roster
