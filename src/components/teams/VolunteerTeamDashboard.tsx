@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Calendar, Users, Plus, Settings, CalendarPlus } from "lucide-react";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
+import RosterEventManager from "@/components/teams/RosterEventManager";
 
 interface VolunteerTeamDashboardProps {
   teamId: string;
