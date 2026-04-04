@@ -56,6 +56,9 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
         <TabsContent value="members">
           <TeamMemberManager teamId={teamId} teamName={teamName} />
         </TabsContent>
+        <TabsContent value="events">
+          <RosterEventManager teamId={teamId} teamName={teamName} />
+        </TabsContent>
         <TabsContent value="roster">
           <RosterSchedule teamId={teamId} />
         </TabsContent>
