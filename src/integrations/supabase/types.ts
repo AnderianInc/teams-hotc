@@ -572,6 +572,7 @@ export type Database = {
       roster_entries: {
         Row: {
           created_at: string
+          event_id: string | null
           id: string
           notes: string | null
           role_description: string | null
@@ -581,6 +582,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          event_id?: string | null
           id?: string
           notes?: string | null
           role_description?: string | null
@@ -590,6 +592,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          event_id?: string | null
           id?: string
           notes?: string | null
           role_description?: string | null
@@ -598,6 +601,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "roster_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "roster_events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roster_entries_team_id_fkey"
             columns: ["team_id"]
@@ -611,6 +621,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      roster_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_date: string
+          event_time: string | null
+          id: string
+          name: string
+          team_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_date: string
+          event_time?: string | null
+          id?: string
+          name: string
+          team_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_time?: string | null
+          id?: string
+          name?: string
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
           },
         ]
       }
