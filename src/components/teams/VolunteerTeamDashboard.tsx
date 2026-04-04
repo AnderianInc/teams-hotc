@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Calendar, Users, Plus } from "lucide-react";
+import { Calendar, Users, Plus, Settings } from "lucide-react";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
+import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 
 interface VolunteerTeamDashboardProps {
   teamId: string;
@@ -42,12 +43,29 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
             <Calendar className="h-4 w-4 mr-2" />
             Roster
           </TabsTrigger>
+          <TabsTrigger value="roles">
+            <Settings className="h-4 w-4 mr-2" />
+            Role Types
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="members">
           <TeamMemberManager teamId={teamId} teamName={teamName} />
         </TabsContent>
         <TabsContent value="roster">
           <RosterSchedule teamId={teamId} />
+        </TabsContent>
+        <TabsContent value="roles">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Manage Role Types</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Define the positions/roles available for this team (e.g. Sound Board, Videography, Lead Vocal).
+              </p>
+            </CardHeader>
+            <CardContent>
+              <TeamRoleTypeManager teamId={teamId} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
@@ -56,7 +74,6 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
 
 function RosterSchedule({ teamId }: { teamId: string }) {
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuth();
   const [addOpen, setAddOpen] = useState(false);
   const [date, setDate] = useState("");
   const [userId, setUserId] = useState("");
@@ -87,6 +104,8 @@ function RosterSchedule({ teamId }: { teamId: string }) {
     },
   });
 
+  const { data: roleTypes } = useTeamRoleTypes(teamId);
+
   const addEntry = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("roster_entries").insert({
@@ -108,7 +127,6 @@ function RosterSchedule({ teamId }: { teamId: string }) {
 
   if (isLoading) return <div className="py-8 text-center text-muted-foreground">Loading...</div>;
 
-  // Group roster by date
   const grouped = (roster || []).reduce((acc: Record<string, any[]>, entry: any) => {
     const d = entry.scheduled_date;
     if (!acc[d]) acc[d] = [];
@@ -152,7 +170,20 @@ function RosterSchedule({ teamId }: { teamId: string }) {
               </div>
               <div className="space-y-1">
                 <Label>Role/Position</Label>
-                <Input placeholder="e.g. Lead Vocal, Camera 1" value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
+                {roleTypes && roleTypes.length > 0 ? (
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={roleDesc}
+                    onChange={(e) => setRoleDesc(e.target.value)}
+                  >
+                    <option value="">Select role (optional)</option>
+                    {roleTypes.map((rt) => (
+                      <option key={rt.id} value={rt.name}>{rt.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input placeholder="e.g. Lead Vocal, Camera 1" value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
+                )}
               </div>
               <Button type="submit" className="w-full" disabled={addEntry.isPending}>
                 {addEntry.isPending ? "Adding..." : "Add Entry"}
