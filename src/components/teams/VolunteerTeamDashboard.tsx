@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Calendar, Users, Plus, Settings } from "lucide-react";
+import { Calendar, Users, Plus, Settings, CalendarPlus } from "lucide-react";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
+import RosterEventManager from "@/components/teams/RosterEventManager";
 
 interface VolunteerTeamDashboardProps {
   teamId: string;
@@ -39,6 +40,10 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
             <Users className="h-4 w-4 mr-2" />
             Members
           </TabsTrigger>
+          <TabsTrigger value="events">
+            <CalendarPlus className="h-4 w-4 mr-2" />
+            Events
+          </TabsTrigger>
           <TabsTrigger value="roster">
             <Calendar className="h-4 w-4 mr-2" />
             Roster
@@ -50,6 +55,9 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
         </TabsList>
         <TabsContent value="members">
           <TeamMemberManager teamId={teamId} teamName={teamName} />
+        </TabsContent>
+        <TabsContent value="events">
+          <RosterEventManager teamId={teamId} teamName={teamName} />
         </TabsContent>
         <TabsContent value="roster">
           <RosterSchedule teamId={teamId} />
