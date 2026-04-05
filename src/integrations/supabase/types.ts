@@ -624,6 +624,42 @@ export type Database = {
           },
         ]
       }
+      roster_event_teams: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_event_teams_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "roster_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_event_teams_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roster_events: {
         Row: {
           created_at: string
