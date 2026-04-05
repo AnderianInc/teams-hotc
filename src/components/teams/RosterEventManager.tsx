@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Calendar, Trash2, UserPlus } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Calendar, Trash2, UserPlus, Repeat } from "lucide-react";
+import { format, addWeeks, addMonths } from "date-fns";
 import { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 
 interface RosterEventManagerProps {
@@ -29,20 +30,53 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [eventDesc, setEventDesc] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState("weekly");
+  const [recurrenceCount, setRecurrenceCount] = useState("4");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRole, setAssignRole] = useState("");
 
+  // Also allow assigning additional teams to events
+  const [addTeamOpen, setAddTeamOpen] = useState(false);
+  const [addTeamEventId, setAddTeamEventId] = useState("");
+  const [addTeamId, setAddTeamId] = useState("");
+
+  // Get events linked to this team via junction table
   const { data: events, isLoading } = useQuery({
     queryKey: ["roster-events", teamId],
     queryFn: async () => {
+      const { data: junctions, error: jErr } = await supabase
+        .from("roster_event_teams")
+        .select("event_id")
+        .eq("team_id", teamId);
+      if (jErr) throw jErr;
+      const eventIds = (junctions || []).map((j: any) => j.event_id);
+      if (eventIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from("roster_events")
         .select("*")
-        .eq("team_id", teamId)
+        .in("id", eventIds)
         .order("event_date", { ascending: true });
       if (error) throw error;
       return data;
     },
+  });
+
+  // Get all teams on each event
+  const eventIds = (events || []).map((e: any) => e.id);
+  const { data: eventTeams } = useQuery({
+    queryKey: ["roster-event-teams", eventIds],
+    queryFn: async () => {
+      if (eventIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("roster_event_teams")
+        .select("event_id, team_id, teams(name)")
+        .in("event_id", eventIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: eventIds.length > 0,
   });
 
   const { data: members } = useQuery({
@@ -57,9 +91,18 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
     },
   });
 
+  const { data: allTeams } = useQuery({
+    queryKey: ["all-teams-for-event-assign"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("teams").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: roleTypes } = useTeamRoleTypes(teamId);
 
-  // Get assignments for all events
+  // Get assignments for all events (scoped to this team)
   const { data: assignments } = useQuery({
     queryKey: ["roster-event-assignments", teamId],
     queryFn: async () => {
@@ -76,33 +119,65 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
 
   const createEvent = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("roster_events").insert({
-        team_id: teamId,
+      if (!eventName || !eventDate) throw new Error("Name and date required");
+
+      const dates: string[] = [eventDate];
+      if (isRecurring) {
+        const count = parseInt(recurrenceCount) || 4;
+        const baseDate = new Date(eventDate + "T00:00:00");
+        for (let i = 1; i < count; i++) {
+          let next: Date;
+          if (recurrenceType === "weekly") next = addWeeks(baseDate, i);
+          else if (recurrenceType === "biweekly") next = addWeeks(baseDate, i * 2);
+          else next = addMonths(baseDate, i);
+          dates.push(format(next, "yyyy-MM-dd"));
+        }
+      }
+
+      const eventRows = dates.map((d) => ({
         name: eventName,
-        event_date: eventDate,
+        event_date: d,
         event_time: eventTime || null,
         description: eventDesc || null,
-      });
+        team_id: null,
+      }));
+
+      const { data: created, error } = await supabase
+        .from("roster_events")
+        .insert(eventRows)
+        .select("id");
       if (error) throw error;
+
+      // Link to this team via junction
+      const junctionRows = (created || []).map((evt: any) => ({
+        event_id: evt.id,
+        team_id: teamId,
+      }));
+      if (junctionRows.length > 0) {
+        const { error: jErr } = await supabase.from("roster_event_teams").insert(junctionRows);
+        if (jErr) throw jErr;
+      }
     },
     onSuccess: () => {
-      toast.success("Event created!");
+      toast.success(isRecurring ? "Recurring events created!" : "Event created!");
       setCreateOpen(false);
       setEventName(""); setEventDate(""); setEventTime(""); setEventDesc("");
-      queryClient.invalidateQueries({ queryKey: ["roster-events", teamId] });
+      setIsRecurring(false); setRecurrenceType("weekly"); setRecurrenceCount("4");
+      invalidateAll();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteEvent = useMutation({
     mutationFn: async (eventId: string) => {
+      await supabase.from("roster_entries").delete().eq("event_id", eventId);
+      await supabase.from("roster_event_teams").delete().eq("event_id", eventId);
       const { error } = await supabase.from("roster_events").delete().eq("id", eventId);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Event deleted");
-      queryClient.invalidateQueries({ queryKey: ["roster-events", teamId] });
-      queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
+      invalidateAll();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -110,8 +185,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
   const assignVolunteer = useMutation({
     mutationFn: async () => {
       if (!selectedEvent) throw new Error("No event selected");
-      
-      // Insert roster entry linked to event
+
       const { error } = await supabase.from("roster_entries").insert({
         team_id: teamId,
         user_id: assignUserId,
@@ -125,13 +199,13 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
       const member = members?.find((m: any) => m.user_id === assignUserId);
       const memberEmail = member?.profiles?.email;
       const memberName = member?.profiles?.full_name || "Volunteer";
-      
+
       if (memberEmail) {
         try {
           const eventDateFormatted = new Date(selectedEvent.event_date + "T00:00:00").toLocaleDateString("en-US", {
             weekday: "long", month: "long", day: "numeric", year: "numeric"
           });
-          
+
           await supabase.functions.invoke("send-email", {
             body: {
               to: memberEmail,
@@ -145,10 +219,8 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                     <p style="margin: 4px 0;"><strong>Date:</strong> ${eventDateFormatted}</p>
                     ${selectedEvent.event_time ? `<p style="margin: 4px 0;"><strong>Time:</strong> ${selectedEvent.event_time}</p>` : ""}
                     ${assignRole ? `<p style="margin: 4px 0;"><strong>Role:</strong> ${assignRole}</p>` : ""}
-                    ${selectedEvent.description ? `<p style="margin: 4px 0;"><strong>Details:</strong> ${selectedEvent.description}</p>` : ""}
                   </div>
-                  <p>Please make sure you're available for this event. If you have any questions, reach out to your team lead.</p>
-                  <p style="color: #666;">— House of Transformation Church</p>
+                  <p>— House of Transformation Church</p>
                 </div>
               `,
             },
@@ -162,9 +234,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
       toast.success("Volunteer assigned & notified!");
       setAssignOpen(false);
       setAssignUserId(""); setAssignRole("");
-      queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
-      queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
-      queryClient.invalidateQueries({ queryKey: ["roster-calendar"] });
+      invalidateAll();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -176,19 +246,47 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
     },
     onSuccess: () => {
       toast.success("Assignment removed");
-      queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
-      queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
-      queryClient.invalidateQueries({ queryKey: ["roster-calendar"] });
+      invalidateAll();
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const addTeamToEvent = useMutation({
+    mutationFn: async () => {
+      if (!addTeamEventId || !addTeamId) throw new Error("Select event and team");
+      const { error } = await supabase.from("roster_event_teams").insert({
+        event_id: addTeamEventId,
+        team_id: addTeamId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Team added to event!");
+      setAddTeamOpen(false);
+      setAddTeamEventId(""); setAddTeamId("");
+      invalidateAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function invalidateAll() {
+    queryClient.invalidateQueries({ queryKey: ["roster-events", teamId] });
+    queryClient.invalidateQueries({ queryKey: ["roster-event-teams"] });
+    queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
+    queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+    queryClient.invalidateQueries({ queryKey: ["roster-events-calendar"] });
+    queryClient.invalidateQueries({ queryKey: ["roster-event-teams-calendar"] });
+    queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
+  }
 
   if (isLoading) return <div className="py-8 text-center text-muted-foreground">Loading...</div>;
 
   const getEventAssignments = (eventId: string) =>
     (assignments || []).filter((a: any) => a.event_id === eventId);
 
-  // Split events into upcoming and past
+  const getEventTeamNames = (eventId: string) =>
+    (eventTeams || []).filter((et: any) => et.event_id === eventId);
+
   const today = format(new Date(), "yyyy-MM-dd");
   const upcomingEvents = (events || []).filter((e) => e.event_date >= today);
   const pastEvents = (events || []).filter((e) => e.event_date < today);
@@ -227,8 +325,34 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                 <Label>Description (optional)</Label>
                 <Textarea placeholder="Event details..." value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} />
               </div>
+              {/* Recurring */}
+              <div className="flex items-center gap-2">
+                <Checkbox id="recurring-team" checked={isRecurring} onCheckedChange={(v) => setIsRecurring(!!v)} />
+                <Label htmlFor="recurring-team" className="flex items-center gap-1 cursor-pointer">
+                  <Repeat className="h-4 w-4" /> Recurring event
+                </Label>
+              </div>
+              {isRecurring && (
+                <div className="grid grid-cols-2 gap-3 pl-6">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Frequency</Label>
+                    <Select value={recurrenceType} onValueChange={setRecurrenceType}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="biweekly">Every 2 Weeks</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Occurrences</Label>
+                    <Input type="number" min="2" max="52" value={recurrenceCount} onChange={(e) => setRecurrenceCount(e.target.value)} />
+                  </div>
+                </div>
+              )}
               <Button type="submit" className="w-full" disabled={createEvent.isPending}>
-                {createEvent.isPending ? "Creating..." : "Create Event"}
+                {createEvent.isPending ? "Creating..." : isRecurring ? `Create ${recurrenceCount} Events` : "Create Event"}
               </Button>
             </form>
           </DialogContent>
@@ -245,6 +369,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
 
       {upcomingEvents.map((event) => {
         const eventAssignments = getEventAssignments(event.id);
+        const evtTeams = getEventTeamNames(event.id);
         return (
           <Card key={event.id}>
             <CardHeader className="pb-3">
@@ -254,7 +379,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                     <Calendar className="h-4 w-4 text-primary" />
                     {event.name}
                   </CardTitle>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-1 mt-1">
                     <Badge variant="outline" className="text-xs">
                       {new Date(event.event_date + "T00:00:00").toLocaleDateString("en-US", {
                         weekday: "short", month: "short", day: "numeric"
@@ -263,6 +388,11 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                     {event.event_time && (
                       <Badge variant="outline" className="text-xs">{event.event_time}</Badge>
                     )}
+                    {evtTeams.map((et: any) => (
+                      <Badge key={et.team_id} variant="secondary" className="text-xs">
+                        {(et.teams as any)?.name}
+                      </Badge>
+                    ))}
                   </div>
                   {event.description && (
                     <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
@@ -276,6 +406,14 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                   >
                     <UserPlus className="h-4 w-4 mr-1" />
                     Assign
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setAddTeamEventId(event.id); setAddTeamOpen(true); }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Team
                   </Button>
                   <Button
                     size="icon"
@@ -395,6 +533,36 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
             </div>
             <Button type="submit" className="w-full" disabled={assignVolunteer.isPending || !assignUserId}>
               {assignVolunteer.isPending ? "Assigning..." : "Assign & Notify"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add team to event dialog */}
+      <Dialog open={addTeamOpen} onOpenChange={setAddTeamOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Team to Event</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); addTeamToEvent.mutate(); }} className="space-y-4">
+            <div className="space-y-1">
+              <Label>Team</Label>
+              <Select value={addTeamId} onValueChange={setAddTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team to add" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allTeams?.filter((t) => {
+                    const existing = (eventTeams || []).filter((et: any) => et.event_id === addTeamEventId).map((et: any) => et.team_id);
+                    return !existing.includes(t.id);
+                  }).map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full" disabled={addTeamToEvent.isPending || !addTeamId}>
+              {addTeamToEvent.isPending ? "Adding..." : "Add Team"}
             </Button>
           </form>
         </DialogContent>
