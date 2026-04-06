@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Calendar, Trash2, UserPlus, Repeat } from "lucide-react";
+import { Plus, Calendar, Trash2, UserPlus, Repeat, Pencil } from "lucide-react";
 import { format, addWeeks, addMonths } from "date-fns";
 import { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 
@@ -35,6 +35,11 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
   const [recurrenceCount, setRecurrenceCount] = useState("4");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRole, setAssignRole] = useState("");
+  
+  // Edit assignment state
+  const [editAssignment, setEditAssignment] = useState<any>(null);
+  const [editRole, setEditRole] = useState("");
+  const [editUserId, setEditUserId] = useState("");
 
   // Also allow assigning additional teams to events
   const [addTeamOpen, setAddTeamOpen] = useState(false);
@@ -246,6 +251,19 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
     },
     onSuccess: () => {
       toast.success("Assignment removed");
+      invalidateAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateAssignment = useMutation({
+    mutationFn: async ({ id, user_id, role_description }: { id: string; user_id: string; role_description: string | null }) => {
+      const { error } = await supabase.from("roster_entries").update({ user_id, role_description }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Assignment updated");
+      setEditAssignment(null);
       invalidateAll();
     },
     onError: (e: Error) => toast.error(e.message),
