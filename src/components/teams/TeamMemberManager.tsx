@@ -40,6 +40,26 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
     },
   });
 
+  // Get all team memberships for these members to show multi-team info
+  const memberUserIds = (members || []).map((m: any) => m.user_id);
+  const { data: allMemberships } = useQuery({
+    queryKey: ["all-memberships-for-members", memberUserIds],
+    queryFn: async () => {
+      if (memberUserIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("user_id, team_id, role, teams(name)")
+        .in("user_id", memberUserIds)
+        .neq("team_id", teamId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: memberUserIds.length > 0,
+  });
+
+  const getOtherTeams = (userId: string) =>
+    (allMemberships || []).filter((m: any) => m.user_id === userId);
+
   const inviteMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
       const { data, error } = await supabase.functions.invoke("invite-volunteer", {
@@ -150,11 +170,14 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Other Teams</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {members?.map((m: any) => (
+            {members?.map((m: any) => {
+              const otherTeams = getOtherTeams(m.user_id);
+              return (
               <TableRow key={m.id}>
                 <TableCell className="font-medium">{m.profiles?.full_name || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{m.profiles?.email || "—"}</TableCell>
@@ -162,6 +185,19 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
                   <Badge variant={m.role === "team_lead" ? "default" : "secondary"} className="capitalize text-xs">
                     {m.role === "team_lead" ? "Team Lead" : "Member"}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  {otherTeams.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {otherTeams.map((ot: any) => (
+                        <Badge key={ot.team_id} variant="outline" className="text-xs">
+                          {(ot.teams as any)?.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
