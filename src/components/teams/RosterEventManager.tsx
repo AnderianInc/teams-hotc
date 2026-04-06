@@ -595,6 +595,53 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit assignment dialog */}
+      <Dialog open={!!editAssignment} onOpenChange={(open) => !open && setEditAssignment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Assignment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); updateAssignment.mutate({ id: editAssignment.id, user_id: editUserId, role_description: editRole || null }); }} className="space-y-4">
+            <div className="space-y-1">
+              <Label>Team Member</Label>
+              <Select value={editUserId} onValueChange={setEditUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select volunteer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members?.map((m: any) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>
+                      {m.profiles?.full_name || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Role/Position</Label>
+              {roleTypes && roleTypes.length > 0 ? (
+                <Select value={editRole} onValueChange={setEditRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No role</SelectItem>
+                    {roleTypes.map((rt) => (
+                      <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input placeholder="e.g. Sound Board, Camera 1" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+              )}
+            </div>
+            <Button type="submit" className="w-full" disabled={updateAssignment.isPending || !editUserId}>
+              {updateAssignment.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
