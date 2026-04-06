@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, CalendarDays, Plus, UserPlus, Trash2, Repeat } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Plus, UserPlus, Trash2, Repeat, Pencil } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday, addWeeks } from "date-fns";
 import { toast } from "sonner";
 
@@ -45,6 +45,12 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   const [assignTeamId, setAssignTeamId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRole, setAssignRole] = useState("");
+
+  // Edit assignment dialog
+  const [editAssignment, setEditAssignment] = useState<any>(null);
+  const [editTeamId, setEditTeamId] = useState("");
+  const [editUserId, setEditUserId] = useState("");
+  const [editRole, setEditRole] = useState("");
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
