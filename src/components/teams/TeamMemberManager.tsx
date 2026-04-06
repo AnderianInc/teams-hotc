@@ -228,11 +228,13 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
             {(!members || members.length === 0) && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   No members yet. Invite your first team member above.
+                </TableCell>
                 </TableCell>
               </TableRow>
             )}
