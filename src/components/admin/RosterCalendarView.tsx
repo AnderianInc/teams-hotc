@@ -334,6 +334,19 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateAssignment = useMutation({
+    mutationFn: async ({ id, user_id, role_description }: { id: string; user_id: string; role_description: string | null }) => {
+      const { error } = await supabase.from("roster_entries").update({ user_id, role_description }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Assignment updated");
+      setEditAssignment(null);
+      invalidateAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ["roster-events-calendar"] });
     queryClient.invalidateQueries({ queryKey: ["roster-event-teams-calendar"] });
@@ -587,7 +600,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                             <TableHead className="text-xs">Volunteer</TableHead>
                             <TableHead className="text-xs">Team</TableHead>
                             <TableHead className="text-xs">Role</TableHead>
-                            <TableHead className="w-[40px]"></TableHead>
+                            <TableHead className="w-[70px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -601,9 +614,14 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                                 {a.role_description ? <Badge variant="secondary" className="text-xs">{a.role_description}</Badge> : <span className="text-muted-foreground text-xs">—</span>}
                               </TableCell>
                               <TableCell>
-                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeAssignment.mutate(a.id)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
+                                <div className="flex gap-0.5">
+                                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setEditAssignment(a); setEditTeamId(a.team_id); setEditUserId(a.user_id); setEditRole(a.role_description || ""); }}>
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeAssignment.mutate(a.id)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
