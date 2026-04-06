@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Calendar, Trash2, UserPlus, Repeat } from "lucide-react";
+import { Plus, Calendar, Trash2, UserPlus, Repeat, Pencil } from "lucide-react";
 import { format, addWeeks, addMonths } from "date-fns";
 import { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 
@@ -35,6 +35,11 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
   const [recurrenceCount, setRecurrenceCount] = useState("4");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRole, setAssignRole] = useState("");
+  
+  // Edit assignment state
+  const [editAssignment, setEditAssignment] = useState<any>(null);
+  const [editRole, setEditRole] = useState("");
+  const [editUserId, setEditUserId] = useState("");
 
   // Also allow assigning additional teams to events
   const [addTeamOpen, setAddTeamOpen] = useState(false);
@@ -251,6 +256,19 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateAssignment = useMutation({
+    mutationFn: async ({ id, user_id, role_description }: { id: string; user_id: string; role_description: string | null }) => {
+      const { error } = await supabase.from("roster_entries").update({ user_id, role_description }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Assignment updated");
+      setEditAssignment(null);
+      invalidateAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const addTeamToEvent = useMutation({
     mutationFn: async () => {
       if (!addTeamEventId || !addTeamId) throw new Error("Select event and team");
@@ -433,7 +451,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                     <TableRow>
                       <TableHead>Volunteer</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -448,14 +466,24 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => removeAssignment.mutate(a.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => { setEditAssignment(a); setEditUserId(a.user_id); setEditRole(a.role_description || ""); }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => removeAssignment.mutate(a.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -563,6 +591,53 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
             </div>
             <Button type="submit" className="w-full" disabled={addTeamToEvent.isPending || !addTeamId}>
               {addTeamToEvent.isPending ? "Adding..." : "Add Team"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit assignment dialog */}
+      <Dialog open={!!editAssignment} onOpenChange={(open) => !open && setEditAssignment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Assignment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); updateAssignment.mutate({ id: editAssignment.id, user_id: editUserId, role_description: editRole || null }); }} className="space-y-4">
+            <div className="space-y-1">
+              <Label>Team Member</Label>
+              <Select value={editUserId} onValueChange={setEditUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select volunteer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members?.map((m: any) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>
+                      {m.profiles?.full_name || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Role/Position</Label>
+              {roleTypes && roleTypes.length > 0 ? (
+                <Select value={editRole} onValueChange={setEditRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No role</SelectItem>
+                    {roleTypes.map((rt) => (
+                      <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input placeholder="e.g. Sound Board, Camera 1" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+              )}
+            </div>
+            <Button type="submit" className="w-full" disabled={updateAssignment.isPending || !editUserId}>
+              {updateAssignment.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </form>
         </DialogContent>

@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, CalendarDays, Plus, UserPlus, Trash2, Repeat } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Plus, UserPlus, Trash2, Repeat, Pencil } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday, addWeeks } from "date-fns";
 import { toast } from "sonner";
 
@@ -45,6 +45,12 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   const [assignTeamId, setAssignTeamId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRole, setAssignRole] = useState("");
+
+  // Edit assignment dialog
+  const [editAssignment, setEditAssignment] = useState<any>(null);
+  const [editTeamId, setEditTeamId] = useState("");
+  const [editUserId, setEditUserId] = useState("");
+  const [editRole, setEditRole] = useState("");
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -163,19 +169,35 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     enabled: !!assignTeamId,
   });
 
-  const { data: roleTypes } = useQuery({
-    queryKey: ["team-role-types", assignTeamId],
+  // Members for edit team
+  const activeTeamId = assignTeamId || editTeamId;
+  const { data: editMembers } = useQuery({
+    queryKey: ["roster-members", editTeamId],
     queryFn: async () => {
-      if (!assignTeamId) return [];
+      if (!editTeamId) return [];
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("user_id, profiles:user_id(full_name, email)")
+        .eq("team_id", editTeamId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!editTeamId,
+  });
+
+  const { data: roleTypes } = useQuery({
+    queryKey: ["team-role-types", activeTeamId],
+    queryFn: async () => {
+      if (!activeTeamId) return [];
       const { data, error } = await supabase
         .from("team_role_types")
         .select("*")
-        .eq("team_id", assignTeamId)
+        .eq("team_id", activeTeamId)
         .order("name");
       if (error) throw error;
       return data;
     },
-    enabled: !!assignTeamId,
+    enabled: !!activeTeamId,
   });
 
   // Create event mutation (supports recurring + multi-team)
@@ -307,6 +329,19 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     },
     onSuccess: () => {
       toast.success("Assignment removed");
+      invalidateAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateAssignment = useMutation({
+    mutationFn: async ({ id, user_id, role_description }: { id: string; user_id: string; role_description: string | null }) => {
+      const { error } = await supabase.from("roster_entries").update({ user_id, role_description }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Assignment updated");
+      setEditAssignment(null);
       invalidateAll();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -565,7 +600,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                             <TableHead className="text-xs">Volunteer</TableHead>
                             <TableHead className="text-xs">Team</TableHead>
                             <TableHead className="text-xs">Role</TableHead>
-                            <TableHead className="w-[40px]"></TableHead>
+                            <TableHead className="w-[70px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -579,9 +614,14 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                                 {a.role_description ? <Badge variant="secondary" className="text-xs">{a.role_description}</Badge> : <span className="text-muted-foreground text-xs">—</span>}
                               </TableCell>
                               <TableCell>
-                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeAssignment.mutate(a.id)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
+                                <div className="flex gap-0.5">
+                                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setEditAssignment(a); setEditTeamId(a.team_id); setEditUserId(a.user_id); setEditRole(a.role_description || ""); }}>
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeAssignment.mutate(a.id)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -754,6 +794,53 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
             </div>
             <Button type="submit" className="w-full" disabled={assignVolunteer.isPending || !assignUserId || !assignTeamId}>
               {assignVolunteer.isPending ? "Assigning..." : "Assign & Notify"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit assignment dialog */}
+      <Dialog open={!!editAssignment} onOpenChange={(open) => !open && setEditAssignment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Assignment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); updateAssignment.mutate({ id: editAssignment.id, user_id: editUserId, role_description: editRole || null }); }} className="space-y-4">
+            <div className="space-y-1">
+              <Label>Team Member</Label>
+              <Select value={editUserId} onValueChange={setEditUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select volunteer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(editMembers || []).map((m: any) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>
+                      {m.profiles?.full_name || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Role/Position</Label>
+              {roleTypes && roleTypes.length > 0 ? (
+                <Select value={editRole} onValueChange={setEditRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No role</SelectItem>
+                    {roleTypes.map((rt: any) => (
+                      <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input placeholder="e.g. Sound Board, Camera 1" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+              )}
+            </div>
+            <Button type="submit" className="w-full" disabled={updateAssignment.isPending || !editUserId}>
+              {updateAssignment.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </form>
         </DialogContent>
