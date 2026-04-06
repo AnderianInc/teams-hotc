@@ -169,19 +169,35 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     enabled: !!assignTeamId,
   });
 
-  const { data: roleTypes } = useQuery({
-    queryKey: ["team-role-types", assignTeamId],
+  // Members for edit team
+  const activeTeamId = assignTeamId || editTeamId;
+  const { data: editMembers } = useQuery({
+    queryKey: ["roster-members", editTeamId],
     queryFn: async () => {
-      if (!assignTeamId) return [];
+      if (!editTeamId) return [];
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("user_id, profiles:user_id(full_name, email)")
+        .eq("team_id", editTeamId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!editTeamId,
+  });
+
+  const { data: roleTypes } = useQuery({
+    queryKey: ["team-role-types", activeTeamId],
+    queryFn: async () => {
+      if (!activeTeamId) return [];
       const { data, error } = await supabase
         .from("team_role_types")
         .select("*")
-        .eq("team_id", assignTeamId)
+        .eq("team_id", activeTeamId)
         .order("name");
       if (error) throw error;
       return data;
     },
-    enabled: !!assignTeamId,
+    enabled: !!activeTeamId,
   });
 
   // Create event mutation (supports recurring + multi-team)
