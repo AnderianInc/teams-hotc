@@ -451,7 +451,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                     <TableRow>
                       <TableHead>Volunteer</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -466,14 +466,24 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => removeAssignment.mutate(a.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => { setEditAssignment(a); setEditUserId(a.user_id); setEditRole(a.role_description || ""); }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => removeAssignment.mutate(a.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
