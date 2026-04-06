@@ -40,7 +40,6 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
     },
   });
 
-  // Get all team memberships for these members to show multi-team info
   const memberUserIds = (members || []).map((m: any) => m.user_id);
   const { data: allMemberships } = useQuery({
     queryKey: ["all-memberships-for-members", memberUserIds],
@@ -111,136 +110,137 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
   if (isLoading) return <div className="py-8 text-center text-muted-foreground">Loading...</div>;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Team Members</CardTitle>
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Invite Member
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite to {teamName}</DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                inviteMutation.mutate({ email: inviteEmail, role: inviteRole });
-              }}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  placeholder="volunteer@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="team_lead">Team Lead</SelectItem>
-                    {isAdmin && <SelectItem value="admin">Admin</SelectItem>}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" className="w-full" disabled={inviteMutation.isPending}>
-                <Mail className="h-4 w-4 mr-2" />
-                {inviteMutation.isPending ? "Sending..." : "Send Invite"}
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Team Members</CardTitle>
+          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invite Member
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Other Teams</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {members?.map((m: any) => {
-              const otherTeams = getOtherTeams(m.user_id);
-              return (
-              <TableRow key={m.id}>
-                <TableCell className="font-medium">{m.profiles?.full_name || "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{m.profiles?.email || "—"}</TableCell>
-                <TableCell>
-                  <Badge variant={m.role === "team_lead" ? "default" : "secondary"} className="capitalize text-xs">
-                    {m.role === "team_lead" ? "Team Lead" : "Member"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {otherTeams.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {otherTeams.map((ot: any) => (
-                        <Badge key={ot.team_id} variant="outline" className="text-xs">
-                          {(ot.teams as any)?.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 row-actions">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {m.role !== "team_lead" && (
-                        <DropdownMenuItem onClick={() => updateRoleMutation.mutate({ memberId: m.id, newRole: "team_lead" })}>
-                          <Shield className="h-4 w-4 mr-2" />
-                          Promote to Lead
-                        </DropdownMenuItem>
-                      )}
-                      {m.role === "team_lead" && (
-                        <DropdownMenuItem onClick={() => updateRoleMutation.mutate({ memberId: m.id, newRole: "member" })}>
-                          <Shield className="h-4 w-4 mr-2" />
-                          Set as Member
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRemoveMember(m)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Remove
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-              );
-            })}
-            {(!members || members.length === 0) && (
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite to {teamName}</DialogTitle>
+              </DialogHeader>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  inviteMutation.mutate({ email: inviteEmail, role: inviteRole });
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="volunteer@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select value={inviteRole} onValueChange={setInviteRole}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="team_lead">Team Lead</SelectItem>
+                      {isAdmin && <SelectItem value="admin">Admin</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit" className="w-full" disabled={inviteMutation.isPending}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  {inviteMutation.isPending ? "Sending..." : "Send Invite"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  No members yet. Invite your first team member above.
-                </TableCell>
-                </TableCell>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Other Teams</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
+            </TableHeader>
+            <TableBody>
+              {members?.map((m: any) => {
+                const otherTeams = getOtherTeams(m.user_id);
+                return (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">{m.profiles?.full_name || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{m.profiles?.email || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={m.role === "team_lead" ? "default" : "secondary"} className="capitalize text-xs">
+                        {m.role === "team_lead" ? "Team Lead" : "Member"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {otherTeams.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {otherTeams.map((ot: any) => (
+                            <Badge key={ot.team_id} variant="outline" className="text-xs">
+                              {(ot.teams as any)?.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 row-actions">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {m.role !== "team_lead" && (
+                            <DropdownMenuItem onClick={() => updateRoleMutation.mutate({ memberId: m.id, newRole: "team_lead" })}>
+                              <Shield className="h-4 w-4 mr-2" />
+                              Promote to Lead
+                            </DropdownMenuItem>
+                          )}
+                          {m.role === "team_lead" && (
+                            <DropdownMenuItem onClick={() => updateRoleMutation.mutate({ memberId: m.id, newRole: "member" })}>
+                              <Shield className="h-4 w-4 mr-2" />
+                              Set as Member
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRemoveMember(m)}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Remove
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {(!members || members.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    No members yet. Invite your first team member above.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <AlertDialog open={!!removeMember} onOpenChange={(open) => !open && setRemoveMember(null)}>
         <AlertDialogContent>
@@ -258,6 +258,6 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
 }
