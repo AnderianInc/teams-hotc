@@ -1,86 +1,79 @@
 
 
-## QR Code Check-In with Member Type Differentiation
+## Fix Roster Calendar: Event Creation, Deletion, and Assignment Issues
 
-### Overview
-Build a public `/check-in` page where anyone at church can scan a QR code and check in. The page will present two clear paths: one for **volunteers/staff** (who have app accounts) and one for **regular church members** (tracked in the `attendees` table). Admins can display/print the QR code from the Attendance tab.
+### Root Cause Analysis
 
-### User Flow
+There are two key problems:
 
-```text
-Scan QR Code --> /check-in page
-                    |
-         +----------+----------+
-         |                     |
-   "I'm a Volunteer/Staff"   "I'm a Church Member"
-         |                     |
-   Search profiles table    Search attendees table
-         |                     |
-   Tap name -> confirm      Tap name -> confirm
-         |                     |        |
-   Records user_id          Records attendee_id
-   in weekly_attendance      in weekly_attendance
-                               |
-                         (or register as new
-                          member if not found)
-```
+1. **RLS blocking event creation**: When creating events from the admin calendar, `team_id` is set to `null` (since events are now top-level entities with teams linked via `roster_event_teams`). The team lead INSERT policy on `roster_events` requires `team_id IS NOT NULL`, so it fails silently. Only the admin ALL policy works, but if the current user's admin role isn't detected, nothing happens.
 
-### What Gets Built
+2. **RLS blocking event deletion**: The `deleteEvent` mutation deletes from `roster_entries`, `roster_event_teams`, and `roster_events` in sequence. The team lead DELETE policy on `roster_events` also requires `team_id IS NOT NULL`, so deleting top-level events (with `team_id = null`) fails for team leads.
 
-**1. Public Check-In Page (`src/pages/CheckIn.tsx`)**
-- Mobile-optimized, no login required
-- Two large buttons at top: "Volunteer / Staff" and "Church Member"
-- Search box appears after selecting type
-- **Volunteer/Staff path**: searches `profiles` table by name, shows matching names with team badges
-- **Church Member path**: searches `attendees` table by name, shows matches; includes a "Not found? Register" option that captures first name, last name, and phone
-- Tap to select -> confirmation screen with checkmark animation -> done
-- Prevents duplicate check-ins for the same service date
+3. **Assign dialog member loading**: The `members` query in `RosterCalendarView` depends on `assignTeamId`, which loads members for the selected team. This works correctly but the `roleTypes` query uses `activeTeamId` (a derived value from `assignTeamId || editTeamId`) which could be stale.
 
-**2. Edge Function (`supabase/functions/self-check-in/index.ts`)**
-- Public endpoint (no JWT required)
-- Accepts: `{ type: "volunteer" | "member", user_id?: string, attendee_id?: string, full_name?: string }`
-- For volunteers: validates `user_id` exists in `profiles`, inserts into `weekly_attendance` with `user_id` set, `is_self_reported = true`
-- For members: validates `attendee_id` exists in `attendees`, inserts into `weekly_attendance` with `attendee_id` set (uses a placeholder system user_id or null-safe approach)
-- For new members: creates a new `attendees` record first, then records attendance
-- Checks for duplicate check-ins on the same `service_date`
-- Uses service role key to bypass RLS
+### What Gets Fixed
 
-**3. QR Code Button in Attendance Tab (`WeeklyAttendance.tsx`)**
-- "Show QR Code" button in the header next to week navigation
-- Opens a dialog with a QR code pointing to the published URL `/check-in`
-- Print button (reuses the pattern from `QRCodeDisplay.tsx`)
+**1. Database Migration — Fix RLS policies for top-level events**
+- Update `roster_events` INSERT policy for team leads to also allow inserting when `team_id IS NULL` if the user is a team lead of any team (since the team association goes through the junction table)
+- Update `roster_events` DELETE and UPDATE policies similarly
+- Alternative (simpler): Allow team leads to insert/update/delete events where `team_id IS NULL` by checking if they lead any team
 
-**4. Attendance Tab Updates (`WeeklyAttendance.tsx`)**
-- Add a toggle/tabs to switch between "Volunteers/Staff" and "Church Members" views
-- Volunteers view: current behavior (profiles + team_members data)
-- Members view: shows attendees from the `attendees` table with their check-in status for the selected week
-- Stats section updated to show combined or per-type counts
-- Self-reported entries shown with a small indicator badge
+**2. RosterCalendarView.tsx — Ensure dialogs and mutations work**
+- Verify the create event flow properly opens and submits
+- Ensure delete event cascade works (entries → event_teams → events)
+- Fix the assign volunteer flow to correctly load members based on the selected team within the event
 
-**5. Database Migration**
-- Make `user_id` nullable on `weekly_attendance` (currently NOT NULL) so member-only check-ins (attendee_id without a user account) can be recorded
-- Add unique constraint on `(service_date, user_id)` and `(service_date, attendee_id)` to prevent duplicate check-ins
-- Add RLS policy allowing the edge function (service role) to insert records
-
-**6. Route Registration (`App.tsx`)**
-- Add `/check-in` as a public route (outside ProtectedRoute, like `/welcome`)
-
-**7. Config Update (`supabase/config.toml`)**
-- Add `[functions.self-check-in]` with `verify_jwt = false`
+**3. RosterEventManager.tsx — Team dashboard event management**
+- Same RLS fix applies; team leads creating events with `team_id = null` need the policy update
 
 ### Technical Details
 
-**Files to create:**
-- `src/pages/CheckIn.tsx` -- public self-service check-in page with dual-path UI
-- `supabase/functions/self-check-in/index.ts` -- backend function for recording attendance
+**Migration SQL:**
+```sql
+-- Drop restrictive team lead policies on roster_events
+DROP POLICY IF EXISTS "Team leads can insert roster events" ON public.roster_events;
+DROP POLICY IF EXISTS "Team leads can delete roster events" ON public.roster_events;
+DROP POLICY IF EXISTS "Team leads can update roster events" ON public.roster_events;
+
+-- Create a helper function: is user a lead of ANY team?
+CREATE OR REPLACE FUNCTION public.is_any_team_lead(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.team_members
+    WHERE user_id = _user_id AND role = 'team_lead'
+  )
+$$;
+
+-- Team leads can insert events (top-level with null team_id)
+CREATE POLICY "Team leads can insert roster events"
+ON public.roster_events FOR INSERT TO authenticated
+WITH CHECK (public.is_any_team_lead(auth.uid()));
+
+-- Team leads can update events they created or that link to their team
+CREATE POLICY "Team leads can update roster events"
+ON public.roster_events FOR UPDATE TO authenticated
+USING (
+  public.is_any_team_lead(auth.uid())
+  OR (team_id IS NOT NULL AND is_team_lead(auth.uid(), team_id))
+);
+
+-- Team leads can delete events
+CREATE POLICY "Team leads can delete roster events"
+ON public.roster_events FOR DELETE TO authenticated
+USING (
+  public.is_any_team_lead(auth.uid())
+  OR (team_id IS NOT NULL AND is_team_lead(auth.uid(), team_id))
+);
+```
 
 **Files to modify:**
-- `src/App.tsx` -- add `/check-in` route outside protected wrapper
-- `src/components/admin/WeeklyAttendance.tsx` -- add QR code button, member/volunteer tabs, show self-reported indicator
-- `supabase/config.toml` -- register `self-check-in` function
+- `src/components/admin/RosterCalendarView.tsx` — Add better error handling/toast on mutation failures, ensure the day-click → create event flow works end-to-end
+- `src/components/teams/RosterEventManager.tsx` — Same error handling improvements
 
-**Database migration:**
-- `ALTER TABLE weekly_attendance ALTER COLUMN user_id DROP NOT NULL` -- allow member-only records
-- Add partial unique indexes for duplicate prevention
-- Add index on `attendee_id` for efficient member lookups
+**Files to create:**
+- New migration for RLS policy updates and `is_any_team_lead` function
 
