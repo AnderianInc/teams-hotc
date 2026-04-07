@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Plus, X, Users } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface DirectoryEntry {
   id: string;
@@ -30,6 +35,7 @@ interface Props {
 }
 
 export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdated }: Props) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({
     first_name: entry.first_name,
     last_name: entry.last_name,
@@ -39,6 +45,94 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     is_member: entry.is_member,
   });
   const [saving, setSaving] = useState(false);
+  const [addTeamId, setAddTeamId] = useState("");
+  const [addTeamRole, setAddTeamRole] = useState("member");
+
+  // Find the user_id for this entry (needed for team management)
+  const isAttendee = entry.source !== "family" && !entry.isVolunteerOnly;
+  const isVolunteerOnly = entry.isVolunteerOnly;
+
+  // Get user_id: for volunteerOnly it's entry.id, for attendees we look up profile
+  const { data: profileData } = useQuery({
+    queryKey: ["profile-for-entry", entry.id, entry.isVolunteerOnly],
+    queryFn: async () => {
+      if (isVolunteerOnly) {
+        return { user_id: entry.id };
+      }
+      // Look up profile by attendee_id
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("attendee_id", entry.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: open && entry.source !== "family",
+  });
+
+  const userId = profileData?.user_id;
+
+  // Get current team memberships
+  const { data: currentTeams, refetch: refetchTeams } = useQuery({
+    queryKey: ["entry-teams", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("id, team_id, role, teams(name)")
+        .eq("user_id", userId!);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId && open,
+  });
+
+  // Get all available teams
+  const { data: allTeams } = useQuery({
+    queryKey: ["all-teams-for-edit"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("teams").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && entry.source !== "family",
+  });
+
+  const availableTeams = (allTeams || []).filter(
+    (t) => !(currentTeams || []).some((ct: any) => ct.team_id === t.id)
+  );
+
+  const addTeamMutation = useMutation({
+    mutationFn: async ({ teamId, role }: { teamId: string; role: string }) => {
+      const { error } = await supabase
+        .from("team_members")
+        .insert({ team_id: teamId, user_id: userId!, role: role as any });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Added to team");
+      setAddTeamId("");
+      setAddTeamRole("member");
+      refetchTeams();
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeTeamMutation = useMutation({
+    mutationFn: async (membershipId: string) => {
+      const { error } = await supabase
+        .from("team_members")
+        .delete()
+        .eq("id", membershipId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Removed from team");
+      refetchTeams();
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const update = (field: string, value: string | boolean) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -47,7 +141,6 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     setSaving(true);
     try {
       if (entry.source === "family") {
-        // Update the child record in children table
         const { error } = await supabase
           .from("children")
           .update({
@@ -58,7 +151,6 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           .eq("id", entry.id);
         if (error) throw error;
       } else if (entry.isVolunteerOnly) {
-        // Update profile record
         const { error } = await supabase
           .from("profiles")
           .update({
@@ -70,7 +162,6 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           .eq("user_id", entry.id);
         if (error) throw error;
       } else {
-        // Update attendee record
         const { error } = await supabase
           .from("attendees")
           .update({
@@ -95,7 +186,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit {entry.first_name} {entry.last_name}</DialogTitle>
         </DialogHeader>
@@ -131,6 +222,79 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
               <Switch checked={form.is_member} onCheckedChange={(v) => update("is_member", v)} />
               <Label>Member</Label>
             </div>
+          )}
+
+          {/* Team Management Section */}
+          {entry.source !== "family" && userId && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2 text-sm font-semibold">
+                  <Users className="h-4 w-4" />
+                  Team Memberships
+                </Label>
+
+                {/* Current teams */}
+                {currentTeams && currentTeams.length > 0 ? (
+                  <div className="space-y-1">
+                    {currentTeams.map((tm: any) => (
+                      <div key={tm.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{(tm.teams as any)?.name}</span>
+                          <Badge variant={tm.role === "team_lead" ? "default" : "secondary"} className="text-xs capitalize">
+                            {tm.role === "team_lead" ? "Lead" : "Member"}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => removeTeamMutation.mutate(tm.id)}
+                          disabled={removeTeamMutation.isPending}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Not assigned to any teams</p>
+                )}
+
+                {/* Add to team */}
+                {availableTeams.length > 0 && (
+                  <div className="flex gap-2">
+                    <Select value={addTeamId} onValueChange={setAddTeamId}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select team..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableTeams.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={addTeamRole} onValueChange={setAddTeamRole}>
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="team_lead">Lead</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      disabled={!addTeamId || addTeamMutation.isPending}
+                      onClick={() => addTeamMutation.mutate({ teamId: addTeamId, role: addTeamRole })}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
         <DialogFooter>
