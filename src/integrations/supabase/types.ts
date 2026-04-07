@@ -897,6 +897,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_any_team_lead: { Args: { _user_id: string }; Returns: boolean }
       is_first_impressions_member: {
         Args: { _user_id: string }
         Returns: boolean
