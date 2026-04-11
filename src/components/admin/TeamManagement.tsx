@@ -47,6 +47,7 @@ export default function TeamManagement() {
       setDescription("");
       setTeamType("volunteer");
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["my-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -62,6 +63,7 @@ export default function TeamManagement() {
       setEditOpen(false);
       setEditTeam(null);
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["my-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -75,6 +77,7 @@ export default function TeamManagement() {
       toast.success("Team deleted!");
       setDeleteTeam(null);
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["my-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
