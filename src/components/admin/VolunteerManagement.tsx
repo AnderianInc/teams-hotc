@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { UserPlus, Mail, RefreshCw, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
 import { useAllTeams } from "@/hooks/useTeams";
+import TeamMembershipEditor from "@/components/teams/TeamMembershipEditor";
 
 interface ProfileWithTeam {
   id: string;
@@ -33,8 +34,6 @@ export default function VolunteerManagement() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editProfile, setEditProfile] = useState<ProfileWithTeam | null>(null);
-  const [editTeam, setEditTeam] = useState("");
-  const [editRole, setEditRole] = useState("member");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteProfile, setDeleteProfile] = useState<ProfileWithTeam | null>(null);
@@ -83,26 +82,6 @@ export default function VolunteerManagement() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const editMutation = useMutation({
-    mutationFn: async ({ userId, oldTeamId, newTeamId, newRole }: { userId: string; oldTeamId: string; newTeamId: string; newRole: string }) => {
-      if (oldTeamId !== newTeamId) {
-        await supabase.from("team_members").delete().eq("user_id", userId).eq("team_id", oldTeamId);
-      }
-      const { error } = await supabase.from("team_members").upsert(
-        { user_id: userId, team_id: newTeamId, role: newRole as any },
-        { onConflict: "team_id,user_id" } as any
-      );
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Updated!");
-      setEditOpen(false);
-      setEditProfile(null);
-      queryClient.invalidateQueries({ queryKey: ["all-profiles-with-teams"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
       await supabase.from("team_members").delete().eq("user_id", userId);
@@ -122,9 +101,6 @@ export default function VolunteerManagement() {
 
   const openEdit = (p: ProfileWithTeam) => {
     setEditProfile(p);
-    const firstMembership = p.team_members?.[0];
-    setEditTeam(firstMembership?.team_id || "");
-    setEditRole(firstMembership?.role || "member");
     setEditOpen(true);
   };
 
@@ -268,43 +244,21 @@ export default function VolunteerManagement() {
         )}
 
         {/* Edit Dialog */}
-        <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent>
+        <Dialog
+          open={editOpen}
+          onOpenChange={(open) => {
+            setEditOpen(open);
+            if (!open) setEditProfile(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Edit Volunteer — {editProfile?.full_name || editProfile?.email}</DialogTitle>
             </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!editProfile) return;
-                const oldTeamId = editProfile.team_members?.[0]?.team_id || "";
-                editMutation.mutate({ userId: editProfile.user_id, oldTeamId, newTeamId: editTeam, newRole: editRole });
-              }}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <Label>Team</Label>
-                <Select value={editTeam} onValueChange={setEditTeam}>
-                  <SelectTrigger><SelectValue placeholder="Select a team" /></SelectTrigger>
-                  <SelectContent>
-                    {teams?.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Select value={editRole} onValueChange={setEditRole}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="team_lead">Team Lead</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" className="w-full" disabled={editMutation.isPending}>
-                {editMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
-            </form>
+            {editProfile && <TeamMembershipEditor userId={editProfile.user_id} enabled={editOpen} />}
+            <div className="flex justify-end">
+              <Button type="button" onClick={() => setEditOpen(false)}>Done</Button>
+            </div>
           </DialogContent>
         </Dialog>
 
