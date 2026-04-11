@@ -77,6 +77,7 @@ export default function TeamManagement() {
       toast.success("Team deleted!");
       setDeleteTeam(null);
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["my-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
