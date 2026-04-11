@@ -47,6 +47,7 @@ export default function TeamManagement() {
       setDescription("");
       setTeamType("volunteer");
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["my-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
