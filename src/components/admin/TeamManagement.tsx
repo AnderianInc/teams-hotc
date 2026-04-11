@@ -63,6 +63,7 @@ export default function TeamManagement() {
       setEditOpen(false);
       setEditTeam(null);
       queryClient.invalidateQueries({ queryKey: ["all-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["my-teams"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
