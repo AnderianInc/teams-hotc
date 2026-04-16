@@ -19,6 +19,7 @@ import Profile from "@/pages/Profile";
 import Feedback from "@/pages/Feedback";
 import NotFound from "@/pages/NotFound";
 import CheckIn from "@/pages/CheckIn";
+import Landing from "@/pages/Landing";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/landing" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
