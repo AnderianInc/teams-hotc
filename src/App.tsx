@@ -20,6 +20,7 @@ import Feedback from "@/pages/Feedback";
 import NotFound from "@/pages/NotFound";
 import CheckIn from "@/pages/CheckIn";
 import Landing from "@/pages/Landing";
+import SermonMode from "@/pages/SermonMode";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
               }
             >
               <Route path="/" element={<Dashboard />} />
+              <Route path="/sermon" element={<SermonMode />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />

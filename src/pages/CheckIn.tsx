@@ -147,6 +147,14 @@ export default function CheckIn() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8">
       <div className="w-full max-w-md">
+        <div className="mb-4">
+          <a
+            href="/landing"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" /> Back to Home
+          </a>
+        </div>
         <h1 className="text-2xl font-bold text-center mb-1" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
           Church Check-In
         </h1>

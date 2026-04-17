@@ -44,6 +44,7 @@ import {
   MessageCircle,
   Inbox,
   ClipboardCheck,
+  Radio,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
@@ -171,6 +172,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to="/sermon" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <Radio className="h-4 w-4" />
+                <span>Sermon Mode</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink to="/feedback" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
