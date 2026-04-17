@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Users } from "lucide-react";
+import { Users, ArrowLeft } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -44,6 +44,12 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Link
+        to="/landing"
+        className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </Link>
       <Card className="w-full max-w-md shadow-xl border-0 bg-card">
         <CardHeader className="text-center space-y-3">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
