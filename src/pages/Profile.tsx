@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, User, Trash2, Lock } from "lucide-react";
+import { Loader2, Save, User, Trash2, Lock, Bell, BellOff } from "lucide-react";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface ProfileData {
   full_name: string;
@@ -189,8 +190,70 @@ export default function Profile() {
 
       <ChangePasswordSection />
 
+      <NotificationSettingsSection />
+
       <DeleteAccountSection userId={user?.id} />
     </div>
+  );
+}
+
+function NotificationSettingsSection() {
+  const { isSupported, permissionState, isSubscribed, isLoading, subscribe, unsubscribe } =
+    usePushNotifications();
+
+  if (!isSupported) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Bell className="h-4 w-4" /> Push Notifications
+          </CardTitle>
+          <CardDescription>
+            Push notifications are not supported in this browser or no VAPID key is configured.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Bell className="h-4 w-4" /> Push Notifications
+        </CardTitle>
+        <CardDescription>
+          {isSubscribed
+            ? "You are receiving push notifications on this device."
+            : "Enable push notifications to be alerted about follow-ups, roster assignments, and more."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {permissionState === "denied" ? (
+          <p className="text-sm text-destructive">
+            Notifications are blocked by your browser. Please update your browser's site settings to allow notifications, then reload.
+          </p>
+        ) : isSubscribed ? (
+          <Button variant="outline" size="sm" onClick={unsubscribe} disabled={isLoading}>
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <BellOff className="mr-2 h-4 w-4" />
+            )}
+            Disable Push Notifications
+          </Button>
+        ) : (
+          <Button size="sm" onClick={subscribe} disabled={isLoading}>
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Bell className="mr-2 h-4 w-4" />
+            )}
+            Enable Push Notifications
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

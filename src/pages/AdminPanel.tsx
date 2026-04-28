@@ -10,6 +10,7 @@ import FeedbackReview from "@/components/admin/FeedbackReview";
 import ChurchRoster from "@/components/admin/ChurchRoster";
 import RosterCalendarView from "@/components/admin/RosterCalendarView";
 import WeeklyAttendance from "@/components/admin/WeeklyAttendance";
+import InreachDashboard from "@/components/admin/InreachDashboard";
 
 export default function AdminPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,6 +38,7 @@ export default function AdminPanel() {
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="roster">Roster</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          <TabsTrigger value="inreach">Inreach</TabsTrigger>
           <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
@@ -56,6 +58,9 @@ export default function AdminPanel() {
         </TabsContent>
         <TabsContent value="attendance">
           <WeeklyAttendance />
+        </TabsContent>
+        <TabsContent value="inreach">
+          <InreachDashboard />
         </TabsContent>
         <TabsContent value="directory">
           <ChurchDirectory />

@@ -39,7 +39,8 @@ export default function AttendeeList() {
   const addAttendee = useMutation({
     mutationFn: async () => {
       const tags = form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
-      const { error } = await supabase.from("attendees").insert({
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase.from("attendees").insert({
         first_name: form.firstName,
         last_name: form.lastName,
         email: form.email || null,
@@ -47,14 +48,30 @@ export default function AttendeeList() {
         address: form.address || null,
         notes: form.notes || null,
         tags,
-      });
+        first_visit_date: today,
+        is_member: false,
+      }).select("id").single();
       if (error) throw error;
+
+      // Auto-create an outreach follow-up for new first-time visitors
+      if (data?.id) {
+        const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        await (supabase.from as any)("follow_ups").insert({
+          attendee_id: data.id,
+          type: "outreach",
+          status: "pending",
+          priority: "normal",
+          due_date: dueDate,
+          notes: `Auto-created: first-time visitor on ${today}`,
+        });
+      }
     },
     onSuccess: () => {
-      toast.success("Visitor registered!");
+      toast.success("Visitor registered! A follow-up has been scheduled for 3 days from now.");
       setAddOpen(false);
       setForm({ firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "" });
       queryClient.invalidateQueries({ queryKey: ["attendees"] });
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
