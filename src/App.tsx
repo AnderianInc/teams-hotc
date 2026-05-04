@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, AdminRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
@@ -23,6 +23,19 @@ import Landing from "@/pages/Landing";
 
 const queryClient = new QueryClient();
 
+function RootRoute() {
+  const { session, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (!session) return <Landing />;
+  return <Navigate to="/dashboard" replace />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -37,6 +50,7 @@ const App = () => (
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/check-in" element={<CheckIn />} />
+            <Route path="/" element={<RootRoute />} />
             <Route
               element={
                 <ProtectedRoute>
@@ -44,7 +58,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
