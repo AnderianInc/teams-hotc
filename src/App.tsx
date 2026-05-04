@@ -58,6 +58,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
