@@ -37,6 +37,7 @@ const App = () => (
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/check-in" element={<CheckIn />} />
+            <Route path="/" element={<RootRoute />} />
             <Route
               element={
                 <ProtectedRoute>
@@ -44,7 +45,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
