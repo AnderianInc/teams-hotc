@@ -296,6 +296,25 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
           console.error("Email notification failed:", err);
         }
       }
+
+      // In-app + push notification
+      try {
+        const teamName = teams?.find((t) => t.id === assignTeamId)?.name || "your team";
+        const dateStr = new Date(assignEvent.event_date + "T00:00:00").toLocaleDateString("en-US", {
+          weekday: "long", month: "long", day: "numeric",
+        });
+        await supabase.functions.invoke("notify", {
+          body: {
+            recipient_id: assignUserId,
+            type: "roster_assigned",
+            title: `You've been assigned: ${assignEvent.name}`,
+            body: `${teamName} · ${dateStr}`,
+            url: "/",
+          },
+        });
+      } catch (err) {
+        console.error("Push notification failed:", err);
+      }
     },
     onSuccess: () => {
       toast.success("Volunteer assigned & notified!");

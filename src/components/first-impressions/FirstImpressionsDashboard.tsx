@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import AttendeeList from "./AttendeeList";
 import FollowUpList from "./FollowUpList";
 import QRCodeDisplay from "./QRCodeDisplay";
+import OutreachPipeline from "./OutreachPipeline";
 
 export default function FirstImpressionsDashboard() {
   return (
@@ -21,6 +22,7 @@ export default function FirstImpressionsDashboard() {
         <TabsList>
           <TabsTrigger value="attendees">Visitors & Members</TabsTrigger>
           <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
+          <TabsTrigger value="pipeline">Outreach Pipeline</TabsTrigger>
           <TabsTrigger value="qrcode">QR Code</TabsTrigger>
         </TabsList>
         <TabsContent value="attendees">
@@ -28,6 +30,9 @@ export default function FirstImpressionsDashboard() {
         </TabsContent>
         <TabsContent value="followups">
           <FollowUpList />
+        </TabsContent>
+        <TabsContent value="pipeline">
+          <OutreachPipeline />
         </TabsContent>
         <TabsContent value="qrcode">
           <QRCodeDisplay />

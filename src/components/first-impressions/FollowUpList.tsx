@@ -8,12 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EmailComposer from "@/components/admin/EmailComposer";
+import { FollowUpActivityLog } from "./FollowUpActivityLog";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/30",
@@ -31,24 +34,51 @@ const statusIcons: Record<string, React.ElementType> = {
   closed: XCircle,
 };
 
+const priorityColors: Record<string, string> = {
+  low: "text-muted-foreground",
+  normal: "",
+  high: "text-warning",
+  urgent: "text-destructive font-semibold",
+};
+
+function isOverdue(dueDate: string | null, status: string): boolean {
+  if (!dueDate || status === "connected" || status === "closed") return false;
+  return new Date(dueDate) < new Date();
+}
+
 export default function FollowUpList() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [emailTarget, setEmailTarget] = useState<{ email: string; name: string; attendeeId: string } | null>(null);
+
+  // Filters
+  const [typeFilter, setTypeFilter] = useState<"all" | "inreach" | "outreach">("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+
+  // New follow-up form
   const [attendeeId, setAttendeeId] = useState("");
   const [method, setMethod] = useState("");
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [fuType, setFuType] = useState<"outreach" | "inreach">("outreach");
+  const [priority, setPriority] = useState("normal");
+  const [assignedTo, setAssignedTo] = useState("");
 
   const { data: followUps, isLoading } = useQuery({
-    queryKey: ["follow-ups"],
+    queryKey: ["follow-ups", typeFilter, assigneeFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("follow_ups")
-        .select("*, attendees(first_name, last_name, email), profiles:assigned_to(full_name)")
+      let q = (supabase.from as any)("follow_ups")
+        .select("*, attendees(first_name, last_name, email), profiles:assigned_to(full_name, user_id)")
+        .order("due_date", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
+
+      if (typeFilter !== "all") q = q.eq("type", typeFilter);
+      if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
+
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -63,20 +93,53 @@ export default function FollowUpList() {
     },
   });
 
+  const { data: volunteers } = useQuery({
+    queryKey: ["volunteers-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("user_id, full_name").order("full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const addFollowUp = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("follow_ups").insert({
+      const { error } = await (supabase.from as any)("follow_ups").insert({
         attendee_id: attendeeId,
         method: method || null,
         notes: notes || null,
         due_date: dueDate || null,
+        type: fuType,
+        priority,
+        assigned_to: assignedTo || null,
       });
       if (error) throw error;
+
+      // Notify the assignee
+      if (assignedTo) {
+        const person = attendees?.find((a) => a.id === attendeeId);
+        const personName = person ? `${person.first_name} ${person.last_name}` : "someone";
+        try {
+          await supabase.functions.invoke("notify", {
+            body: {
+              recipient_id: assignedTo,
+              type: "follow_up_assigned",
+              title: `New ${fuType} follow-up assigned`,
+              body: `You've been assigned to follow up with ${personName}${dueDate ? ` by ${new Date(dueDate).toLocaleDateString()}` : ""}.`,
+              url: "/team/first-impressions",
+              high_priority: priority === "urgent" || priority === "high",
+            },
+          });
+        } catch (err) {
+          console.error("Follow-up notification failed:", err);
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Follow-up created!");
       setAddOpen(false);
       setAttendeeId(""); setMethod(""); setNotes(""); setDueDate("");
+      setFuType("outreach"); setPriority("normal"); setAssignedTo("");
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -86,7 +149,7 @@ export default function FollowUpList() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const updates: any = { status };
       if (status === "connected" || status === "closed") updates.completed_at = new Date().toISOString();
-      const { error } = await supabase.from("follow_ups").update(updates).eq("id", id);
+      const { error } = await (supabase.from as any)("follow_ups").update(updates).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -96,30 +159,72 @@ export default function FollowUpList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const detailFollowUp = followUps?.find((fu: any) => fu.id === detailId);
+
+  const overdueCount = followUps?.filter((fu: any) => isOverdue(fu.due_date, fu.status)).length ?? 0;
+
   return (
     <Card>
       <CardContent className="pt-6 space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-display font-semibold">Follow-Up Queue</h3>
+        {/* Header */}
+        <div className="flex flex-wrap gap-3 justify-between items-center">
+          <div className="flex items-center gap-3">
+            <h3 className="font-display font-semibold">Follow-Up Queue</h3>
+            {overdueCount > 0 && (
+              <Badge variant="destructive" className="gap-1 text-xs">
+                <AlertTriangle className="h-3 w-3" /> {overdueCount} overdue
+              </Badge>
+            )}
+          </div>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                New Follow-Up
-              </Button>
+              <Button size="sm"><Plus className="h-4 w-4 mr-2" />New Follow-Up</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Follow-Up</DialogTitle>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Create Follow-Up</DialogTitle></DialogHeader>
               <form onSubmit={(e) => { e.preventDefault(); addFollowUp.mutate(); }} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Type</Label>
+                    <Select value={fuType} onValueChange={(v) => setFuType(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="outreach">Outreach</SelectItem>
+                        <SelectItem value="inreach">Inreach</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Priority</Label>
+                    <Select value={priority} onValueChange={setPriority}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="space-y-1">
-                  <Label>Visitor/Member</Label>
+                  <Label>Person</Label>
                   <Select value={attendeeId} onValueChange={setAttendeeId} required>
                     <SelectTrigger><SelectValue placeholder="Select person" /></SelectTrigger>
                     <SelectContent>
                       {attendees?.map((a) => (
                         <SelectItem key={a.id} value={a.id}>{a.first_name} {a.last_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Assign To</Label>
+                  <Select value={assignedTo} onValueChange={setAssignedTo}>
+                    <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                    <SelectContent>
+                      {volunteers?.map((v: any) => (
+                        <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -152,6 +257,28 @@ export default function FollowUpList() {
           </Dialog>
         </div>
 
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <Tabs value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
+              <TabsTrigger value="outreach" className="text-xs px-3 h-7">Outreach</TabsTrigger>
+              <TabsTrigger value="inreach" className="text-xs px-3 h-7">Inreach</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="h-8 w-44 text-xs">
+              <SelectValue placeholder="All assignees" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All assignees</SelectItem>
+              {volunteers?.map((v: any) => (
+                <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         ) : (
@@ -159,8 +286,10 @@ export default function FollowUpList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Person</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Method</TableHead>
                 <TableHead>Due</TableHead>
+                <TableHead>Assigned</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -168,58 +297,69 @@ export default function FollowUpList() {
             <TableBody>
               {followUps?.map((fu: any) => {
                 const Icon = statusIcons[fu.status] || Clock;
+                const overdue = isOverdue(fu.due_date, fu.status);
                 return (
-                  <TableRow key={fu.id}>
-                    <TableCell className="font-medium">
+                  <TableRow
+                    key={fu.id}
+                    className={overdue ? "bg-destructive/5 cursor-pointer" : "cursor-pointer"}
+                    onClick={() => setDetailId(fu.id)}
+                  >
+                    <TableCell className={`font-medium ${priorityColors[fu.priority] || ""}`}>
                       {fu.attendees?.first_name} {fu.attendees?.last_name}
-                    </TableCell>
-                    <TableCell className="capitalize text-muted-foreground">{fu.method || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {fu.due_date ? new Date(fu.due_date).toLocaleDateString() : "—"}
+                      {fu.priority === "urgent" && <span className="ml-1 text-destructive">(!)</span>}
                     </TableCell>
                     <TableCell>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {fu.type || "outreach"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="capitalize text-muted-foreground">{fu.method || "—"}</TableCell>
+                    <TableCell className={overdue ? "text-destructive font-medium" : "text-muted-foreground"}>
+                      {fu.due_date ? (
+                        <span className="flex items-center gap-1">
+                          {overdue && <AlertTriangle className="h-3 w-3" />}
+                          {new Date(fu.due_date).toLocaleDateString()}
+                        </span>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {fu.profiles?.full_name ?? <span className="italic">Unassigned</span>}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Badge variant="outline" className={`gap-1 ${statusColors[fu.status] || ""}`}>
                         <Icon className="h-3 w-3" />
                         {fu.status.replace("_", " ")}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 row-actions">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {fu.attendees?.email && (
                             <DropdownMenuItem onClick={() => {
-                              setEmailTarget({
-                                email: fu.attendees.email,
-                                name: `${fu.attendees.first_name} ${fu.attendees.last_name}`,
-                                attendeeId: fu.attendee_id,
-                              });
+                              setEmailTarget({ email: fu.attendees.email, name: `${fu.attendees.first_name} ${fu.attendees.last_name}`, attendeeId: fu.attendee_id });
                               setEmailOpen(true);
                             }}>
-                              <Mail className="h-4 w-4 mr-2" />
-                              Send Email
+                              <Mail className="h-4 w-4 mr-2" /> Send Email
                             </DropdownMenuItem>
                           )}
                           {fu.status === "pending" && (
                             <DropdownMenuItem onClick={() => updateStatus.mutate({ id: fu.id, status: "contacted" })}>
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Mark Contacted
+                              <MessageSquare className="h-4 w-4 mr-2" /> Mark Contacted
                             </DropdownMenuItem>
                           )}
                           {fu.status === "contacted" && (
                             <DropdownMenuItem onClick={() => updateStatus.mutate({ id: fu.id, status: "connected" })}>
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Mark Connected
+                              <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Connected
                             </DropdownMenuItem>
                           )}
                           {(fu.status === "pending" || fu.status === "contacted") && (
                             <DropdownMenuItem onClick={() => updateStatus.mutate({ id: fu.id, status: "closed" })}>
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Close
+                              <XCircle className="h-4 w-4 mr-2" /> Close
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -230,8 +370,8 @@ export default function FollowUpList() {
               })}
               {(!followUps || followUps.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No follow-ups yet. Create one to start tracking.
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    No follow-ups found.
                   </TableCell>
                 </TableRow>
               )}
@@ -239,17 +379,61 @@ export default function FollowUpList() {
           </Table>
         )}
 
-        {/* Email composer dialog */}
+        {/* Detail side-sheet */}
+        <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+          <SheetContent className="w-full sm:max-w-md overflow-auto">
+            {detailFollowUp && (
+              <>
+                <SheetHeader className="mb-4">
+                  <SheetTitle>
+                    {detailFollowUp.attendees?.first_name} {detailFollowUp.attendees?.last_name}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="space-y-2 text-sm mb-6">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Type</span>
+                    <Badge variant="outline" className="capitalize">{detailFollowUp.type || "outreach"}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    <Badge variant="outline" className={statusColors[detailFollowUp.status]}>
+                      {detailFollowUp.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Priority</span>
+                    <span className={priorityColors[detailFollowUp.priority] || ""}>{detailFollowUp.priority || "normal"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Assigned to</span>
+                    <span>{detailFollowUp.profiles?.full_name ?? "Unassigned"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Due</span>
+                    <span>{detailFollowUp.due_date ? new Date(detailFollowUp.due_date).toLocaleDateString() : "—"}</span>
+                  </div>
+                  {detailFollowUp.notes && (
+                    <div>
+                      <span className="text-muted-foreground block mb-1">Notes</span>
+                      <p className="bg-muted/40 rounded p-2">{detailFollowUp.notes}</p>
+                    </div>
+                  )}
+                </div>
+                <FollowUpActivityLog followUpId={detailFollowUp.id} />
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
+
+        {/* Email composer */}
         <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
-            <DialogHeader>
-              <DialogTitle>Send Follow-Up Email</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Send Follow-Up Email</DialogTitle></DialogHeader>
             {emailTarget && (
               <EmailComposer
                 defaultTo={emailTarget.email}
                 defaultToName={emailTarget.name}
-                defaultSubject={`Follow-Up from House of Transformation Church`}
+                defaultSubject="Follow-Up from House of the Cross"
                 relatedAttendeeId={emailTarget.attendeeId}
                 onSent={() => setEmailOpen(false)}
               />
