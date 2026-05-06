@@ -794,6 +794,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_log: {
+        Row: {
+          body: string
+          created_at: string
+          error: string | null
+          id: string
+          provider_message_id: string | null
+          related_attendee_id: string | null
+          sent_at: string
+          sent_by: string | null
+          status: string
+          to_name: string | null
+          to_phone: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          provider_message_id?: string | null
+          related_attendee_id?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          to_name?: string | null
+          to_phone: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          provider_message_id?: string | null
+          related_attendee_id?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          to_name?: string | null
+          to_phone?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string
