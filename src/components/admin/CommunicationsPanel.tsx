@@ -2,6 +2,7 @@ import { useState } from "react";
 import EmailComposer from "./EmailComposer";
 import EmailLog from "./EmailLog";
 import EmailTemplates from "./EmailTemplates";
+import SmsLog from "./SmsLog";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -25,6 +26,7 @@ export default function CommunicationsPanel() {
       <TabsList>
         <TabsTrigger value="compose">Compose</TabsTrigger>
         <TabsTrigger value="log">Email Log</TabsTrigger>
+        <TabsTrigger value="sms-log">SMS Log</TabsTrigger>
         <TabsTrigger value="templates">Templates</TabsTrigger>
       </TabsList>
       <TabsContent value="compose" className="space-y-6">
@@ -37,6 +39,9 @@ export default function CommunicationsPanel() {
       </TabsContent>
       <TabsContent value="log">
         <EmailLog />
+      </TabsContent>
+      <TabsContent value="sms-log">
+        <SmsLog />
       </TabsContent>
       <TabsContent value="templates">
         <EmailTemplates onUseTemplate={handleUseTemplate} />
