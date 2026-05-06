@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle, Send } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EmailComposer from "@/components/admin/EmailComposer";
 import { FollowUpActivityLog } from "./FollowUpActivityLog";
@@ -52,6 +52,38 @@ export default function FollowUpList() {
   const [emailOpen, setEmailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [emailTarget, setEmailTarget] = useState<{ email: string; name: string; attendeeId: string } | null>(null);
+  const [smsTarget, setSmsTarget] = useState<{ phone: string; name: string; attendeeId: string; followUpId: string } | null>(null);
+  const [smsBody, setSmsBody] = useState("");
+  const [smsSending, setSmsSending] = useState(false);
+
+  const sendSms = async () => {
+    if (!smsTarget || !smsBody.trim()) return;
+    setSmsSending(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.functions.invoke("send-sms", {
+        body: {
+          to: smsTarget.phone,
+          body: smsBody.trim(),
+          to_name: smsTarget.name,
+          related_attendee_id: smsTarget.attendeeId,
+          logged_by: user?.id,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      // Mark the follow-up as contacted
+      await (supabase.from as any)("follow_ups").update({ status: "contacted" }).eq("id", smsTarget.followUpId);
+      toast.success("Text sent!");
+      setSmsTarget(null);
+      setSmsBody("");
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to send text");
+    } finally {
+      setSmsSending(false);
+    }
+  };
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | "inreach" | "outreach">("all");
@@ -70,7 +102,7 @@ export default function FollowUpList() {
     queryKey: ["follow-ups", typeFilter, assigneeFilter],
     queryFn: async () => {
       let q = (supabase.from as any)("follow_ups")
-        .select("*, attendees(first_name, last_name, email), profiles:assigned_to(full_name, user_id)")
+        .select("*, attendees(first_name, last_name, email, phone), profiles:assigned_to(full_name, user_id)")
         .order("due_date", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(200);
