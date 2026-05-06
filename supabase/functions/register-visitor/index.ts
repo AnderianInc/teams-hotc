@@ -138,19 +138,22 @@ serve(async (req) => {
           }
         }
 
-        // Push notifications via existing notify function
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/notify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceRoleKey}` },
-            body: JSON.stringify({
-              recipient_ids: Array.from(recipientIds),
-              title: "New first-time visitor",
-              body: `${fullName} just registered`,
-              url: "/admin?tab=first-impressions",
+        // Push notifications via existing notify function (one call per recipient)
+        await Promise.allSettled(
+          Array.from(recipientIds).map((uid) =>
+            fetch(`${supabaseUrl}/functions/v1/notify`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceRoleKey}` },
+              body: JSON.stringify({
+                recipient_id: uid,
+                type: "first_timer",
+                title: "New first-time visitor",
+                body: `${fullName} just registered`,
+                url: "/admin?tab=first-impressions",
+              }),
             }),
-          });
-        } catch (e) { console.error("push notify failed", e); }
+          ),
+        );
       }
     } catch (e) {
       console.error("admin alert failed", e);
