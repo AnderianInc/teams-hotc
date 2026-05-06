@@ -379,6 +379,15 @@ export default function FollowUpList() {
                               <Mail className="h-4 w-4 mr-2" /> Send Email
                             </DropdownMenuItem>
                           )}
+                          {fu.attendees?.phone && (
+                            <DropdownMenuItem onClick={() => {
+                              const name = `${fu.attendees.first_name} ${fu.attendees.last_name}`;
+                              setSmsTarget({ phone: fu.attendees.phone, name, attendeeId: fu.attendee_id, followUpId: fu.id });
+                              setSmsBody(`Hi ${fu.attendees.first_name}, this is HOTC! So glad you visited us. Let us know if there's anything we can pray for or help you get connected with. — The HOTC Family`);
+                            }}>
+                              <Send className="h-4 w-4 mr-2" /> Send Text
+                            </DropdownMenuItem>
+                          )}
                           {fu.status === "pending" && (
                             <DropdownMenuItem onClick={() => updateStatus.mutate({ id: fu.id, status: "contacted" })}>
                               <MessageSquare className="h-4 w-4 mr-2" /> Mark Contacted
