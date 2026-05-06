@@ -439,6 +439,41 @@ export type Database = {
           },
         ]
       }
+      follow_up_activities: {
+        Row: {
+          activity_type: "note" | "call" | "email" | "text" | "visit" | "status_change"
+          actor_id: string
+          content: string | null
+          created_at: string
+          follow_up_id: string
+          id: string
+        }
+        Insert: {
+          activity_type: "note" | "call" | "email" | "text" | "visit" | "status_change"
+          actor_id: string
+          content?: string | null
+          created_at?: string
+          follow_up_id: string
+          id?: string
+        }
+        Update: {
+          activity_type?: "note" | "call" | "email" | "text" | "visit" | "status_change"
+          actor_id?: string
+          content?: string | null
+          created_at?: string
+          follow_up_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_activities_follow_up_id_fkey"
+            columns: ["follow_up_id"]
+            isOneToOne: false
+            referencedRelation: "follow_ups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follow_ups: {
         Row: {
           assigned_to: string | null
@@ -447,9 +482,13 @@ export type Database = {
           created_at: string
           due_date: string | null
           id: string
+          inreach_trigger: string | null
           method: string | null
           notes: string | null
+          priority: "low" | "normal" | "high" | "urgent"
+          prospect_pipeline_stage: "interested" | "invited" | "visited" | "connected" | "member" | null
           status: Database["public"]["Enums"]["followup_status"]
+          type: "inreach" | "outreach"
           updated_at: string
         }
         Insert: {
@@ -459,9 +498,13 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           id?: string
+          inreach_trigger?: string | null
           method?: string | null
           notes?: string | null
+          priority?: "low" | "normal" | "high" | "urgent"
+          prospect_pipeline_stage?: "interested" | "invited" | "visited" | "connected" | "member" | null
           status?: Database["public"]["Enums"]["followup_status"]
+          type?: "inreach" | "outreach"
           updated_at?: string
         }
         Update: {
@@ -471,9 +514,13 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           id?: string
+          inreach_trigger?: string | null
           method?: string | null
           notes?: string | null
+          priority?: "low" | "normal" | "high" | "urgent"
+          prospect_pipeline_stage?: "interested" | "invited" | "visited" | "connected" | "member" | null
           status?: Database["public"]["Enums"]["followup_status"]
+          type?: "inreach" | "outreach"
           updated_at?: string
         }
         Relationships: [

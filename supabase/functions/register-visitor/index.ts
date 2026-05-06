@@ -63,6 +63,8 @@ serve(async (req) => {
     // 1. General first-timer follow-up
     await adminClient.from("follow_ups").insert({
       attendee_id: attendee.id,
+      type: "outreach",
+      priority: "normal",
       status: "pending",
       method: "in_person",
       due_date: tomorrow,
@@ -73,6 +75,8 @@ serve(async (req) => {
     if (phone?.trim()) {
       await adminClient.from("follow_ups").insert({
         attendee_id: attendee.id,
+        type: "outreach",
+        priority: "normal",
         status: "pending",
         method: "text",
         due_date: tomorrow,

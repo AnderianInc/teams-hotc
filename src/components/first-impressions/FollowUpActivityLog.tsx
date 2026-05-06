@@ -2,12 +2,17 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Phone, Mail, MessageSquare, MapPin, FileText, RefreshCw, Plus, X } from "lucide-react";
+
+type ActivityRow = Database["public"]["Tables"]["follow_up_activities"]["Row"] & {
+  profiles: { full_name: string } | null;
+};
 
 const activityIcons: Record<string, React.ElementType> = {
   note: FileText,
@@ -41,21 +46,22 @@ export function FollowUpActivityLog({ followUpId }: Props) {
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ["follow-up-activities", followUpId],
     queryFn: async () => {
-      const { data, error } = await (supabase.from as any)("follow_up_activities")
+      const { data, error } = await supabase
+        .from("follow_up_activities")
         .select("*, profiles:actor_id(full_name)")
         .eq("follow_up_id", followUpId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as ActivityRow[];
     },
   });
 
   const addActivity = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase.from as any)("follow_up_activities").insert({
+      const { error } = await supabase.from("follow_up_activities").insert({
         follow_up_id: followUpId,
         actor_id: user!.id,
-        activity_type: activityType,
+        activity_type: activityType as ActivityRow["activity_type"],
         content: content.trim() || null,
       });
       if (error) throw error;
@@ -117,7 +123,7 @@ export function FollowUpActivityLog({ followUpId }: Props) {
         <p className="text-xs text-muted-foreground italic">No activity logged yet.</p>
       ) : (
         <ol className="relative border-l border-border ml-2 space-y-3">
-          {activities.map((a: any) => {
+          {activities.map((a) => {
             const Icon = activityIcons[a.activity_type] || FileText;
             return (
               <li key={a.id} className="ml-4">
