@@ -481,6 +481,27 @@ export default function FollowUpList() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* SMS composer */}
+        <Dialog open={!!smsTarget} onOpenChange={(o) => { if (!o) { setSmsTarget(null); setSmsBody(""); } }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Send Text {smsTarget ? `to ${smsTarget.name}` : ""}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">To: {smsTarget?.phone}</div>
+              <Textarea
+                value={smsBody}
+                onChange={(e) => setSmsBody(e.target.value)}
+                rows={6}
+                maxLength={1600}
+                placeholder="Your message..."
+              />
+              <div className="text-xs text-muted-foreground text-right">{smsBody.length} / 1600</div>
+              <Button onClick={sendSms} disabled={smsSending || !smsBody.trim()} className="w-full">
+                {smsSending ? "Sending..." : "Send Text"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
