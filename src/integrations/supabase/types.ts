@@ -47,6 +47,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       attendance_records: {
         Row: {
           attendee_id: string
@@ -438,6 +459,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      follow_up_activities: {
+        Row: {
+          activity_type: string
+          actor_id: string | null
+          content: string | null
+          created_at: string
+          follow_up_id: string
+          id: string
+        }
+        Insert: {
+          activity_type: string
+          actor_id?: string | null
+          content?: string | null
+          created_at?: string
+          follow_up_id: string
+          id?: string
+        }
+        Update: {
+          activity_type?: string
+          actor_id?: string | null
+          content?: string | null
+          created_at?: string
+          follow_up_id?: string
+          id?: string
+        }
+        Relationships: []
       }
       follow_ups: {
         Row: {
