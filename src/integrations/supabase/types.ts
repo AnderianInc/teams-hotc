@@ -896,6 +896,7 @@ export type Database = {
       team_members: {
         Row: {
           created_at: string
+          custom_role: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           team_id: string
@@ -903,6 +904,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_role?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           team_id: string
@@ -910,6 +912,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_role?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           team_id?: string
