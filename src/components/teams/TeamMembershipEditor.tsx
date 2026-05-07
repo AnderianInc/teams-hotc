@@ -42,6 +42,7 @@ export default function TeamMembershipEditor({ userId, enabled = true, onChanged
   const queryClient = useQueryClient();
   const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
   const [draftRole, setDraftRole] = useState("member");
+  const [draftCustomRole, setDraftCustomRole] = useState("");
   // local state for custom_role inputs keyed by membership id
   const [customRoles, setCustomRoles] = useState<Record<string, string>>({});
 
@@ -82,19 +83,21 @@ export default function TeamMembershipEditor({ userId, enabled = true, onChanged
   };
 
   const addMembershipMutation = useMutation({
-    mutationFn: async ({ teamIds, role }: { teamIds: string[]; role: string }) => {
+    mutationFn: async ({ teamIds, role, custom_role }: { teamIds: string[]; role: string; custom_role?: string }) => {
       const rows = teamIds.map((teamId) => ({
         team_id: teamId,
         user_id: userId,
         role: role as "member" | "team_lead",
+        custom_role: custom_role || null,
       }));
-      const { error } = await supabase.from("team_members").insert(rows);
+      const { error } = await (supabase.from as any)("team_members").insert(rows);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Team(s) added");
       setSelectedTeamIds(new Set());
       setDraftRole("member");
+      setDraftCustomRole("");
       syncMembershipQueries();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -236,31 +239,43 @@ export default function TeamMembershipEditor({ userId, enabled = true, onChanged
             ))}
           </div>
 
-          <div className="flex gap-2">
-            <Select value={draftRole} onValueChange={setDraftRole}>
-              <SelectTrigger className="flex-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                addMembershipMutation.mutate({ teamIds: Array.from(selectedTeamIds), role: draftRole })
-              }
-              disabled={selectedTeamIds.size === 0 || isMutating}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Selected
-            </Button>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Select value={draftRole} onValueChange={setDraftRole}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  addMembershipMutation.mutate({
+                    teamIds: Array.from(selectedTeamIds),
+                    role: draftRole,
+                    custom_role: draftCustomRole,
+                  })
+                }
+                disabled={selectedTeamIds.size === 0 || isMutating}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Selected
+              </Button>
+            </div>
+            <Input
+              placeholder="Title / Custom Role (optional) — e.g. Senior Pastor"
+              value={draftCustomRole}
+              onChange={(e) => setDraftCustomRole(e.target.value)}
+              className="text-xs h-7"
+              disabled={isMutating}
+            />
           </div>
         </div>
       ) : (
