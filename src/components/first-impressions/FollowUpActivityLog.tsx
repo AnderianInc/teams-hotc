@@ -52,7 +52,7 @@ export function FollowUpActivityLog({ followUpId }: Props) {
         .eq("follow_up_id", followUpId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as ActivityRow[];
+      return data as unknown as ActivityRow[];
     },
   });
 
