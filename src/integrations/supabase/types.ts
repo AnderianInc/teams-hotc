@@ -47,6 +47,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       attendance_records: {
         Row: {
           attendee_id: string
@@ -441,38 +462,30 @@ export type Database = {
       }
       follow_up_activities: {
         Row: {
-          activity_type: "note" | "call" | "email" | "text" | "visit" | "status_change"
-          actor_id: string
+          activity_type: string
+          actor_id: string | null
           content: string | null
           created_at: string
           follow_up_id: string
           id: string
         }
         Insert: {
-          activity_type: "note" | "call" | "email" | "text" | "visit" | "status_change"
-          actor_id: string
+          activity_type: string
+          actor_id?: string | null
           content?: string | null
           created_at?: string
           follow_up_id: string
           id?: string
         }
         Update: {
-          activity_type?: "note" | "call" | "email" | "text" | "visit" | "status_change"
-          actor_id?: string
+          activity_type?: string
+          actor_id?: string | null
           content?: string | null
           created_at?: string
           follow_up_id?: string
           id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "follow_up_activities_follow_up_id_fkey"
-            columns: ["follow_up_id"]
-            isOneToOne: false
-            referencedRelation: "follow_ups"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       follow_ups: {
         Row: {
@@ -482,13 +495,12 @@ export type Database = {
           created_at: string
           due_date: string | null
           id: string
-          inreach_trigger: string | null
           method: string | null
           notes: string | null
-          priority: "low" | "normal" | "high" | "urgent"
-          prospect_pipeline_stage: "interested" | "invited" | "visited" | "connected" | "member" | null
+          priority: string | null
+          prospect_pipeline_stage: string | null
           status: Database["public"]["Enums"]["followup_status"]
-          type: "inreach" | "outreach"
+          type: string | null
           updated_at: string
         }
         Insert: {
@@ -498,13 +510,12 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           id?: string
-          inreach_trigger?: string | null
           method?: string | null
           notes?: string | null
-          priority?: "low" | "normal" | "high" | "urgent"
-          prospect_pipeline_stage?: "interested" | "invited" | "visited" | "connected" | "member" | null
+          priority?: string | null
+          prospect_pipeline_stage?: string | null
           status?: Database["public"]["Enums"]["followup_status"]
-          type?: "inreach" | "outreach"
+          type?: string | null
           updated_at?: string
         }
         Update: {
@@ -514,13 +525,12 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           id?: string
-          inreach_trigger?: string | null
           method?: string | null
           notes?: string | null
-          priority?: "low" | "normal" | "high" | "urgent"
-          prospect_pipeline_stage?: "interested" | "invited" | "visited" | "connected" | "member" | null
+          priority?: string | null
+          prospect_pipeline_stage?: string | null
           status?: Database["public"]["Enums"]["followup_status"]
-          type?: "inreach" | "outreach"
+          type?: string | null
           updated_at?: string
         }
         Relationships: [
