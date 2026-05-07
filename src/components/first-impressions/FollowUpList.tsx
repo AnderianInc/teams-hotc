@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle, Send, Download } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle, Send, Download, Trash2 } from "lucide-react";
 import { downloadCsv } from "@/lib/csvExport";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EmailComposer from "@/components/admin/EmailComposer";
@@ -194,6 +194,20 @@ export default function FollowUpList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
       toast.success("Status updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteFollowUp = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.from as any)("follow_ups").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-first-visitors"] });
+      toast.success("Follow-up deleted");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -434,6 +448,16 @@ export default function FollowUpList() {
                               <XCircle className="h-4 w-4 mr-2" /> Close
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (confirm("Delete this follow-up? This cannot be undone.")) {
+                                deleteFollowUp.mutate(fu.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

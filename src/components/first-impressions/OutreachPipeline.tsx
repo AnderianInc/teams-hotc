@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Users, ArrowRight, Calendar } from "lucide-react";
+import { Users, ArrowRight, Calendar, Trash2 } from "lucide-react";
 
 const STAGES = [
   { key: "interested", label: "Interested", color: "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800" },
@@ -111,6 +111,20 @@ export default function OutreachPipeline() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const removeFromPipeline = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.from as any)("follow_ups").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-first-visitors"] });
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      toast.success("Removed from pipeline");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const byStage = (stage: Stage) => pipeline.filter((p: any) => p.prospect_pipeline_stage === stage);
 
   const daysSince = (dateStr: string | null) => {
@@ -182,17 +196,32 @@ export default function OutreachPipeline() {
                       {item.assigned_to && profileMap.get(item.assigned_to) && (
                         <p className="text-xs text-muted-foreground">→ {profileMap.get(item.assigned_to)}</p>
                       )}
-                      {nextStage && (
+                      <div className="flex gap-1 mt-1">
+                        {nextStage && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-xs flex-1"
+                            onClick={() => advanceStage.mutate({ id: item.id, stage: nextStage.key as Stage })}
+                            disabled={advanceStage.isPending}
+                          >
+                            <ArrowRight className="h-3 w-3 mr-1" /> {nextStage.label}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-6 text-xs w-full mt-1"
-                          onClick={() => advanceStage.mutate({ id: item.id, stage: nextStage.key as Stage })}
-                          disabled={advanceStage.isPending}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            if (confirm(`Remove ${item.attendees?.first_name} from pipeline?`)) {
+                              removeFromPipeline.mutate(item.id);
+                            }
+                          }}
+                          disabled={removeFromPipeline.isPending}
                         >
-                          <ArrowRight className="h-3 w-3 mr-1" /> Move to {nextStage.label}
+                          <Trash2 className="h-3 w-3" />
                         </Button>
-                      )}
+                      </div>
                     </div>
                   );
                 })}

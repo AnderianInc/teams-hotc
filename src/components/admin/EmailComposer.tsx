@@ -71,26 +71,17 @@ export default function EmailComposer({
     }
     setDrafting(true);
     try {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: "You are an email composer for House of Transformation Church (HOTC). Write warm, professional church emails. Output ONLY the email body HTML (no subject, no greeting preamble outside the HTML). Use simple HTML with paragraphs.",
-            },
-            { role: "user", content: aiPrompt },
-          ],
-        }),
+      const context = [
+        to && `Recipient email: ${to}`,
+        toName && `Recipient name: ${toName}`,
+        subject && `Subject: ${subject}`,
+      ].filter(Boolean).join(", ");
+      const { data, error } = await supabase.functions.invoke("ai-draft", {
+        body: { prompt: aiPrompt, context: context || undefined },
       });
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content || "";
-      setBody(content);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setBody(data.content);
       toast.success("Draft generated!");
     } catch (e: any) {
       toast.error("AI drafting failed: " + (e.message || "Unknown error"));
