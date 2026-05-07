@@ -137,15 +137,17 @@ export default function FollowUpList() {
 
   const addFollowUp = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase.from as any)("follow_ups").insert({
+      const payload: Record<string, unknown> = {
         attendee_id: attendeeId,
         method: method || null,
         notes: notes || null,
         due_date: dueDate || null,
         type: fuType,
-        priority,
         assigned_to: assignedTo || null,
-      });
+      };
+      // priority column requires the enhanced follow_ups migration; omit if default
+      if (priority !== "normal") payload.priority = priority;
+      const { error } = await (supabase.from as any)("follow_ups").insert(payload);
       if (error) throw error;
 
       // Notify the assignee

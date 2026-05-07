@@ -60,7 +60,6 @@ export default function AttendeeList() {
           attendee_id: data.id,
           type: "outreach",
           status: "pending",
-          priority: "normal",
           due_date: dueDate,
           notes: `Auto-created: first-time visitor on ${today}`,
         });

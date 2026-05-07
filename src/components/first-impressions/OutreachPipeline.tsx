@@ -75,7 +75,6 @@ export default function OutreachPipeline() {
         type: "outreach",
         prospect_pipeline_stage: "visited",
         status: "pending",
-        priority: "normal",
       });
       if (error) throw error;
     },

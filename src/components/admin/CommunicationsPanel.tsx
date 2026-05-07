@@ -2,6 +2,7 @@ import { useState } from "react";
 import EmailComposer from "./EmailComposer";
 import EmailLog from "./EmailLog";
 import EmailTemplates from "./EmailTemplates";
+import SmsComposer from "./SmsComposer";
 import SmsLog from "./SmsLog";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,14 +18,15 @@ export default function CommunicationsPanel() {
 
   const handleUseTemplate = (subject: string, bodyHtml: string) => {
     setComposerDefaults({ subject, body: bodyHtml });
-    setComposerKey((k) => k + 1); // remount composer with new defaults
+    setComposerKey((k) => k + 1);
     setActiveTab("compose");
   };
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList>
-        <TabsTrigger value="compose">Compose</TabsTrigger>
+        <TabsTrigger value="compose">Email</TabsTrigger>
+        <TabsTrigger value="sms">Text (SMS)</TabsTrigger>
         <TabsTrigger value="log">Email Log</TabsTrigger>
         <TabsTrigger value="sms-log">SMS Log</TabsTrigger>
         <TabsTrigger value="templates">Templates</TabsTrigger>
@@ -35,6 +37,11 @@ export default function CommunicationsPanel() {
           defaultSubject={composerDefaults.subject}
           defaultBody={composerDefaults.body}
           onSent={() => queryClient.invalidateQueries({ queryKey: ["email-log"] })}
+        />
+      </TabsContent>
+      <TabsContent value="sms">
+        <SmsComposer
+          onSent={() => queryClient.invalidateQueries({ queryKey: ["sms-log"] })}
         />
       </TabsContent>
       <TabsContent value="log">
