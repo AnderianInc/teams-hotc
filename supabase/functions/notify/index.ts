@@ -105,7 +105,7 @@ async function sendEmailFallback(
         to_name: profile.full_name,
         subject: notification.title,
         text: notification.body || notification.title,
-        html: `<p>${notification.body || notification.title}</p><p><a href="https://hotc.app">Open HOTC Volunteers</a></p>`,
+        html: `<p>${notification.body || notification.title}</p><p><a href="https://teams.hotc.life">Open HOTC Teams</a></p>`,
       },
     });
   } catch (err) {

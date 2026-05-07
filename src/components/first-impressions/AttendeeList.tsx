@@ -53,20 +53,21 @@ export default function AttendeeList() {
       }).select("id").single();
       if (error) throw error;
 
-      // Auto-create an outreach follow-up for new first-time visitors
+      // Auto-create an outreach follow-up and place in pipeline for new first-time visitors
       if (data?.id) {
         const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-        await supabase.from("follow_ups").insert({
+        await (supabase.from as any)("follow_ups").insert({
           attendee_id: data.id,
           type: "outreach",
           status: "pending",
+          prospect_pipeline_stage: "visited",
           due_date: dueDate,
           notes: `Auto-created: first-time visitor on ${today}`,
         });
       }
     },
     onSuccess: () => {
-      toast.success("Visitor registered! A follow-up has been scheduled for 3 days from now.");
+      toast.success("Visitor registered and added to outreach pipeline!");
       setAddOpen(false);
       setForm({ firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "" });
       queryClient.invalidateQueries({ queryKey: ["attendees"] });

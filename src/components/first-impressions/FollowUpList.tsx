@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle, Send, Download } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle, Send, Download, Trash2 } from "lucide-react";
 import { downloadCsv } from "@/lib/csvExport";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EmailComposer from "@/components/admin/EmailComposer";
@@ -102,8 +102,10 @@ export default function FollowUpList() {
   const { data: followUps, isLoading } = useQuery({
     queryKey: ["follow-ups", typeFilter, assigneeFilter],
     queryFn: async () => {
+      // profiles:assigned_to would fail because follow_ups.assigned_to FKs to auth.users,
+      // not profiles; we resolve assignee names via the volunteers query instead
       let q = (supabase.from as any)("follow_ups")
-        .select("*, attendees(first_name, last_name, email, phone), profiles:assigned_to(full_name, user_id)")
+        .select("*, attendees(first_name, last_name, email, phone)")
         .order("due_date", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(200);
@@ -134,6 +136,8 @@ export default function FollowUpList() {
       return data;
     },
   });
+
+  const volunteerMap = new Map((volunteers ?? []).map((v: any) => [v.user_id, v.full_name]));
 
   const addFollowUp = useMutation({
     mutationFn: async () => {
@@ -194,6 +198,24 @@ export default function FollowUpList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteFollowUp = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: deleted, error } = await (supabase.from as any)("follow_ups")
+        .delete()
+        .eq("id", id)
+        .select("id");
+      if (error) throw error;
+      if (!deleted || deleted.length === 0) throw new Error("Delete was blocked — ensure the follow_ups delete policy migration has been applied in Supabase");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-first-visitors"] });
+      toast.success("Follow-up deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const detailFollowUp = followUps?.find((fu: any) => fu.id === detailId);
 
   const overdueCount = followUps?.filter((fu: any) => isOverdue(fu.due_date, fu.status)).length ?? 0;
@@ -223,7 +245,7 @@ export default function FollowUpList() {
                   contact: `${fu.attendees?.first_name ?? ""} ${fu.attendees?.last_name ?? ""}`.trim(),
                   email: fu.attendees?.email ?? "",
                   phone: fu.attendees?.phone ?? "",
-                  assigned_to: fu.profiles?.full_name ?? "",
+                  assigned_to: volunteerMap.get(fu.assigned_to) ?? "",
                   due_date: fu.due_date ?? "",
                   notes: fu.notes ?? "",
                   created_at: fu.created_at?.split("T")[0] ?? "",
@@ -382,7 +404,7 @@ export default function FollowUpList() {
                       ) : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {fu.profiles?.full_name ?? <span className="italic">Unassigned</span>}
+                      {volunteerMap.get(fu.assigned_to) ?? <span className="italic">Unassigned</span>}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Badge variant="outline" className={`gap-1 ${statusColors[fu.status] || ""}`}>
@@ -430,6 +452,16 @@ export default function FollowUpList() {
                               <XCircle className="h-4 w-4 mr-2" /> Close
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (confirm("Delete this follow-up? This cannot be undone.")) {
+                                deleteFollowUp.mutate(fu.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -474,7 +506,7 @@ export default function FollowUpList() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Assigned to</span>
-                    <span>{detailFollowUp.profiles?.full_name ?? "Unassigned"}</span>
+                    <span>{volunteerMap.get(detailFollowUp.assigned_to) ?? "Unassigned"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Due</span>
