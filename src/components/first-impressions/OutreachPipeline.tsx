@@ -85,22 +85,21 @@ export default function OutreachPipeline() {
         .eq("id", id);
       if (error) throw error;
 
-      // When a person reaches Member stage, mark them as a member in the attendees table
-      if (stage === "member") {
-        const { error: memberError } = await supabase
-          .from("attendees")
-          .update({ is_member: true })
-          .eq("id", attendeeId);
-        if (memberError) throw memberError;
-      }
+      // Sync attendee membership flag with pipeline stage
+      const { error: memberError } = await supabase
+        .from("attendees")
+        .update({ is_member: stage === "member" })
+        .eq("id", attendeeId);
+      if (memberError) throw memberError;
     },
     onSuccess: (_data, { stage }) => {
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["attendees"] });
+      queryClient.invalidateQueries({ queryKey: ["fi-attendees"] });
       if (stage === "member") {
-        queryClient.invalidateQueries({ queryKey: ["attendees"] });
         toast.success("Moved to Member — visitor record updated");
       } else {
-        toast.success("Stage updated");
+        toast.success("Stage updated — visitor status synced");
       }
     },
     onError: (e: Error) => toast.error(e.message),
