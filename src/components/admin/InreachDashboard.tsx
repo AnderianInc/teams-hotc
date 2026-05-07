@@ -98,7 +98,7 @@ export default function InreachDashboard() {
         due_date: dueDate || null,
         notes: notes.trim() || `Inreach follow-up for ${memberName} — engagement check`,
         inreach_trigger: "manual",
-      });
+      } as any);
       if (error) throw error;
 
       // Notify assignee
