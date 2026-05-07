@@ -353,15 +353,15 @@ notifications (
 ## 6. Implementation Roadmap
 
 ### Phase 0 — Bug Fix (Immediate)
-- [ ] Fix Roster Calendar RLS policies for team leads (migration + policy rewrite)
+- [x] Fix Roster Calendar RLS policies for team leads (migration + policy rewrite)
 - [ ] Add `is_any_team_lead()` helper function
 
 ### Phase 1 — Foundation (2–3 weeks)
-- [ ] Push notification infrastructure: VAPID setup, `push_subscriptions` table, `notifications` table
-- [ ] `notify` Edge Function (write to DB + web push fan-out)
-- [ ] `NotificationBell` + `NotificationDrawer` in `AppLayout`
-- [ ] `NotificationSettings` on Profile page
-- [ ] Service worker push handler (extend existing)
+- [x] Push notification infrastructure: VAPID setup, `push_subscriptions` table, `notifications` table
+- [x] `notify` Edge Function (write to DB + web push fan-out)
+- [x] `NotificationBell` + `NotificationDrawer` in `AppLayout`
+- [x] `NotificationSettings` on Profile page
+- [x] Service worker push handler (extend existing)
 
 ### Phase 2 — Outreach Automation (2–3 weeks)
 - [ ] Enhance `follow_ups` table with `type` (inreach/outreach), `stage`, `prospect_pipeline_stage` columns
