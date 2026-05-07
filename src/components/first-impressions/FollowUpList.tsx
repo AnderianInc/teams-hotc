@@ -200,8 +200,12 @@ export default function FollowUpList() {
 
   const deleteFollowUp = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from as any)("follow_ups").delete().eq("id", id);
+      const { data: deleted, error } = await (supabase.from as any)("follow_ups")
+        .delete()
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!deleted || deleted.length === 0) throw new Error("Delete was blocked — ensure the follow_ups delete policy migration has been applied in Supabase");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });

@@ -79,15 +79,29 @@ export default function OutreachPipeline() {
   });
 
   const advanceStage = useMutation({
-    mutationFn: async ({ id, stage }: { id: string; stage: Stage }) => {
+    mutationFn: async ({ id, stage, attendeeId }: { id: string; stage: Stage; attendeeId: string }) => {
       const { error } = await (supabase.from as any)("follow_ups")
         .update({ prospect_pipeline_stage: stage })
         .eq("id", id);
       if (error) throw error;
+
+      // When a person reaches Member stage, mark them as a member in the attendees table
+      if (stage === "member") {
+        const { error: memberError } = await supabase
+          .from("attendees")
+          .update({ is_member: true })
+          .eq("id", attendeeId);
+        if (memberError) throw memberError;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_data, { stage }) => {
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
-      toast.success("Stage updated");
+      if (stage === "member") {
+        queryClient.invalidateQueries({ queryKey: ["attendees"] });
+        toast.success("Moved to Member — visitor record updated");
+      } else {
+        toast.success("Stage updated");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -113,8 +127,12 @@ export default function OutreachPipeline() {
 
   const removeFromPipeline = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from as any)("follow_ups").delete().eq("id", id);
+      const { data: deleted, error } = await (supabase.from as any)("follow_ups")
+        .delete()
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!deleted || deleted.length === 0) throw new Error("Delete was blocked — ensure the follow_ups delete policy migration has been applied in Supabase");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
@@ -202,7 +220,7 @@ export default function OutreachPipeline() {
                             size="sm"
                             variant="ghost"
                             className="h-6 text-xs flex-1"
-                            onClick={() => advanceStage.mutate({ id: item.id, stage: nextStage.key as Stage })}
+                            onClick={() => advanceStage.mutate({ id: item.id, stage: nextStage.key as Stage, attendeeId: item.attendee_id })}
                             disabled={advanceStage.isPending}
                           >
                             <ArrowRight className="h-3 w-3 mr-1" /> {nextStage.label}
