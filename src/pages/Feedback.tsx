@@ -68,6 +68,27 @@ export default function Feedback() {
       setCategory("suggestion");
       setTeamId("");
       refetch();
+
+      // Notify all admins
+      try {
+        const { data: admins } = await supabase
+          .from("user_roles" as any)
+          .select("user_id")
+          .eq("role", "admin");
+        await Promise.allSettled(
+          ((admins as any[]) ?? []).map((a: any) =>
+            supabase.functions.invoke("notify", {
+              body: {
+                recipient_id: a.user_id,
+                type: "feedback_received",
+                title: `New feedback: ${subject}`,
+                body: `${category} submitted by a team member.`,
+                url: "/admin?tab=feedback",
+              },
+            })
+          )
+        );
+      } catch (_) { /* non-critical */ }
     }
     setSubmitting(false);
   };

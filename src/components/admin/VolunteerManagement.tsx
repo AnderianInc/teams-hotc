@@ -12,7 +12,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Mail, RefreshCw, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
+import { UserPlus, Mail, RefreshCw, Pencil, MoreHorizontal, Trash2, Download } from "lucide-react";
+import { downloadCsv } from "@/lib/csvExport";
 import { useAllTeams } from "@/hooks/useTeams";
 import TeamMembershipEditor from "@/components/teams/TeamMembershipEditor";
 
@@ -104,11 +105,26 @@ export default function VolunteerManagement() {
     setEditOpen(true);
   };
 
+  const exportCsv = () => {
+    const rows = (profiles ?? []).map((p) => ({
+      name: p.full_name,
+      email: p.email,
+      teams: p.team_members.map((tm) => tm.teams?.name).filter(Boolean).join("; "),
+      roles: p.team_members.map((tm) => tm.role).join("; "),
+      joined: p.created_at ? p.created_at.split("T")[0] : "",
+    }));
+    downloadCsv("volunteers.csv", rows);
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Volunteers</CardTitle>
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!profiles?.length}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
+          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
               <UserPlus className="h-4 w-4 mr-2" />
@@ -156,6 +172,7 @@ export default function VolunteerManagement() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (

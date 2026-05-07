@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, User, Trash2, Lock, Bell, BellOff } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import VolunteerAvailability from "@/components/profile/VolunteerAvailability";
 
 interface ProfileData {
   full_name: string;
@@ -192,6 +193,8 @@ export default function Profile() {
 
       <NotificationSettingsSection />
 
+      <VolunteerAvailability />
+
       <DeleteAccountSection userId={user?.id} />
     </div>
   );
@@ -353,6 +356,28 @@ function DeleteAccountSection({ userId }: { userId?: string }) {
     } else {
       toast({ title: "Request Submitted", description: "An admin will review your account deletion request." });
       setExistingRequest({ status: "pending" });
+
+      // Notify all admins
+      try {
+        const { data: admins } = await supabase
+          .from("user_roles" as any)
+          .select("user_id")
+          .eq("role", "admin");
+        await Promise.allSettled(
+          ((admins as any[]) ?? []).map((a: any) =>
+            supabase.functions.invoke("notify", {
+              body: {
+                recipient_id: a.user_id,
+                type: "deletion_request",
+                title: "Account deletion request",
+                body: reason ? `Reason: ${reason}` : "A user has requested account deletion.",
+                url: "/admin?tab=requests",
+                high_priority: true,
+              },
+            })
+          )
+        );
+      } catch (_) { /* non-critical */ }
     }
     setSubmitting(false);
   };
