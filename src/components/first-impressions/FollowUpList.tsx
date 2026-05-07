@@ -102,8 +102,10 @@ export default function FollowUpList() {
   const { data: followUps, isLoading } = useQuery({
     queryKey: ["follow-ups", typeFilter, assigneeFilter],
     queryFn: async () => {
+      // profiles:assigned_to would fail because follow_ups.assigned_to FKs to auth.users,
+      // not profiles; we resolve assignee names via the volunteers query instead
       let q = (supabase.from as any)("follow_ups")
-        .select("*, attendees(first_name, last_name, email, phone), profiles:assigned_to(full_name, user_id)")
+        .select("*, attendees(first_name, last_name, email, phone)")
         .order("due_date", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(200);
@@ -134,6 +136,8 @@ export default function FollowUpList() {
       return data;
     },
   });
+
+  const volunteerMap = new Map((volunteers ?? []).map((v: any) => [v.user_id, v.full_name]));
 
   const addFollowUp = useMutation({
     mutationFn: async () => {
@@ -223,7 +227,7 @@ export default function FollowUpList() {
                   contact: `${fu.attendees?.first_name ?? ""} ${fu.attendees?.last_name ?? ""}`.trim(),
                   email: fu.attendees?.email ?? "",
                   phone: fu.attendees?.phone ?? "",
-                  assigned_to: fu.profiles?.full_name ?? "",
+                  assigned_to: volunteerMap.get(fu.assigned_to) ?? "",
                   due_date: fu.due_date ?? "",
                   notes: fu.notes ?? "",
                   created_at: fu.created_at?.split("T")[0] ?? "",
@@ -382,7 +386,7 @@ export default function FollowUpList() {
                       ) : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {fu.profiles?.full_name ?? <span className="italic">Unassigned</span>}
+                      {volunteerMap.get(fu.assigned_to) ?? <span className="italic">Unassigned</span>}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Badge variant="outline" className={`gap-1 ${statusColors[fu.status] || ""}`}>
@@ -474,7 +478,7 @@ export default function FollowUpList() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Assigned to</span>
-                    <span>{detailFollowUp.profiles?.full_name ?? "Unassigned"}</span>
+                    <span>{volunteerMap.get(detailFollowUp.assigned_to) ?? "Unassigned"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Due</span>

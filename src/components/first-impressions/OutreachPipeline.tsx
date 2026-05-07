@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Users, ArrowRight, Calendar } from "lucide-react";
 
@@ -20,39 +19,63 @@ type Stage = typeof STAGES[number]["key"];
 export default function OutreachPipeline() {
   const queryClient = useQueryClient();
 
-  const { data: pipeline = [], isLoading } = useQuery({
+  const { data: pipeline = [], isLoading, error: pipelineError } = useQuery({
     queryKey: ["outreach-pipeline"],
-    staleTime: 60_000,
+    staleTime: 30_000,
     queryFn: async () => {
+      // profiles:assigned_to would need an FK to profiles.user_id; since assigned_to
+      // references auth.users, we fetch assignee names via a separate profiles query
       const { data, error } = await (supabase.from as any)("follow_ups")
-        .select("*, attendees(first_name, last_name, first_visit_date, email, phone), profiles:assigned_to(full_name)")
+        .select("*, attendees(first_name, last_name, first_visit_date, email, phone)")
         .eq("type", "outreach")
         .not("prospect_pipeline_stage", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
-  // Also pull first-time visitors with no pipeline entry yet
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ["profiles-list"],
+    staleTime: 120_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("user_id, full_name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const profileMap = new Map(allProfiles.map((p: any) => [p.user_id, p.full_name]));
+
+  // Pull first-time visitors not yet in pipeline — server-side exclusion avoids race condition
   const { data: recentVisitors = [] } = useQuery({
     queryKey: ["recent-first-visitors"],
+    staleTime: 30_000,
     queryFn: async () => {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      const { data, error } = await supabase
+      // Get all attendee IDs already in the pipeline
+      const { data: pipelineIds } = await (supabase.from as any)("follow_ups")
+        .select("attendee_id")
+        .eq("type", "outreach")
+        .not("prospect_pipeline_stage", "is", null);
+      const excludeIds: string[] = (pipelineIds ?? []).map((r: any) => r.attendee_id);
+
+      let q = supabase
         .from("attendees")
         .select("id, first_name, last_name, first_visit_date, email")
         .eq("is_member", false)
         .not("first_visit_date", "is", null)
         .gte("first_visit_date", sevenDaysAgo)
         .order("first_visit_date", { ascending: false });
-      if (error) throw error;
 
-      // Filter to those not already in pipeline
-      const pipelineAttendeeIds = new Set(pipeline.map((p: any) => p.attendee_id));
-      return (data ?? []).filter((v) => !pipelineAttendeeIds.has(v.id));
+      if (excludeIds.length > 0) {
+        q = q.not("id", "in", `(${excludeIds.join(",")})`);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
     },
-    enabled: pipeline.length >= 0,
   });
 
   const advanceStage = useMutation({
@@ -97,6 +120,7 @@ export default function OutreachPipeline() {
   };
 
   if (isLoading) return <div className="py-8 text-center text-muted-foreground">Loading pipeline…</div>;
+  if (pipelineError) return <div className="py-8 text-center text-destructive text-sm">Failed to load pipeline: {(pipelineError as Error).message}</div>;
 
   return (
     <div className="space-y-6">
@@ -155,8 +179,8 @@ export default function OutreachPipeline() {
                       {days !== null && (
                         <p className="text-xs text-muted-foreground">{days}d since first visit</p>
                       )}
-                      {item.profiles?.full_name && (
-                        <p className="text-xs text-muted-foreground">→ {item.profiles.full_name}</p>
+                      {item.assigned_to && profileMap.get(item.assigned_to) && (
+                        <p className="text-xs text-muted-foreground">→ {profileMap.get(item.assigned_to)}</p>
                       )}
                       {nextStage && (
                         <Button
