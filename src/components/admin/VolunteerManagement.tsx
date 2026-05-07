@@ -12,10 +12,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Mail, RefreshCw, Pencil, MoreHorizontal, Trash2, Download } from "lucide-react";
+import { UserPlus, Mail, RefreshCw, MoreHorizontal, Trash2, Download, Search, UserCheck } from "lucide-react";
 import { downloadCsv } from "@/lib/csvExport";
 import { useAllTeams } from "@/hooks/useTeams";
-import TeamMembershipEditor from "@/components/teams/TeamMembershipEditor";
 
 interface ProfileWithTeam {
   id: string;
@@ -26,15 +25,19 @@ interface ProfileWithTeam {
   team_members: { team_id: string; role: string; teams: { id: string; name: string } }[];
 }
 
+interface SearchResult {
+  user_id: string;
+  full_name: string;
+  email: string;
+}
+
 export default function VolunteerManagement() {
   const queryClient = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteTeam, setInviteTeam] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
-
-  const [editOpen, setEditOpen] = useState(false);
-  const [editProfile, setEditProfile] = useState<ProfileWithTeam | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteProfile, setDeleteProfile] = useState<ProfileWithTeam | null>(null);
@@ -51,6 +54,37 @@ export default function VolunteerManagement() {
       if (error) throw error;
       return (data || []) as unknown as ProfileWithTeam[];
     },
+  });
+
+  const { data: searchResults, isFetching: isSearching } = useQuery({
+    queryKey: ["volunteer-search", searchQuery],
+    queryFn: async () => {
+      const term = `%${searchQuery}%`;
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .or(`full_name.ilike.${term},email.ilike.${term}`)
+        .limit(8);
+      return (data ?? []) as SearchResult[];
+    },
+    enabled: searchQuery.length >= 2,
+  });
+
+  const addFromDbMutation = useMutation({
+    mutationFn: async ({ userId, teamId, role }: { userId: string; teamId: string; role: string }) => {
+      const { error } = await supabase.from("team_members").insert({
+        user_id: userId,
+        team_id: teamId,
+        role: role as "member" | "team_lead",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Volunteer added to team!");
+      queryClient.invalidateQueries({ queryKey: ["all-profiles-with-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const inviteMutation = useMutation({
@@ -100,9 +134,9 @@ export default function VolunteerManagement() {
 
   const isPending = (p: ProfileWithTeam) => !p.full_name || p.full_name.trim() === "";
 
-  const openEdit = (p: ProfileWithTeam) => {
-    setEditProfile(p);
-    setEditOpen(true);
+  const isAlreadyMember = (userId: string, teamId: string) => {
+    const profile = profiles?.find((p) => p.user_id === userId);
+    return profile?.team_members?.some((tm) => tm.team_id === teamId) ?? false;
   };
 
   const exportCsv = () => {
@@ -116,6 +150,14 @@ export default function VolunteerManagement() {
     downloadCsv("volunteers.csv", rows);
   };
 
+  const handleInviteOpenChange = (open: boolean) => {
+    setInviteOpen(open);
+    if (!open) {
+      setSearchQuery("");
+      setInviteEmail("");
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -124,7 +166,7 @@ export default function VolunteerManagement() {
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={!profiles?.length}>
             <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
-          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <Dialog open={inviteOpen} onOpenChange={handleInviteOpenChange}>
           <DialogTrigger asChild>
             <Button size="sm">
               <UserPlus className="h-4 w-4 mr-2" />
@@ -135,20 +177,11 @@ export default function VolunteerManagement() {
             <DialogHeader>
               <DialogTitle>Invite a Volunteer</DialogTitle>
             </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                inviteMutation.mutate({ email: inviteEmail, teamId: inviteTeam, role: inviteRole });
-              }}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" placeholder="volunteer@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required />
-              </div>
+            <div className="space-y-4">
+              {/* Shared: Team + Role pickers */}
               <div className="space-y-2">
                 <Label>Assign to Team</Label>
-                <Select value={inviteTeam} onValueChange={setInviteTeam} required>
+                <Select value={inviteTeam} onValueChange={setInviteTeam}>
                   <SelectTrigger><SelectValue placeholder="Select a team" /></SelectTrigger>
                   <SelectContent>
                     {teams?.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
@@ -165,11 +198,93 @@ export default function VolunteerManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" className="w-full" disabled={inviteMutation.isPending}>
-                <Mail className="h-4 w-4 mr-2" />
-                {inviteMutation.isPending ? "Sending..." : "Send Invite"}
-              </Button>
-            </form>
+
+              {/* Search existing volunteers */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  <Search className="h-4 w-4" />
+                  Search Existing Volunteers
+                </Label>
+                <Input
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery.length >= 2 && (
+                  <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                    {isSearching ? (
+                      <div className="p-3 text-sm text-center text-muted-foreground">
+                        <RefreshCw className="h-4 w-4 animate-spin inline mr-1" />
+                        Searching...
+                      </div>
+                    ) : searchResults && searchResults.length > 0 ? (
+                      searchResults.map((result) => {
+                        const alreadyMember = inviteTeam ? isAlreadyMember(result.user_id, inviteTeam) : false;
+                        return (
+                          <div key={result.user_id} className="flex items-center justify-between p-2 gap-2">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate">{result.full_name || "—"}</div>
+                              <div className="text-xs text-muted-foreground truncate">{result.email}</div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!inviteTeam || alreadyMember || addFromDbMutation.isPending}
+                              onClick={() =>
+                                addFromDbMutation.mutate({
+                                  userId: result.user_id,
+                                  teamId: inviteTeam,
+                                  role: inviteRole,
+                                })
+                              }
+                            >
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              {alreadyMember ? "Already added" : "Add"}
+                            </Button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-3 text-sm text-center text-muted-foreground">No volunteers found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or invite by email</span>
+                </div>
+              </div>
+
+              {/* Invite by email */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  inviteMutation.mutate({ email: inviteEmail, teamId: inviteTeam, role: inviteRole });
+                }}
+                className="space-y-3"
+              >
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="volunteer@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={inviteMutation.isPending || !inviteTeam}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  {inviteMutation.isPending ? "Sending..." : "Send Invite"}
+                </Button>
+              </form>
+            </div>
           </DialogContent>
         </Dialog>
         </div>
@@ -216,27 +331,25 @@ export default function VolunteerManagement() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(p)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
                         {isPending(p) && (
-                          <DropdownMenuItem
-                            disabled={resendMutation.isPending}
-                            onClick={() => {
-                              const firstTeam = p.team_members?.[0];
-                              resendMutation.mutate({
-                                email: p.email,
-                                teamId: firstTeam?.team_id || "",
-                                role: firstTeam?.role || "member",
-                              });
-                            }}
-                          >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Resend Invite
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              disabled={resendMutation.isPending}
+                              onClick={() => {
+                                const firstTeam = p.team_members?.[0];
+                                resendMutation.mutate({
+                                  email: p.email,
+                                  teamId: firstTeam?.team_id || "",
+                                  role: firstTeam?.role || "member",
+                                });
+                              }}
+                            >
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Resend Invite
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
                         )}
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => { setDeleteProfile(p); setDeleteOpen(true); }}
@@ -259,25 +372,6 @@ export default function VolunteerManagement() {
             </TableBody>
           </Table>
         )}
-
-        {/* Edit Dialog */}
-        <Dialog
-          open={editOpen}
-          onOpenChange={(open) => {
-            setEditOpen(open);
-            if (!open) setEditProfile(null);
-          }}
-        >
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Edit Volunteer — {editProfile?.full_name || editProfile?.email}</DialogTitle>
-            </DialogHeader>
-            {editProfile && <TeamMembershipEditor userId={editProfile.user_id} enabled={editOpen} />}
-            <div className="flex justify-end">
-              <Button type="button" onClick={() => setEditOpen(false)}>Done</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         {/* Delete Confirmation */}
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
