@@ -110,7 +110,7 @@ export default function TeamManagement() {
               </div>
               <div className="space-y-2">
                 <Label>Team Type</Label>
-                <RadioGroup value={teamType} onValueChange={setTeamType} className="flex gap-4">
+                <RadioGroup value={teamType} onValueChange={setTeamType} className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="volunteer" id="type-volunteer" />
                     <Label htmlFor="type-volunteer" className="font-normal">Volunteer</Label>
@@ -118,6 +118,10 @@ export default function TeamManagement() {
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="ministry" id="type-ministry" />
                     <Label htmlFor="type-ministry" className="font-normal">Ministry</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="pastoral" id="type-pastoral" />
+                    <Label htmlFor="type-pastoral" className="font-normal">Pastoral</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -162,7 +166,7 @@ export default function TeamManagement() {
                     </button>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={t.team_type === "ministry" ? "default" : "secondary"} className="capitalize text-xs">
+                    <Badge variant={t.team_type === "ministry" ? "default" : t.team_type === "pastoral" ? "destructive" : "secondary"} className="capitalize text-xs">
                       {t.team_type}
                     </Badge>
                   </TableCell>
@@ -208,7 +212,7 @@ export default function TeamManagement() {
               </div>
               <div className="space-y-2">
                 <Label>Team Type</Label>
-                <RadioGroup value={editType} onValueChange={setEditType} className="flex gap-4">
+                <RadioGroup value={editType} onValueChange={setEditType} className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="volunteer" id="edit-type-volunteer" />
                     <Label htmlFor="edit-type-volunteer" className="font-normal">Volunteer</Label>
@@ -216,6 +220,10 @@ export default function TeamManagement() {
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="ministry" id="edit-type-ministry" />
                     <Label htmlFor="edit-type-ministry" className="font-normal">Ministry</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="pastoral" id="edit-type-pastoral" />
+                    <Label htmlFor="edit-type-pastoral" className="font-normal">Pastoral</Label>
                   </div>
                 </RadioGroup>
               </div>
