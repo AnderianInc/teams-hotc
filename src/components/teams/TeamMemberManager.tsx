@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Mail, Trash2, Shield, MoreHorizontal, Search, Check } from "lucide-react";
+import { UserPlus, Mail, Trash2, Shield, MoreHorizontal, Search, Check, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -27,6 +27,8 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [removeMember, setRemoveMember] = useState<any>(null);
+  const [editRoleTarget, setEditRoleTarget] = useState<{ id: string; name: string; current: string } | null>(null);
+  const [editRoleValue, setEditRoleValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedExisting, setSelectedExisting] = useState<{ user_id: string; full_name: string; email: string } | null>(null);
   const [inviteMode, setInviteMode] = useState<"search" | "email">("search");
@@ -122,6 +124,21 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
     },
     onSuccess: () => {
       toast.success("Role updated");
+      queryClient.invalidateQueries({ queryKey: ["team-members", teamId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateCustomRoleMutation = useMutation({
+    mutationFn: async ({ memberId, customRole }: { memberId: string; customRole: string }) => {
+      const { error } = await (supabase.from as any)("team_members")
+        .update({ custom_role: customRole || null })
+        .eq("id", memberId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Title updated");
+      setEditRoleTarget(null);
       queryClient.invalidateQueries({ queryKey: ["team-members", teamId] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -321,9 +338,14 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
                     <TableCell className="font-medium">{m.profiles?.full_name || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{m.profiles?.email || "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={m.role === "team_lead" ? "default" : "secondary"} className="capitalize text-xs">
-                        {m.role === "team_lead" ? "Team Lead" : "Member"}
-                      </Badge>
+                      <div className="space-y-0.5">
+                        <Badge variant={m.role === "team_lead" ? "default" : "secondary"} className="capitalize text-xs">
+                          {m.role === "team_lead" ? "Team Lead" : "Member"}
+                        </Badge>
+                        {m.custom_role && (
+                          <div className="text-xs text-muted-foreground">{m.custom_role}</div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {otherTeams.length > 0 ? (
@@ -358,6 +380,10 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
                               Set as Member
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => { setEditRoleTarget({ id: m.id, name: m.profiles?.full_name || "Member", current: m.custom_role || "" }); setEditRoleValue(m.custom_role || ""); }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit Title
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRemoveMember(m)}>
                             <Trash2 className="h-4 w-4 mr-2" />
@@ -380,6 +406,34 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!editRoleTarget} onOpenChange={(open) => !open && setEditRoleTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Title for {editRoleTarget?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Custom Title / Role</Label>
+              <Input
+                placeholder="e.g. Senior Pastor, Worship Director"
+                value={editRoleValue}
+                onChange={(e) => setEditRoleValue(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setEditRoleTarget(null)}>Cancel</Button>
+              <Button
+                className="flex-1"
+                disabled={updateCustomRoleMutation.isPending}
+                onClick={() => editRoleTarget && updateCustomRoleMutation.mutate({ memberId: editRoleTarget.id, customRole: editRoleValue })}
+              >
+                {updateCustomRoleMutation.isPending ? "Saving..." : "Save Title"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!removeMember} onOpenChange={(open) => !open && setRemoveMember(null)}>
         <AlertDialogContent>
