@@ -22,6 +22,7 @@ export default function OutreachPipeline() {
 
   const { data: pipeline = [], isLoading } = useQuery({
     queryKey: ["outreach-pipeline"],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase.from as any)("follow_ups")
         .select("*, attendees(first_name, last_name, first_visit_date, email, phone), profiles:assigned_to(full_name)")
@@ -79,7 +80,9 @@ export default function OutreachPipeline() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline", "recent-first-visitors", "follow-ups"] });
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-first-visitors"] });
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
       toast.success("Added to pipeline");
     },
     onError: (e: Error) => toast.error(e.message),
