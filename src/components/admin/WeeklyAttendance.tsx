@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardCheck, Search, ChevronLeft, ChevronRight, Check, X, Clock, AlertCircle, Smartphone } from "lucide-react";
+import { ClipboardCheck, Search, ChevronLeft, ChevronRight, Check, X, Clock, AlertCircle, Smartphone, Download } from "lucide-react";
+import { downloadCsv } from "@/lib/csvExport";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { toast } from "sonner";
 import AttendanceQRDialog from "./AttendanceQRDialog";
@@ -184,6 +187,33 @@ export default function WeeklyAttendance() {
               <CardDescription>Track volunteer, staff, and member attendance each week</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const volRows = volunteers.map((v) => ({
+                    type: "volunteer",
+                    name: v.full_name,
+                    email: v.email,
+                    teams: v.teamNames.join("; "),
+                    status: v.status ?? "unmarked",
+                    self_reported: v.isSelfReported ? "yes" : "no",
+                    week: serviceDate,
+                  }));
+                  const memRows = members.map((m) => ({
+                    type: "member",
+                    name: m.name,
+                    email: "",
+                    teams: "",
+                    status: m.status ?? "unmarked",
+                    self_reported: m.isSelfReported ? "yes" : "no",
+                    week: serviceDate,
+                  }));
+                  downloadCsv(`attendance-${serviceDate}.csv`, [...volRows, ...memRows]);
+                }}
+              >
+                <Download className="h-4 w-4 mr-1" /> Export
+              </Button>
               <AttendanceQRDialog />
               <Button variant="outline" size="icon" onClick={() => setWeekStart((w) => subWeeks(w, 1))}>
                 <ChevronLeft className="h-4 w-4" />
@@ -342,6 +372,70 @@ export default function WeeklyAttendance() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <AttendanceTrendChart />
     </div>
+  );
+}
+
+function AttendanceTrendChart() {
+  const { data: chartData, isLoading } = useQuery({
+    queryKey: ["attendance-trend"],
+    queryFn: async () => {
+      // Last 12 weeks
+      const weeks: string[] = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i * 7);
+        // Round to Sunday
+        d.setDate(d.getDate() - d.getDay());
+        weeks.push(d.toISOString().split("T")[0]);
+      }
+
+      const { data, error } = await supabase
+        .from("weekly_attendance")
+        .select("service_date, status, user_id, attendee_id")
+        .in("service_date", weeks);
+      if (error) throw error;
+
+      return weeks.map((w) => {
+        const weekRows = (data ?? []).filter((r) => r.service_date === w);
+        return {
+          week: w.slice(5), // MM-DD
+          Present: weekRows.filter((r) => r.status === "present").length,
+          Late: weekRows.filter((r) => r.status === "late").length,
+          Absent: weekRows.filter((r) => r.status === "absent").length,
+          Excused: weekRows.filter((r) => r.status === "excused").length,
+        };
+      });
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Attendance Trend — Last 12 Weeks</CardTitle>
+        <CardDescription>Volunteer and member attendance totals per week</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Loading chart…</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+              <XAxis dataKey="week" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="Present" stackId="a" fill="hsl(var(--success, 142 71% 45%))" />
+              <Bar dataKey="Late"    stackId="a" fill="hsl(var(--warning, 38 92% 50%))" />
+              <Bar dataKey="Excused" stackId="a" fill="hsl(var(--muted-foreground, 215 16% 47%))" />
+              <Bar dataKey="Absent"  stackId="a" fill="hsl(var(--destructive, 0 84% 60%))" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -11,6 +11,7 @@ import ChurchRoster from "@/components/admin/ChurchRoster";
 import RosterCalendarView from "@/components/admin/RosterCalendarView";
 import WeeklyAttendance from "@/components/admin/WeeklyAttendance";
 import InreachDashboard from "@/components/admin/InreachDashboard";
+import BulkImport from "@/components/admin/BulkImport";
 
 export default function AdminPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,6 +44,7 @@ export default function AdminPanel() {
           <TabsTrigger value="communications">Communications</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="import">Import</TabsTrigger>
         </TabsList>
         <TabsContent value="volunteers">
           <VolunteerManagement />
@@ -73,6 +75,9 @@ export default function AdminPanel() {
         </TabsContent>
         <TabsContent value="requests">
           <DeletionRequests />
+        </TabsContent>
+        <TabsContent value="import">
+          <BulkImport />
         </TabsContent>
       </Tabs>
     </div>

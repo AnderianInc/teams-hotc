@@ -56,11 +56,10 @@ export default function AttendeeList() {
       // Auto-create an outreach follow-up for new first-time visitors
       if (data?.id) {
         const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-        await (supabase.from as any)("follow_ups").insert({
+        await supabase.from("follow_ups").insert({
           attendee_id: data.id,
           type: "outreach",
           status: "pending",
-          priority: "normal",
           due_date: dueDate,
           notes: `Auto-created: first-time visitor on ${today}`,
         });

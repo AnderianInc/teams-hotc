@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { FileText, Pencil, Eye, Save, X, MoreHorizontal } from "lucide-react";
+import { FileText, Pencil, Eye, Save, X, MoreHorizontal, Send } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface EmailTemplate {
@@ -21,11 +21,21 @@ interface EmailTemplate {
   updated_at: string | null;
 }
 
-export default function EmailTemplates() {
+function applyPlaceholders(template: string, values: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_m, key) => values[key] ?? "");
+}
+
+interface Props {
+  onUseTemplate?: (subject: string, bodyHtml: string) => void;
+}
+
+export default function EmailTemplates({ onUseTemplate }: Props) {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
   const [previewing, setPreviewing] = useState<EmailTemplate | null>(null);
+  const [filling, setFilling] = useState<EmailTemplate | null>(null);
+  const [fillValues, setFillValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const fetchTemplates = async () => {
@@ -69,6 +79,22 @@ export default function EmailTemplates() {
     return html;
   };
 
+  const openFillDialog = (t: EmailTemplate) => {
+    const initial: Record<string, string> = {};
+    (t.placeholders || []).forEach((p) => { initial[p] = ""; });
+    setFillValues(initial);
+    setFilling(t);
+  };
+
+  const handleUseTemplate = () => {
+    if (!filling) return;
+    const subject = applyPlaceholders(filling.subject, fillValues);
+    const bodyHtml = applyPlaceholders(filling.body_html, fillValues);
+    onUseTemplate?.(subject, bodyHtml);
+    setFilling(null);
+    toast.success("Template loaded into composer");
+  };
+
   if (loading) {
     return <p className="text-muted-foreground text-center py-8">Loading templates...</p>;
   }
@@ -102,6 +128,12 @@ export default function EmailTemplates() {
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
+                    {onUseTemplate && (
+                      <DropdownMenuItem onClick={() => openFillDialog(t)}>
+                        <Send className="h-4 w-4 mr-2" />
+                        Use Template
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -177,6 +209,50 @@ export default function EmailTemplates() {
                 className="border rounded-lg p-4 bg-white"
                 dangerouslySetInnerHTML={{ __html: getPreviewHtml(previewing) }}
               />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Fill Placeholders Dialog */}
+      <Dialog open={!!filling} onOpenChange={(open) => !open && setFilling(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Fill in: {filling?.name}</DialogTitle>
+          </DialogHeader>
+          {filling && (
+            <div className="space-y-4">
+              {(filling.placeholders || []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  This template has no placeholders. It will be loaded as-is.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Enter values for each placeholder. Leave blank to keep empty.
+                  </p>
+                  {(filling.placeholders || []).map((p) => (
+                    <div key={p} className="space-y-1">
+                      <Label className="font-mono text-xs">{`{{${p}}}`}</Label>
+                      <Input
+                        value={fillValues[p] ?? ""}
+                        placeholder={p}
+                        onChange={(e) =>
+                          setFillValues((prev) => ({ ...prev, [p]: e.target.value }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" onClick={() => setFilling(null)}>
+                  <X className="h-4 w-4 mr-1" /> Cancel
+                </Button>
+                <Button onClick={handleUseTemplate}>
+                  <Send className="h-4 w-4 mr-1" /> Load into Composer
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

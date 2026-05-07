@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle, Send } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle, MessageSquare, Mail, MoreHorizontal, AlertTriangle, Send, Download } from "lucide-react";
+import { downloadCsv } from "@/lib/csvExport";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EmailComposer from "@/components/admin/EmailComposer";
 import { FollowUpActivityLog } from "./FollowUpActivityLog";
@@ -136,15 +137,17 @@ export default function FollowUpList() {
 
   const addFollowUp = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase.from as any)("follow_ups").insert({
+      const payload: Record<string, unknown> = {
         attendee_id: attendeeId,
         method: method || null,
         notes: notes || null,
         due_date: dueDate || null,
         type: fuType,
-        priority,
         assigned_to: assignedTo || null,
-      });
+      };
+      // priority column requires the enhanced follow_ups migration; omit if default
+      if (priority !== "normal") payload.priority = priority;
+      const { error } = await (supabase.from as any)("follow_ups").insert(payload);
       if (error) throw error;
 
       // Notify the assignee
@@ -208,7 +211,30 @@ export default function FollowUpList() {
               </Badge>
             )}
           </div>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const rows = (followUps ?? []).map((fu: any) => ({
+                  type: fu.type ?? "outreach",
+                  status: fu.status,
+                  priority: fu.priority ?? "normal",
+                  contact: `${fu.attendees?.first_name ?? ""} ${fu.attendees?.last_name ?? ""}`.trim(),
+                  email: fu.attendees?.email ?? "",
+                  phone: fu.attendees?.phone ?? "",
+                  assigned_to: fu.profiles?.full_name ?? "",
+                  due_date: fu.due_date ?? "",
+                  notes: fu.notes ?? "",
+                  created_at: fu.created_at?.split("T")[0] ?? "",
+                }));
+                downloadCsv("follow-ups.csv", rows);
+              }}
+              disabled={!followUps?.length}
+            >
+              <Download className="h-4 w-4 mr-1" /> Export
+            </Button>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-2" />New Follow-Up</Button>
             </DialogTrigger>
@@ -287,6 +313,7 @@ export default function FollowUpList() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Filters */}

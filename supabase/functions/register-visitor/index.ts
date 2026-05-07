@@ -63,21 +63,77 @@ serve(async (req) => {
     // 1. General first-timer follow-up
     await adminClient.from("follow_ups").insert({
       attendee_id: attendee.id,
+      type: "outreach",
+      priority: "normal",
       status: "pending",
       method: "in_person",
       due_date: tomorrow,
       notes: `First-time visitor registered via welcome form.${howHeard ? ` How they heard: ${howHeard}.` : ""}${prayerRequests ? ` Prayer request submitted.` : ""}`,
     });
 
-    // 2. Auto-scheduled SMS follow-up if phone provided
+    // 2. Send a welcome SMS immediately if phone is provided and Twilio is configured
     if (phone?.trim()) {
-      await adminClient.from("follow_ups").insert({
-        attendee_id: attendee.id,
-        status: "pending",
-        method: "text",
-        due_date: tomorrow,
-        notes: `Auto-scheduled SMS follow-up. Send a friendly thank-you text to ${fullName} at ${phone.trim()}.`,
-      });
+      const twilioApiKey = Deno.env.get("TWILIO_API_KEY");
+      const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER");
+      const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+
+      if (twilioApiKey && twilioFrom && lovableApiKey) {
+        try {
+          // Normalize to E.164
+          let toPhone = phone.trim();
+          if (!toPhone.startsWith("+")) {
+            const digits = toPhone.replace(/\D/g, "");
+            toPhone = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+          }
+
+          const smsBody =
+            `Hi ${firstName.trim()}, welcome to House of Transformation Church! ` +
+            `We're so glad you joined us today. Someone from our team will be in touch soon. God bless!`;
+
+          const smsRes = await fetch("https://connector-gateway.lovable.dev/twilio/Messages.json", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${lovableApiKey}`,
+              "X-Connection-Api-Key": twilioApiKey,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({ To: toPhone, From: twilioFrom, Body: smsBody }),
+          });
+          const smsData = await smsRes.json();
+
+          await adminClient.from("sms_log").insert({
+            to_phone: toPhone,
+            to_name: fullName,
+            body: smsBody,
+            related_attendee_id: attendee.id,
+            status: smsRes.ok ? "sent" : "failed",
+            provider_message_id: smsData.sid || null,
+            error: smsRes.ok ? null : (smsData.message || JSON.stringify(smsData)),
+          });
+
+          // Mark the outreach follow-up as contacted since welcome SMS was already sent
+          if (smsRes.ok) {
+            await adminClient.from("follow_ups")
+              .update({ status: "contacted", method: "text" })
+              .eq("attendee_id", attendee.id)
+              .eq("type", "outreach")
+              .eq("status", "pending");
+          }
+        } catch (smsErr) {
+          console.error("Welcome SMS failed:", smsErr);
+        }
+      } else {
+        // Twilio not configured — create a manual follow-up reminder instead
+        await adminClient.from("follow_ups").insert({
+          attendee_id: attendee.id,
+          type: "outreach",
+          priority: "normal",
+          status: "pending",
+          method: "text",
+          due_date: tomorrow,
+          notes: `Send a welcome text to ${fullName} at ${phone.trim()}.`,
+        });
+      }
     }
 
     // 3. Notify all admins + first impressions members

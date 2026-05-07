@@ -2,8 +2,9 @@ import { useParams, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams, useAllTeams } from "@/hooks/useTeams";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Users, Sparkles } from "lucide-react";
+import { Baby, Users, Sparkles, LogOut } from "lucide-react";
 import KidsCheckIn from "@/components/kids/KidsCheckIn";
+import KidsCheckOut from "@/components/kids/KidsCheckOut";
 import FirstImpressionsDashboard from "@/components/first-impressions/FirstImpressionsDashboard";
 import VolunteerTeamDashboard from "@/components/teams/VolunteerTeamDashboard";
 
@@ -40,7 +41,11 @@ export default function TeamDashboard() {
           <TabsList>
             <TabsTrigger value="app">
               <Baby className="h-4 w-4 mr-2" />
-              Kids Check-In
+              Check-In
+            </TabsTrigger>
+            <TabsTrigger value="checkout">
+              <LogOut className="h-4 w-4 mr-2" />
+              Check-Out
             </TabsTrigger>
             <TabsTrigger value="volunteers">
               <Users className="h-4 w-4 mr-2" />
@@ -49,6 +54,9 @@ export default function TeamDashboard() {
           </TabsList>
           <TabsContent value="app">
             <KidsCheckIn />
+          </TabsContent>
+          <TabsContent value="checkout">
+            <KidsCheckOut />
           </TabsContent>
           <TabsContent value="volunteers">
             <VolunteerTeamDashboard teamId={team.id} teamName={team.name} teamSlug={team.slug} hideHeader />

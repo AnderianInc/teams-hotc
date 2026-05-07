@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Heart, AlertTriangle, TrendingDown, UserCheck, Search, Plus, CalendarDays } from "lucide-react";
+import AutoTriggerSettings from "./AutoTriggerSettings";
 
 type EngagementBand = "active" | "drifting" | "at_risk" | "inactive";
 
@@ -88,7 +89,7 @@ export default function InreachDashboard() {
         attendeeId = newAttendee.id;
       }
 
-      const { error } = await (supabase.from as any)("follow_ups").insert({
+      const { error } = await supabase.from("follow_ups").insert({
         attendee_id: attendeeId,
         type: "inreach",
         status: "pending",
@@ -332,6 +333,8 @@ export default function InreachDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AutoTriggerSettings />
     </div>
   );
 }
