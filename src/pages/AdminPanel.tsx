@@ -10,6 +10,8 @@ import FeedbackReview from "@/components/admin/FeedbackReview";
 import ChurchRoster from "@/components/admin/ChurchRoster";
 import RosterCalendarView from "@/components/admin/RosterCalendarView";
 import WeeklyAttendance from "@/components/admin/WeeklyAttendance";
+import PastorDutiesRoster from "@/components/admin/PastorDutiesRoster";
+import GroupsManagement from "@/components/admin/GroupsManagement";
 import InreachDashboard from "@/components/admin/InreachDashboard";
 import BulkImport from "@/components/admin/BulkImport";
 
@@ -38,7 +40,9 @@ export default function AdminPanel() {
           <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="pastor-roster">Pastor Roster</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="inreach">Inreach</TabsTrigger>
           <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
@@ -58,8 +62,14 @@ export default function AdminPanel() {
             <ChurchRoster />
           </div>
         </TabsContent>
+        <TabsContent value="pastor-roster">
+          <PastorDutiesRoster />
+        </TabsContent>
         <TabsContent value="attendance">
           <WeeklyAttendance />
+        </TabsContent>
+        <TabsContent value="groups">
+          <GroupsManagement />
         </TabsContent>
         <TabsContent value="inreach">
           <InreachDashboard />

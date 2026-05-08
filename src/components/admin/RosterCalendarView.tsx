@@ -656,9 +656,31 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground mb-2">Individual Assignments</h4>
                 {detailStandalone.map((e: any) => (
-                  <div key={e.id} className="flex items-center justify-between text-sm py-1">
-                    <span>{e.profiles?.full_name || "Unknown"} {e.role_description && <Badge variant="outline" className="text-xs ml-1">{e.role_description}</Badge>}</span>
-                    <Badge variant="secondary" className="text-xs">{(e.teams as any)?.name}</Badge>
+                  <div key={e.id} className="flex items-center justify-between text-sm py-1 gap-2">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="font-medium truncate">{e.profiles?.full_name || "Unknown"}</span>
+                      {e.role_description && <Badge variant="outline" className="text-xs shrink-0">{e.role_description}</Badge>}
+                      <Badge variant="secondary" className="text-xs shrink-0">{(e.teams as any)?.name}</Badge>
+                    </div>
+                    <div className="flex gap-0.5 shrink-0">
+                      <Button
+                        size="icon" variant="ghost" className="h-6 w-6"
+                        onClick={() => {
+                          setEditAssignment(e);
+                          setEditTeamId(e.team_id);
+                          setEditUserId(e.user_id);
+                          setEditRole(e.role_description || "");
+                        }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        onClick={() => removeAssignment.mutate(e.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

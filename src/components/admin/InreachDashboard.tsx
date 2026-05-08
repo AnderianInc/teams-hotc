@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Heart, AlertTriangle, TrendingDown, UserCheck, Search, Plus, CalendarDays } from "lucide-react";
+import { Heart, AlertTriangle, TrendingDown, UserCheck, Search, Plus, CalendarDays, BellRing } from "lucide-react";
+import { format, startOfWeek } from "date-fns";
 import AutoTriggerSettings from "./AutoTriggerSettings";
 
 type EngagementBand = "active" | "drifting" | "at_risk" | "inactive";
@@ -44,6 +45,24 @@ export default function InreachDashboard() {
       return data;
     },
   });
+
+  const thisServiceDate = format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd");
+
+  const { data: attendanceFill } = useQuery({
+    queryKey: ["attendance-fill-check", thisServiceDate],
+    queryFn: async () => {
+      const [attRes, volRes] = await Promise.all([
+        supabase.from("weekly_attendance").select("id", { count: "exact", head: true }).eq("service_date", thisServiceDate),
+        supabase.from("profiles").select("user_id", { count: "exact", head: true }),
+      ]);
+      return { filled: attRes.count ?? 0, total: volRes.count ?? 0 };
+    },
+  });
+
+  const attendanceUnfilled =
+    attendanceFill !== undefined &&
+    attendanceFill.total > 0 &&
+    attendanceFill.filled < Math.ceil(attendanceFill.total * 0.5);
 
   const { data: volunteers } = useQuery({
     queryKey: ["volunteers-list"],
@@ -152,6 +171,28 @@ export default function InreachDashboard() {
           <p className="text-sm text-muted-foreground">Track member attendance and proactively care for those drifting away</p>
         </div>
       </div>
+
+      {/* Attendance fill alert */}
+      {attendanceUnfilled && (
+        <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3">
+          <BellRing className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-warning">Attendance not filled for this week</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Only {attendanceFill!.filled} of {attendanceFill!.total} volunteers recorded for the week of {thisServiceDate}.
+              Engagement scores depend on up-to-date attendance data.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 text-xs h-7 border-warning/40"
+            onClick={() => window.location.assign("/admin?tab=attendance")}
+          >
+            Fill Attendance
+          </Button>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

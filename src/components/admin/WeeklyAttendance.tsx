@@ -23,6 +23,7 @@ interface VolunteerRow {
   status: string | null;
   attendanceId: string | null;
   isSelfReported: boolean;
+  attendee_id: string | null;
 }
 
 interface MemberRow {
@@ -55,7 +56,7 @@ export default function WeeklyAttendance() {
     setLoading(true);
 
     const [profilesRes, teamMembersRes, attendanceRes, attendeesRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, full_name, email"),
+      supabase.from("profiles").select("user_id, full_name, email, attendee_id"),
       supabase.from("team_members").select("user_id, teams:teams(name)"),
       supabase.from("weekly_attendance").select("id, user_id, attendee_id, status, is_self_reported").eq("service_date", serviceDate),
       supabase.from("attendees").select("id, first_name, last_name").eq("is_member", true),
@@ -83,7 +84,7 @@ export default function WeeklyAttendance() {
     );
 
     // Volunteer rows
-    const volRows: VolunteerRow[] = profiles.map((p) => {
+    const volRows: VolunteerRow[] = profiles.map((p: any) => {
       const att = userAttMap.get(p.user_id);
       return {
         user_id: p.user_id,
@@ -93,6 +94,7 @@ export default function WeeklyAttendance() {
         status: att?.status || null,
         attendanceId: att?.id || null,
         isSelfReported: att?.selfReported || false,
+        attendee_id: p.attendee_id || null,
       };
     });
     volRows.sort((a, b) => a.full_name.localeCompare(b.full_name));
@@ -123,13 +125,23 @@ export default function WeeklyAttendance() {
 
     if (existing?.attendanceId) {
       const { error } = await supabase.from("weekly_attendance").update({ status }).eq("id", existing.attendanceId);
-      if (error) toast.error(error.message);
-      else toast.success("Updated");
+      if (error) { toast.error(error.message); setSaving(null); return; }
     } else {
       const { error } = await supabase.from("weekly_attendance").insert({ user_id: userId, service_date: serviceDate, status, is_self_reported: false });
-      if (error) toast.error(error.message);
-      else toast.success("Recorded");
+      if (error) { toast.error(error.message); setSaving(null); return; }
     }
+
+    // If this volunteer is also a church member, sync their member attendance
+    if (existing?.attendee_id) {
+      const memberExisting = members.find((m) => m.attendee_id === existing.attendee_id);
+      if (memberExisting?.attendanceId) {
+        await supabase.from("weekly_attendance").update({ status }).eq("id", memberExisting.attendanceId);
+      } else {
+        await supabase.from("weekly_attendance").insert({ attendee_id: existing.attendee_id, service_date: serviceDate, status, is_self_reported: false });
+      }
+    }
+
+    toast.success("Updated");
     setSaving(null);
     fetchData();
   };
