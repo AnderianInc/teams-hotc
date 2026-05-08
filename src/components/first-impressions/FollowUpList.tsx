@@ -533,7 +533,7 @@ export default function FollowUpList() {
               <EmailComposer
                 defaultTo={emailTarget.email}
                 defaultToName={emailTarget.name}
-                defaultSubject="Follow-Up from House of the Cross"
+                defaultSubject="Follow-Up from House of Transformation Church"
                 relatedAttendeeId={emailTarget.attendeeId}
                 onSent={() => setEmailOpen(false)}
               />

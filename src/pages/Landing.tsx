@@ -75,7 +75,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-border py-6">
         <div className="container text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} House of the Cross. All rights reserved.
+          © {new Date().getFullYear()} House of Transformation Church. All rights reserved.
         </div>
       </footer>
     </div>

@@ -16,7 +16,7 @@ serve(async (req) => {
     if (!prompt?.trim()) throw new Error("prompt is required");
 
     const systemPrompt = [
-      "You are an email composer for House of the Cross Church (HOTC Teams).",
+      "You are an email composer for House of Transformation Church (HOTC Teams).",
       "Write warm, pastoral, professional church emails in the voice of a caring church team.",
       "Output ONLY the email body as plain HTML using <p> tags.",
       "Do not include subject line, salutation outside the HTML, or any markdown.",
