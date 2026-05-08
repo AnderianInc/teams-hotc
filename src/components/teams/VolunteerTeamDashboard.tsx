@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Calendar, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle } from "lucide-react";
+import { Calendar, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
@@ -97,6 +97,12 @@ function RosterSchedule({ teamId }: { teamId: string }) {
   const [userId, setUserId] = useState("");
   const [roleDesc, setRoleDesc] = useState("");
 
+  // Edit state
+  const [editEntry, setEditEntry] = useState<any>(null);
+  const [editUserId, setEditUserId] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editRole, setEditRole] = useState("");
+
   const { data: roster, isLoading } = useQuery({
     queryKey: ["roster", teamId],
     queryFn: async () => {
@@ -143,6 +149,35 @@ function RosterSchedule({ teamId }: { teamId: string }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateEntry = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("roster_entries").update({
+        user_id: editUserId,
+        scheduled_date: editDate,
+        role_description: editRole || null,
+      }).eq("id", editEntry.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Entry updated");
+      setEditEntry(null);
+      queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteEntry = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("roster_entries").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Entry removed");
+      queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading) return <div className="py-8 text-center text-muted-foreground">Loading...</div>;
 
   const grouped = (roster || []).reduce((acc: Record<string, any[]>, entry: any) => {
@@ -153,6 +188,7 @@ function RosterSchedule({ teamId }: { teamId: string }) {
   }, {});
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">Schedule</CardTitle>
@@ -224,9 +260,24 @@ function RosterSchedule({ teamId }: { teamId: string }) {
                   {(entries as any[]).map((e: any) => (
                     <div key={e.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
                       <span className="font-medium text-sm">{e.profiles?.full_name || "Unknown"}</span>
-                      {e.role_description && (
-                        <Badge variant="outline" className="text-xs">{e.role_description}</Badge>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {e.role_description && (
+                          <Badge variant="outline" className="text-xs">{e.role_description}</Badge>
+                        )}
+                        <Button
+                          size="icon" variant="ghost" className="h-6 w-6"
+                          onClick={() => { setEditEntry(e); setEditUserId(e.user_id); setEditDate(e.scheduled_date); setEditRole(e.role_description || ""); }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                          onClick={() => deleteEntry.mutate(e.id)}
+                          disabled={deleteEntry.isPending}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -236,6 +287,50 @@ function RosterSchedule({ teamId }: { teamId: string }) {
         )}
       </CardContent>
     </Card>
+
+    {/* Edit roster entry dialog */}
+    <Dialog open={!!editEntry} onOpenChange={(o) => !o && setEditEntry(null)}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Edit Roster Entry</DialogTitle></DialogHeader>
+        <form onSubmit={(e) => { e.preventDefault(); updateEntry.mutate(); }} className="space-y-4">
+          <div className="space-y-1">
+            <Label>Date</Label>
+            <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} required />
+          </div>
+          <div className="space-y-1">
+            <Label>Team Member</Label>
+            <Select value={editUserId} onValueChange={setEditUserId}>
+              <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>
+              <SelectContent>
+                {members?.map((m: any) => (
+                  <SelectItem key={m.user_id} value={m.user_id}>{m.profiles?.full_name || "Unknown"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Role/Position</Label>
+            {roleTypes && roleTypes.length > 0 ? (
+              <Select value={editRole} onValueChange={setEditRole}>
+                <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No role</SelectItem>
+                  {roleTypes.map((rt) => (
+                    <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input placeholder="e.g. Lead Vocal, Camera 1" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+            )}
+          </div>
+          <Button type="submit" className="w-full" disabled={updateEntry.isPending || !editUserId}>
+            {updateEntry.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }
 

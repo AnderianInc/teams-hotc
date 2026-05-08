@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, BookOpen, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookOpen, Plus, Trash2, Pencil } from "lucide-react";
 import { format, addWeeks, subWeeks, isSunday, nextSunday, startOfDay } from "date-fns";
 import { toast } from "sonner";
 
@@ -25,6 +25,11 @@ export default function PastorDutiesRoster() {
   const [addOpen, setAddOpen] = useState(false);
   const [addPastorId, setAddPastorId] = useState("");
   const [addDuty, setAddDuty] = useState("");
+
+  // Edit state
+  const [editEntry, setEditEntry] = useState<any>(null);
+  const [editPastorId, setEditPastorId] = useState("");
+  const [editDuty, setEditDuty] = useState("");
 
   const sundayStr = format(sunday, "yyyy-MM-dd");
 
@@ -130,6 +135,22 @@ export default function PastorDutiesRoster() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateDutyMutation = useMutation({
+    mutationFn: async () => {
+      if (!editPastorId || !editDuty.trim()) throw new Error("Select a pastor and enter a duty");
+      const { error } = await supabase.from("roster_entries")
+        .update({ user_id: editPastorId, role_description: editDuty.trim() })
+        .eq("id", editEntry.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Duty updated");
+      setEditEntry(null);
+      queryClient.invalidateQueries({ queryKey: ["pastor-duties"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const hasDutyTypes = dutyTypes && dutyTypes.length > 0;
 
   return (
@@ -205,15 +226,21 @@ export default function PastorDutiesRoster() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => removeDutyMutation.mutate(d.id)}
-                          disabled={removeDutyMutation.isPending}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex gap-0.5">
+                          <Button
+                            size="icon" variant="ghost" className="h-7 w-7"
+                            onClick={() => { setEditEntry(d); setEditPastorId(d.user_id); setEditDuty(d.role_description || ""); }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                            onClick={() => removeDutyMutation.mutate(d.id)}
+                            disabled={removeDutyMutation.isPending}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -287,6 +314,55 @@ export default function PastorDutiesRoster() {
               disabled={addDutyMutation.isPending || !addPastorId || !addDuty.trim()}
             >
               {addDutyMutation.isPending ? "Saving..." : "Assign Duty"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit duty dialog */}
+      <Dialog open={!!editEntry} onOpenChange={(o) => !o && setEditEntry(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Duty — {format(sunday, "MMMM d, yyyy")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); updateDutyMutation.mutate(); }} className="space-y-4">
+            <div className="space-y-1">
+              <Label>Pastor</Label>
+              <Select value={editPastorId} onValueChange={setEditPastorId}>
+                <SelectTrigger><SelectValue placeholder="Select pastor" /></SelectTrigger>
+                <SelectContent>
+                  {(pastors || []).map((p: any) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {(p.profiles as any)?.full_name || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Duty</Label>
+              {hasDutyTypes ? (
+                <Select value={editDuty} onValueChange={setEditDuty}>
+                  <SelectTrigger><SelectValue placeholder="Select duty" /></SelectTrigger>
+                  <SelectContent>
+                    {dutyTypes.map((dt: any) => (
+                      <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  placeholder="e.g. Sermon, Opening Prayer, Altar Call"
+                  value={editDuty}
+                  onChange={(e) => setEditDuty(e.target.value)}
+                />
+              )}
+            </div>
+            <Button
+              type="submit" className="w-full"
+              disabled={updateDutyMutation.isPending || !editPastorId || !editDuty.trim()}
+            >
+              {updateDutyMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </form>
         </DialogContent>
