@@ -394,14 +394,14 @@ function AttendanceTrendChart() {
   const { data: chartData, isLoading } = useQuery({
     queryKey: ["attendance-trend"],
     queryFn: async () => {
-      // Last 12 weeks
+      // Last 12 weeks (Sundays, in local time to avoid UTC shift)
       const weeks: string[] = [];
       for (let i = 11; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i * 7);
         // Round to Sunday
         d.setDate(d.getDate() - d.getDay());
-        weeks.push(d.toISOString().split("T")[0]);
+        weeks.push(format(d, "yyyy-MM-dd"));
       }
 
       const { data, error } = await supabase
