@@ -42,7 +42,7 @@ export default function InreachDashboard() {
         .select("*")
         .order("days_since_last_attendance", { ascending: false, nullsFirst: true });
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
@@ -359,7 +359,7 @@ export default function InreachDashboard() {
                 <Select value={assignedTo} onValueChange={setAssignedTo}>
                   <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                   <SelectContent>
-                    {volunteers?.map((v: any) => (
+                    {volunteers?.filter((v: any) => v.user_id).map((v: any) => (
                       <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
                     ))}
                   </SelectContent>
