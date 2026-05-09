@@ -151,7 +151,10 @@ export default function PastorDutiesRoster() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const hasDutyTypes = dutyTypes && dutyTypes.length > 0;
+  const validPastoralTeams = (pastoralTeams || []).filter((t: any) => t.id);
+  const validPastors = (pastors || []).filter((p: any) => p.user_id);
+  const validDutyTypes = (dutyTypes || []).filter((dt: any) => dt.name && dt.name.trim());
+  const hasDutyTypes = validDutyTypes.length > 0;
 
   return (
     <>
@@ -165,13 +168,13 @@ export default function PastorDutiesRoster() {
               <CardDescription>Assign Sunday duties to pastors</CardDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {pastoralTeams && pastoralTeams.length > 1 && (
+              {validPastoralTeams.length > 1 && (
                 <Select value={teamId} onValueChange={setSelectedTeamId}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pastoralTeams.map((t) => (
+                    {validPastoralTeams.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -272,7 +275,7 @@ export default function PastorDutiesRoster() {
                   <SelectValue placeholder="Select pastor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(pastors || []).filter((p: any) => p.user_id).map((p: any) => (
+                  {validPastors.map((p: any) => (
                     <SelectItem key={p.user_id} value={p.user_id}>
                       {(p.profiles as any)?.full_name || "Unknown"}
                     </SelectItem>
@@ -289,7 +292,7 @@ export default function PastorDutiesRoster() {
                     <SelectValue placeholder="Select duty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {dutyTypes.filter((dt: any) => dt.name && dt.name.trim()).map((dt: any) => (
+                    {validDutyTypes.map((dt: any) => (
                       <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -331,7 +334,7 @@ export default function PastorDutiesRoster() {
               <Select value={editPastorId} onValueChange={setEditPastorId}>
                 <SelectTrigger><SelectValue placeholder="Select pastor" /></SelectTrigger>
                 <SelectContent>
-                  {(pastors || []).filter((p: any) => p.user_id).map((p: any) => (
+                  {validPastors.map((p: any) => (
                     <SelectItem key={p.user_id} value={p.user_id}>
                       {(p.profiles as any)?.full_name || "Unknown"}
                     </SelectItem>
@@ -345,7 +348,7 @@ export default function PastorDutiesRoster() {
                 <Select value={editDuty} onValueChange={setEditDuty}>
                   <SelectTrigger><SelectValue placeholder="Select duty" /></SelectTrigger>
                   <SelectContent>
-                    {dutyTypes.filter((dt: any) => dt.name && dt.name.trim()).map((dt: any) => (
+                    {validDutyTypes.map((dt: any) => (
                       <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
                     ))}
                   </SelectContent>
