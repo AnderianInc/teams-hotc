@@ -13,6 +13,8 @@ import WeeklyAttendance from "@/components/admin/WeeklyAttendance";
 import GroupsManagement from "@/components/admin/GroupsManagement";
 import InreachDashboard from "@/components/admin/InreachDashboard";
 import BulkImport from "@/components/admin/BulkImport";
+import Organogram from "@/components/admin/Organogram";
+import StaffRolesManager from "@/components/admin/StaffRolesManager";
 
 const ADMIN_TABS = new Set([
   "volunteers",
@@ -22,6 +24,7 @@ const ADMIN_TABS = new Set([
   "groups",
   "inreach",
   "directory",
+  "organogram",
   "communications",
   "feedback",
   "requests",
@@ -58,6 +61,7 @@ export default function AdminPanel() {
           <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="inreach">Inreach</TabsTrigger>
           <TabsTrigger value="directory">Directory</TabsTrigger>
+          <TabsTrigger value="organogram">Org Chart</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
@@ -86,6 +90,12 @@ export default function AdminPanel() {
         </TabsContent>
         <TabsContent value="directory">
           <ChurchDirectory />
+        </TabsContent>
+        <TabsContent value="organogram">
+          <div className="space-y-6">
+            <StaffRolesManager />
+            <Organogram />
+          </div>
         </TabsContent>
         <TabsContent value="communications">
           <CommunicationsPanel />

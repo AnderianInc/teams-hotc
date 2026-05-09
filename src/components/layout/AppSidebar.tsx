@@ -66,6 +66,7 @@ const adminSubItems = [
   { label: "Groups", value: "groups", icon: Network },
   { label: "Inreach", value: "inreach", icon: Heart },
   { label: "Directory", value: "directory", icon: BookOpen },
+  { label: "Org Chart", value: "organogram", icon: Network },
   { label: "Communications", value: "communications", icon: Mail },
   { label: "Feedback", value: "feedback", icon: MessageCircle },
   { label: "Requests", value: "requests", icon: Inbox },
