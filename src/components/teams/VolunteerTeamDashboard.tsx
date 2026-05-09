@@ -18,6 +18,21 @@ import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 import RosterEventManager from "@/components/teams/RosterEventManager";
 
+const PRESET_PASTOR_DUTIES = [
+  "Welcome",
+  "Opening Prayer",
+  "Worship Lead",
+  "Announcements",
+  "Offering",
+  "Scripture Reading",
+  "Teaching",
+  "Sermon",
+  "Altar Call",
+  "Communion",
+  "Closing",
+  "Benediction",
+];
+
 interface VolunteerTeamDashboardProps {
   teamId: string;
   teamName: string;
@@ -223,21 +238,42 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
                   ))}
                 </select>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label>{isPastoral ? "Duty" : "Role/Position"}</Label>
-                {roleTypes && roleTypes.length > 0 ? (
+                {isPastoral ? (
+                  <>
+                    <Input
+                      placeholder="e.g. Welcome, Closing, Teaching"
+                      value={roleDesc}
+                      onChange={(e) => setRoleDesc(e.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-1">
+                      {PRESET_PASTOR_DUTIES.map((d) => (
+                        <Badge
+                          key={d}
+                          variant={roleDesc === d ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => setRoleDesc(d)}
+                        >
+                          {d}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Tap a preset or type a custom duty.</p>
+                  </>
+                ) : roleTypes && roleTypes.length > 0 ? (
                   <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={roleDesc}
                     onChange={(e) => setRoleDesc(e.target.value)}
                   >
-                    <option value="">{isPastoral ? "Select duty" : "Select role (optional)"}</option>
+                    <option value="">Select role (optional)</option>
                     {roleTypes.map((rt) => (
                       <option key={rt.id} value={rt.name}>{rt.name}</option>
                     ))}
                   </select>
                 ) : (
-                  <Input placeholder={isPastoral ? "e.g. Sermon, Opening Prayer, Communion" : "e.g. Lead Vocal, Camera 1"} value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
+                  <Input placeholder="e.g. Lead Vocal, Camera 1" value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
                 )}
               </div>
               <Button type="submit" className="w-full" disabled={addEntry.isPending}>
@@ -309,20 +345,40 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label>{isPastoral ? "Duty" : "Role/Position"}</Label>
-            {roleTypes && roleTypes.length > 0 ? (
+            {isPastoral ? (
+              <>
+                <Input
+                  placeholder="e.g. Welcome, Closing, Teaching"
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                />
+                <div className="flex flex-wrap gap-1">
+                  {PRESET_PASTOR_DUTIES.map((d) => (
+                    <Badge
+                      key={d}
+                      variant={editRole === d ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => setEditRole(d)}
+                    >
+                      {d}
+                    </Badge>
+                  ))}
+                </div>
+              </>
+            ) : roleTypes && roleTypes.length > 0 ? (
               <Select value={editRole || NO_ROLE_VALUE} onValueChange={(value) => setEditRole(value === NO_ROLE_VALUE ? "" : value)}>
-                <SelectTrigger><SelectValue placeholder={isPastoral ? "No duty" : "No role"} /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_ROLE_VALUE}>{isPastoral ? "No duty" : "No role"}</SelectItem>
+                  <SelectItem value={NO_ROLE_VALUE}>No role</SelectItem>
                   {roleTypes.filter((rt) => rt.name && rt.name.trim()).map((rt) => (
                     <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
-              <Input placeholder={isPastoral ? "e.g. Sermon, Opening Prayer, Communion" : "e.g. Lead Vocal, Camera 1"} value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+              <Input placeholder="e.g. Lead Vocal, Camera 1" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
             )}
           </div>
           <Button type="submit" className="w-full" disabled={updateEntry.isPending || !editUserId}>
