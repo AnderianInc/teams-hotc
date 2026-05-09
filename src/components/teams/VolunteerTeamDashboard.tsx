@@ -18,6 +18,21 @@ import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 import RosterEventManager from "@/components/teams/RosterEventManager";
 
+const PRESET_PASTOR_DUTIES = [
+  "Welcome",
+  "Opening Prayer",
+  "Worship Lead",
+  "Announcements",
+  "Offering",
+  "Scripture Reading",
+  "Teaching",
+  "Sermon",
+  "Altar Call",
+  "Communion",
+  "Closing",
+  "Benediction",
+];
+
 interface VolunteerTeamDashboardProps {
   teamId: string;
   teamName: string;
