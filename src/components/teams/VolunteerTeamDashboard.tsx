@@ -223,21 +223,42 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
                   ))}
                 </select>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label>{isPastoral ? "Duty" : "Role/Position"}</Label>
-                {roleTypes && roleTypes.length > 0 ? (
+                {isPastoral ? (
+                  <>
+                    <Input
+                      placeholder="e.g. Welcome, Closing, Teaching"
+                      value={roleDesc}
+                      onChange={(e) => setRoleDesc(e.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-1">
+                      {PRESET_PASTOR_DUTIES.map((d) => (
+                        <Badge
+                          key={d}
+                          variant={roleDesc === d ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => setRoleDesc(d)}
+                        >
+                          {d}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Tap a preset or type a custom duty.</p>
+                  </>
+                ) : roleTypes && roleTypes.length > 0 ? (
                   <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={roleDesc}
                     onChange={(e) => setRoleDesc(e.target.value)}
                   >
-                    <option value="">{isPastoral ? "Select duty" : "Select role (optional)"}</option>
+                    <option value="">Select role (optional)</option>
                     {roleTypes.map((rt) => (
                       <option key={rt.id} value={rt.name}>{rt.name}</option>
                     ))}
                   </select>
                 ) : (
-                  <Input placeholder={isPastoral ? "e.g. Sermon, Opening Prayer, Communion" : "e.g. Lead Vocal, Camera 1"} value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
+                  <Input placeholder="e.g. Lead Vocal, Camera 1" value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
                 )}
               </div>
               <Button type="submit" className="w-full" disabled={addEntry.isPending}>
