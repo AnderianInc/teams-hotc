@@ -21,6 +21,8 @@ interface RosterEventManagerProps {
   teamName: string;
 }
 
+const NO_ROLE_VALUE = "__no_role__";
+
 export default function RosterEventManager({ teamId, teamName }: RosterEventManagerProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
