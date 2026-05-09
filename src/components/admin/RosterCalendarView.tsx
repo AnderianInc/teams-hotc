@@ -716,7 +716,25 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
             {/* Multi-team selection */}
             {!teamId && (
               <div className="space-y-2">
-                <Label>Assign Teams</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Assign Teams</Label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-xs text-primary hover:underline"
+                      onClick={() => setSelectedTeamIds((teams || []).map((t: any) => t.id))}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:underline"
+                      onClick={() => setSelectedTeamIds([])}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto border rounded-md p-2">
                   {teams?.map((t) => (
                     <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
