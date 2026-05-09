@@ -826,7 +826,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                     <SelectValue placeholder="Select role (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {roleTypes.map((rt: any) => (
+                    {roleTypes.filter((rt: any) => rt.name && rt.name.trim()).map((rt: any) => (
                       <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -856,7 +856,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                   <SelectValue placeholder="Select volunteer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(editMembers || []).map((m: any) => (
+                  {(editMembers || []).filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
