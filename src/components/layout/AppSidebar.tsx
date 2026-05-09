@@ -66,6 +66,7 @@ const adminSubItems = [
   { label: "Groups", value: "groups", icon: Network },
   { label: "Inreach", value: "inreach", icon: Heart },
   { label: "Directory", value: "directory", icon: BookOpen },
+  { label: "Org Chart", value: "organogram", icon: Network },
   { label: "Communications", value: "communications", icon: Mail },
   { label: "Feedback", value: "feedback", icon: MessageCircle },
   { label: "Requests", value: "requests", icon: Inbox },
@@ -177,6 +178,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to="/org-chart" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <Network className="h-4 w-4" />
+                <span>Org Chart</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink to="/feedback" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">

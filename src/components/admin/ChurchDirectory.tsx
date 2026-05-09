@@ -29,6 +29,8 @@ export interface DirectoryEntry {
   teamNames: string[];
   source?: "attendee" | "family";
   familyChildren?: { id: string; first_name: string; last_name: string }[];
+  isStaff?: boolean;
+  staffTitle?: string | null;
 }
 
 function DirectoryActionMenu({ entry, onRefresh }: { entry: DirectoryEntry; onRefresh: () => void }) {
@@ -101,19 +103,21 @@ export default function ChurchDirectory() {
     setLoading(true);
 
     // Fetch attendees, profiles, team members, AND families+children in parallel
-    const [attendeesRes, profilesRes, teamMembersRes, familiesRes, childrenRes] = await Promise.all([
+    const [attendeesRes, profilesRes, teamMembersRes, familiesRes, childrenRes, staffRolesRes] = await Promise.all([
       supabase.from("attendees").select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth").order("last_name"),
-      supabase.from("profiles").select("attendee_id, user_id, full_name, email"),
+      supabase.from("profiles").select("attendee_id, user_id, full_name, email, is_staff, staff_role_id, staff_title"),
       supabase.from("team_members").select("user_id, teams:teams(name)"),
       supabase.from("families").select("id, family_name, parent1_name, parent1_phone"),
       supabase.from("children").select("id, first_name, last_name, family_id, date_of_birth"),
+      supabase.from("staff_roles" as any).select("id, name"),
     ]);
 
     const attendees = attendeesRes.data || [];
-    const profiles = profilesRes.data || [];
+    const profiles = (profilesRes.data || []) as any[];
     const teamMembers = teamMembersRes.data || [];
     const families = familiesRes.data || [];
     const children = childrenRes.data || [];
+    const staffRoleMap = new Map<string, string>(((staffRolesRes.data as any[]) || []).map((r) => [r.id, r.name]));
 
     // Build team map
     const userTeamMap = new Map<string, string[]>();
@@ -142,6 +146,8 @@ export default function ChurchDirectory() {
         isVolunteerOnly: false,
         teamNames: profile ? (userTeamMap.get(profile.user_id) || []) : [],
         source: "attendee" as const,
+        isStaff: !!profile?.is_staff,
+        staffTitle: profile?.staff_title || (profile?.staff_role_id ? staffRoleMap.get(profile.staff_role_id) : null) || null,
       };
     });
 
@@ -162,6 +168,8 @@ export default function ChurchDirectory() {
         tags: null,
         teamNames: userTeamMap.get(p.user_id) || [],
         source: "attendee",
+        isStaff: !!p.is_staff,
+        staffTitle: p.staff_title || (p.staff_role_id ? staffRoleMap.get(p.staff_role_id) : null) || null,
       });
     });
 
@@ -308,9 +316,14 @@ export default function ChurchDirectory() {
                             <Badge variant="outline" className="text-xs">Kids Ministry</Badge>
                           ) : (
                             <>
+                              {entry.isStaff && (
+                                <Badge className="bg-primary/10 text-primary border-primary/30" variant="outline">
+                                  {entry.staffTitle ? `Staff · ${entry.staffTitle}` : "Staff"}
+                                </Badge>
+                              )}
                               {entry.is_member && <Badge variant="default">Member</Badge>}
                               {entry.isVolunteer && <Badge variant="secondary">Volunteer</Badge>}
-                              {!entry.is_member && !entry.isVolunteer && <Badge variant="outline">Visitor</Badge>}
+                              {!entry.is_member && !entry.isVolunteer && !entry.isStaff && <Badge variant="outline">Visitor</Badge>}
                               {entry.tags?.includes("first-timer") && (
                                 <Badge variant="outline" className="text-warning border-warning">First Timer</Badge>
                               )}
