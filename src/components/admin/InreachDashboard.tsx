@@ -42,7 +42,7 @@ export default function InreachDashboard() {
         .select("*")
         .order("days_since_last_attendance", { ascending: false, nullsFirst: true });
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
@@ -74,42 +74,48 @@ export default function InreachDashboard() {
   });
 
   const createInreachFollowUp = useMutation({
-    mutationFn: async ({ memberId, memberName }: { memberId: string; memberName: string }) => {
+    mutationFn: async ({ memberId, attendeeId, memberName }: { memberId?: string | null; attendeeId?: string | null; memberName: string }) => {
       // Find or create an attendee record for this member
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email, full_name")
-        .eq("user_id", memberId)
-        .single();
+      let resolvedAttendeeId: string | null = attendeeId ?? null;
 
-      if (!profile) throw new Error("Profile not found");
+      if (!resolvedAttendeeId && memberId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email, full_name, attendee_id")
+          .eq("user_id", memberId)
+          .single();
 
-      // Check for existing attendee
-      let attendeeId: string | null = null;
-      if (profile.email) {
-        const { data: existing } = await supabase
-          .from("attendees")
-          .select("id")
-          .eq("email", profile.email)
-          .maybeSingle();
-        attendeeId = existing?.id ?? null;
+        if (!profile) throw new Error("Profile not found");
+        resolvedAttendeeId = profile.attendee_id ?? null;
+
+        // Check for existing attendee
+        if (!resolvedAttendeeId && profile.email) {
+          const { data: existing } = await supabase
+            .from("attendees")
+            .select("id")
+            .eq("email", profile.email)
+            .maybeSingle();
+          resolvedAttendeeId = existing?.id ?? null;
+        }
+
+        // Create attendee entry if not found
+        if (!resolvedAttendeeId) {
+          const nameParts = (profile.full_name || memberName).split(" ");
+          const { data: newAttendee, error: attErr } = await supabase.from("attendees").insert({
+            first_name: nameParts[0] || memberName,
+            last_name: nameParts.slice(1).join(" ") || "",
+            email: profile.email,
+            is_member: true,
+          }).select("id").single();
+          if (attErr) throw attErr;
+          resolvedAttendeeId = newAttendee.id;
+        }
       }
 
-      // Create attendee entry if not found
-      if (!attendeeId) {
-        const nameParts = (profile.full_name || memberName).split(" ");
-        const { data: newAttendee, error: attErr } = await supabase.from("attendees").insert({
-          first_name: nameParts[0] || memberName,
-          last_name: nameParts.slice(1).join(" ") || "",
-          email: profile.email,
-          is_member: true,
-        }).select("id").single();
-        if (attErr) throw attErr;
-        attendeeId = newAttendee.id;
-      }
+      if (!resolvedAttendeeId) throw new Error("Member record not found");
 
       const { error } = await supabase.from("follow_ups").insert({
-        attendee_id: attendeeId,
+        attendee_id: resolvedAttendeeId,
         type: "inreach",
         status: "pending",
         priority: "high",
@@ -277,7 +283,7 @@ export default function InreachDashboard() {
               const Icon = cfg.icon;
               const needsAttention = band === "drifting" || band === "at_risk" || band === "inactive";
               return (
-                <TableRow key={m.user_id}>
+                <TableRow key={m.engagement_id || m.user_id || m.attendee_id}>
                   <TableCell className="font-medium">{m.full_name || m.email || m.user_id}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`gap-1 text-xs ${cfg.color}`}>
@@ -336,7 +342,11 @@ export default function InreachDashboard() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                createInreachFollowUp.mutate({ memberId: assignDialogMember.user_id, memberName: assignDialogMember.full_name });
+                createInreachFollowUp.mutate({
+                  memberId: assignDialogMember.user_id,
+                  attendeeId: assignDialogMember.attendee_id,
+                  memberName: assignDialogMember.full_name,
+                });
               }}
               className="space-y-4"
             >
@@ -349,7 +359,7 @@ export default function InreachDashboard() {
                 <Select value={assignedTo} onValueChange={setAssignedTo}>
                   <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                   <SelectContent>
-                    {volunteers?.map((v: any) => (
+                    {volunteers?.filter((v: any) => v.user_id).map((v: any) => (
                       <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
                     ))}
                   </SelectContent>

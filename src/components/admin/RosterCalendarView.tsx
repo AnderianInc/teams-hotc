@@ -19,6 +19,8 @@ interface RosterCalendarViewProps {
   teamId?: string;
 }
 
+const NO_ROLE_VALUE = "__no_role__";
+
 export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) {
   const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -474,7 +476,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Teams</SelectItem>
-                    {teams?.map((t) => (
+                    {teams?.filter((t: any) => t.id).map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -791,7 +793,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                       <SelectValue placeholder="Select team" />
                     </SelectTrigger>
                     <SelectContent>
-                      {evtTeams.map((et: any) => (
+                      {evtTeams.filter((et: any) => et.team_id).map((et: any) => (
                         <SelectItem key={et.team_id} value={et.team_id}>
                           {(et.teams as any)?.name || "Unknown"}
                         </SelectItem>
@@ -808,7 +810,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                   <SelectValue placeholder={assignTeamId ? "Select volunteer" : "Select a team first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {members?.map((m: any) => (
+                  {members?.filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
@@ -824,7 +826,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                     <SelectValue placeholder="Select role (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {roleTypes.map((rt: any) => (
+                    {roleTypes.filter((rt: any) => rt.name && rt.name.trim()).map((rt: any) => (
                       <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -854,7 +856,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                   <SelectValue placeholder="Select volunteer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(editMembers || []).map((m: any) => (
+                  {(editMembers || []).filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
@@ -865,13 +867,13 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
             <div className="space-y-1">
               <Label>Role/Position</Label>
               {roleTypes && roleTypes.length > 0 ? (
-                <Select value={editRole} onValueChange={setEditRole}>
+                <Select value={editRole || NO_ROLE_VALUE} onValueChange={(value) => setEditRole(value === NO_ROLE_VALUE ? "" : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select role (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No role</SelectItem>
-                    {roleTypes.map((rt: any) => (
+                    <SelectItem value={NO_ROLE_VALUE}>No role</SelectItem>
+                    {roleTypes.filter((rt: any) => rt.name && rt.name.trim()).map((rt: any) => (
                       <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                     ))}
                   </SelectContent>

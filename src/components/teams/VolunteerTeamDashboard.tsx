@@ -67,7 +67,7 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
           <RosterEventManager teamId={teamId} teamName={teamName} />
         </TabsContent>
         <TabsContent value="roster">
-          <RosterSchedule teamId={teamId} />
+          <RosterSchedule teamId={teamId} teamSlug={teamSlug} />
         </TabsContent>
         <TabsContent value="attendance">
           <TeamAttendance teamId={teamId} />
@@ -90,8 +90,9 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
   );
 }
 
-function RosterSchedule({ teamId }: { teamId: string }) {
+function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string }) {
   const queryClient = useQueryClient();
+  const isPastoral = teamSlug === "pastoral-team";
   const [addOpen, setAddOpen] = useState(false);
   const [date, setDate] = useState("");
   const [userId, setUserId] = useState("");
@@ -191,17 +192,17 @@ function RosterSchedule({ teamId }: { teamId: string }) {
     <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Schedule</CardTitle>
+        <CardTitle className="text-lg">{isPastoral ? "Sunday Duties" : "Schedule"}</CardTitle>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Add to Roster
+              {isPastoral ? "Assign Duty" : "Add to Roster"}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Roster Entry</DialogTitle>
+              <DialogTitle>{isPastoral ? "Assign Sunday Duty" : "Add Roster Entry"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); addEntry.mutate(); }} className="space-y-4">
               <div className="space-y-1">
@@ -223,20 +224,20 @@ function RosterSchedule({ teamId }: { teamId: string }) {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Role/Position</Label>
+                <Label>{isPastoral ? "Duty" : "Role/Position"}</Label>
                 {roleTypes && roleTypes.length > 0 ? (
                   <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={roleDesc}
                     onChange={(e) => setRoleDesc(e.target.value)}
                   >
-                    <option value="">Select role (optional)</option>
+                    <option value="">{isPastoral ? "Select duty" : "Select role (optional)"}</option>
                     {roleTypes.map((rt) => (
                       <option key={rt.id} value={rt.name}>{rt.name}</option>
                     ))}
                   </select>
                 ) : (
-                  <Input placeholder="e.g. Lead Vocal, Camera 1" value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
+                  <Input placeholder={isPastoral ? "e.g. Sermon, Opening Prayer, Communion" : "e.g. Lead Vocal, Camera 1"} value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} />
                 )}
               </div>
               <Button type="submit" className="w-full" disabled={addEntry.isPending}>
@@ -302,26 +303,26 @@ function RosterSchedule({ teamId }: { teamId: string }) {
             <Select value={editUserId} onValueChange={setEditUserId}>
               <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>
               <SelectContent>
-                {members?.map((m: any) => (
+                {members?.filter((m: any) => m.user_id).map((m: any) => (
                   <SelectItem key={m.user_id} value={m.user_id}>{m.profiles?.full_name || "Unknown"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Role/Position</Label>
+            <Label>{isPastoral ? "Duty" : "Role/Position"}</Label>
             {roleTypes && roleTypes.length > 0 ? (
-              <Select value={editRole} onValueChange={setEditRole}>
-                <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
+              <Select value={editRole || NO_ROLE_VALUE} onValueChange={(value) => setEditRole(value === NO_ROLE_VALUE ? "" : value)}>
+                <SelectTrigger><SelectValue placeholder={isPastoral ? "No duty" : "No role"} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No role</SelectItem>
-                  {roleTypes.map((rt) => (
+                  <SelectItem value={NO_ROLE_VALUE}>{isPastoral ? "No duty" : "No role"}</SelectItem>
+                  {roleTypes.filter((rt) => rt.name && rt.name.trim()).map((rt) => (
                     <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
-              <Input placeholder="e.g. Lead Vocal, Camera 1" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+              <Input placeholder={isPastoral ? "e.g. Sermon, Opening Prayer, Communion" : "e.g. Lead Vocal, Camera 1"} value={editRole} onChange={(e) => setEditRole(e.target.value)} />
             )}
           </div>
           <Button type="submit" className="w-full" disabled={updateEntry.isPending || !editUserId}>
@@ -340,6 +341,8 @@ const STATUS_OPTIONS = [
   { value: "excused", label: "Excused", icon: AlertCircle, color: "text-warning" },
   { value: "late",    label: "Late",    icon: Clock,  color: "text-orange-500" },
 ];
+
+const NO_ROLE_VALUE = "__no_role__";
 
 function TeamAttendance({ teamId }: { teamId: string }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));

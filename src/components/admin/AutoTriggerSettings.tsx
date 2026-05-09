@@ -210,7 +210,7 @@ export default function AutoTriggerSettings() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unset">None (leave unassigned)</SelectItem>
-              {volunteers.map((v) => (
+              {volunteers.filter((v: any) => v.user_id).map((v) => (
                 <SelectItem key={v.user_id} value={v.user_id}>
                   {v.full_name}
                 </SelectItem>

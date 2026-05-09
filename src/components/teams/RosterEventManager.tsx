@@ -21,6 +21,8 @@ interface RosterEventManagerProps {
   teamName: string;
 }
 
+const NO_ROLE_VALUE = "__no_role__";
+
 export default function RosterEventManager({ teamId, teamName }: RosterEventManagerProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -552,7 +554,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                   <SelectValue placeholder="Select volunteer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {members?.map((m: any) => (
+                  {members?.filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
@@ -568,7 +570,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                     <SelectValue placeholder="Select role (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {roleTypes.map((rt) => (
+                    {roleTypes.filter((rt) => rt.name && rt.name.trim()).map((rt) => (
                       <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -599,6 +601,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                 </SelectTrigger>
                 <SelectContent>
                   {allTeams?.filter((t) => {
+                    if (!t.id) return false;
                     const existing = (eventTeams || []).filter((et: any) => et.event_id === addTeamEventId).map((et: any) => et.team_id);
                     return !existing.includes(t.id);
                   }).map((t) => (
@@ -628,7 +631,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                   <SelectValue placeholder="Select volunteer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {members?.map((m: any) => (
+                  {members?.filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
@@ -639,13 +642,13 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
             <div className="space-y-1">
               <Label>Role/Position</Label>
               {roleTypes && roleTypes.length > 0 ? (
-                <Select value={editRole} onValueChange={setEditRole}>
+                <Select value={editRole || NO_ROLE_VALUE} onValueChange={(value) => setEditRole(value === NO_ROLE_VALUE ? "" : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select role (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No role</SelectItem>
-                    {roleTypes.map((rt) => (
+                    <SelectItem value={NO_ROLE_VALUE}>No role</SelectItem>
+                    {roleTypes.filter((rt) => rt.name && rt.name.trim()).map((rt) => (
                       <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                     ))}
                   </SelectContent>

@@ -292,7 +292,7 @@ export default function FollowUpList() {
                   <Select value={attendeeId} onValueChange={setAttendeeId} required>
                     <SelectTrigger><SelectValue placeholder="Select person" /></SelectTrigger>
                     <SelectContent>
-                      {attendees?.map((a) => (
+                      {attendees?.filter((a) => a.id).map((a) => (
                         <SelectItem key={a.id} value={a.id}>{a.first_name} {a.last_name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -303,7 +303,7 @@ export default function FollowUpList() {
                   <Select value={assignedTo} onValueChange={setAssignedTo}>
                     <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                     <SelectContent>
-                      {volunteers?.map((v: any) => (
+                      {volunteers?.filter((v: any) => v.user_id).map((v: any) => (
                         <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -353,7 +353,7 @@ export default function FollowUpList() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All assignees</SelectItem>
-              {volunteers?.map((v: any) => (
+              {volunteers?.filter((v: any) => v.user_id).map((v: any) => (
                 <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
               ))}
             </SelectContent>

@@ -1058,7 +1058,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      member_engagement: {
+        Row: {
+          attendance_90d: number | null
+          attendee_id: string | null
+          days_since_last_attendance: number | null
+          email: string | null
+          engagement_band: string | null
+          engagement_id: string | null
+          full_name: string | null
+          last_attendance_date: string | null
+          roster_participations_90d: number | null
+          source: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

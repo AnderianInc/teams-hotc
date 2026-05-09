@@ -10,14 +10,28 @@ import FeedbackReview from "@/components/admin/FeedbackReview";
 import ChurchRoster from "@/components/admin/ChurchRoster";
 import RosterCalendarView from "@/components/admin/RosterCalendarView";
 import WeeklyAttendance from "@/components/admin/WeeklyAttendance";
-import PastorDutiesRoster from "@/components/admin/PastorDutiesRoster";
 import GroupsManagement from "@/components/admin/GroupsManagement";
 import InreachDashboard from "@/components/admin/InreachDashboard";
 import BulkImport from "@/components/admin/BulkImport";
 
+const ADMIN_TABS = new Set([
+  "volunteers",
+  "teams",
+  "roster",
+  "attendance",
+  "groups",
+  "inreach",
+  "directory",
+  "communications",
+  "feedback",
+  "requests",
+  "import",
+]);
+
 export default function AdminPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "volunteers";
+  const requestedTab = searchParams.get("tab") || "volunteers";
+  const activeTab = ADMIN_TABS.has(requestedTab) ? requestedTab : "roster";
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
@@ -40,7 +54,6 @@ export default function AdminPanel() {
           <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="roster">Roster</TabsTrigger>
-          <TabsTrigger value="pastor-roster">Pastor Roster</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="inreach">Inreach</TabsTrigger>
@@ -61,9 +74,6 @@ export default function AdminPanel() {
             <RosterCalendarView />
             <ChurchRoster />
           </div>
-        </TabsContent>
-        <TabsContent value="pastor-roster">
-          <PastorDutiesRoster />
         </TabsContent>
         <TabsContent value="attendance">
           <WeeklyAttendance />
