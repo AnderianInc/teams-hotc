@@ -590,7 +590,13 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_staff: boolean
+          org_sort_order: number
+          org_team_id: string | null
           phone: string | null
+          reports_to_user_id: string | null
+          staff_role_id: string | null
+          staff_title: string | null
           updated_at: string
           user_id: string
         }
@@ -604,7 +610,13 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_staff?: boolean
+          org_sort_order?: number
+          org_team_id?: string | null
           phone?: string | null
+          reports_to_user_id?: string | null
+          staff_role_id?: string | null
+          staff_title?: string | null
           updated_at?: string
           user_id: string
         }
@@ -618,7 +630,13 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_staff?: boolean
+          org_sort_order?: number
+          org_team_id?: string | null
           phone?: string | null
+          reports_to_user_id?: string | null
+          staff_role_id?: string | null
+          staff_title?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -628,6 +646,20 @@ export type Database = {
             columns: ["attendee_id"]
             isOneToOne: false
             referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_org_team_id_fkey"
+            columns: ["org_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_staff_role_id_fkey"
+            columns: ["staff_role_id"]
+            isOneToOne: false
+            referencedRelation: "staff_roles"
             referencedColumns: ["id"]
           },
         ]
@@ -890,6 +922,33 @@ export type Database = {
           status?: string
           to_name?: string | null
           to_phone?: string
+        }
+        Relationships: []
+      }
+      staff_roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
