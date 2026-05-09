@@ -19,6 +19,8 @@ interface RosterCalendarViewProps {
   teamId?: string;
 }
 
+const NO_ROLE_VALUE = "__no_role__";
+
 export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) {
   const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
