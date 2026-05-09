@@ -68,20 +68,20 @@ export default function PastorDutiesRoster() {
     enabled: !!teamId,
   });
 
-  const { data: dutyTypes } = useQuery({
-    queryKey: ["pastoral-duty-types", teamId],
-    queryFn: async () => {
-      if (!teamId) return [];
-      const { data, error } = await supabase
-        .from("team_role_types")
-        .select("id, name")
-        .eq("team_id", teamId)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!teamId,
-  });
+  const PRESET_DUTIES = [
+    "Welcome",
+    "Opening Prayer",
+    "Worship Lead",
+    "Announcements",
+    "Offering",
+    "Scripture Reading",
+    "Teaching",
+    "Sermon",
+    "Altar Call",
+    "Communion",
+    "Closing",
+    "Benediction",
+  ];
 
   const { data: duties, isLoading } = useQuery({
     queryKey: ["pastor-duties", teamId, sundayStr],
@@ -153,8 +153,6 @@ export default function PastorDutiesRoster() {
 
   const validPastoralTeams = (pastoralTeams || []).filter((t: any) => t.id);
   const validPastors = (pastors || []).filter((p: any) => p.user_id);
-  const validDutyTypes = (dutyTypes || []).filter((dt: any) => dt.name && dt.name.trim());
-  const hasDutyTypes = validDutyTypes.length > 0;
 
   return (
     <>
@@ -284,31 +282,28 @@ export default function PastorDutiesRoster() {
               </Select>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label>Duty</Label>
-              {hasDutyTypes ? (
-                <Select value={addDuty} onValueChange={setAddDuty}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select duty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {validDutyTypes.map((dt: any) => (
-                      <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="space-y-1">
-                  <Input
-                    placeholder="e.g. Sermon, Opening Prayer, Altar Call"
-                    value={addDuty}
-                    onChange={(e) => setAddDuty(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Add duty types in the team's Role Types tab to use a dropdown here.
-                  </p>
-                </div>
-              )}
+              <Input
+                placeholder="e.g. Welcome, Closing, Teaching"
+                value={addDuty}
+                onChange={(e) => setAddDuty(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-1">
+                {PRESET_DUTIES.map((d) => (
+                  <Badge
+                    key={d}
+                    variant={addDuty === d ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setAddDuty(d)}
+                  >
+                    {d}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tap a preset or type a custom duty.
+              </p>
             </div>
 
             <Button
@@ -342,24 +337,25 @@ export default function PastorDutiesRoster() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label>Duty</Label>
-              {hasDutyTypes ? (
-                <Select value={editDuty} onValueChange={setEditDuty}>
-                  <SelectTrigger><SelectValue placeholder="Select duty" /></SelectTrigger>
-                  <SelectContent>
-                    {validDutyTypes.map((dt: any) => (
-                      <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  placeholder="e.g. Sermon, Opening Prayer, Altar Call"
-                  value={editDuty}
-                  onChange={(e) => setEditDuty(e.target.value)}
-                />
-              )}
+              <Input
+                placeholder="e.g. Welcome, Closing, Teaching"
+                value={editDuty}
+                onChange={(e) => setEditDuty(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-1">
+                {PRESET_DUTIES.map((d) => (
+                  <Badge
+                    key={d}
+                    variant={editDuty === d ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setEditDuty(d)}
+                  >
+                    {d}
+                  </Badge>
+                ))}
+              </div>
             </div>
             <Button
               type="submit" className="w-full"
