@@ -310,19 +310,19 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Role/Position</Label>
+            <Label>{isPastoral ? "Duty" : "Role/Position"}</Label>
             {roleTypes && roleTypes.length > 0 ? (
               <Select value={editRole || NO_ROLE_VALUE} onValueChange={(value) => setEditRole(value === NO_ROLE_VALUE ? "" : value)}>
-                <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={isPastoral ? "No duty" : "No role"} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_ROLE_VALUE}>No role</SelectItem>
+                  <SelectItem value={NO_ROLE_VALUE}>{isPastoral ? "No duty" : "No role"}</SelectItem>
                   {roleTypes.filter((rt) => rt.name && rt.name.trim()).map((rt) => (
                     <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
-              <Input placeholder="e.g. Lead Vocal, Camera 1" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+              <Input placeholder={isPastoral ? "e.g. Sermon, Opening Prayer, Communion" : "e.g. Lead Vocal, Camera 1"} value={editRole} onChange={(e) => setEditRole(e.target.value)} />
             )}
           </div>
           <Button type="submit" className="w-full" disabled={updateEntry.isPending || !editUserId}>
