@@ -284,7 +284,11 @@ export default function InreachDashboard() {
               const Icon = cfg.icon;
               const needsAttention = band === "drifting" || band === "at_risk" || band === "inactive";
               return (
-                <TableRow key={m.engagement_id || m.user_id || m.attendee_id}>
+                <TableRow
+                  key={m.engagement_id || m.user_id || m.attendee_id}
+                  className="cursor-pointer hover:bg-muted/40"
+                  onClick={() => setDetailMember(m)}
+                >
                   <TableCell className="font-medium">{m.full_name || m.email || m.user_id}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`gap-1 text-xs ${cfg.color}`}>
@@ -307,7 +311,7 @@ export default function InreachDashboard() {
                   </TableCell>
                   <TableCell className="text-center">{m.attendance_90d ?? 0}</TableCell>
                   <TableCell className="text-center">{m.roster_participations_90d ?? 0}</TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     {needsAttention && (
                       <Button
                         size="sm"
