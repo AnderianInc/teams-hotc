@@ -180,6 +180,14 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
+              <NavLink to="/org-chart" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <Network className="h-4 w-4" />
+                <span>Org Chart</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
               <NavLink to="/feedback" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
                 <MessageSquare className="h-4 w-4" />
                 <span>Feedback</span>
