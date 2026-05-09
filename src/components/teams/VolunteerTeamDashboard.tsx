@@ -311,11 +311,11 @@ function RosterSchedule({ teamId }: { teamId: string }) {
           <div className="space-y-1">
             <Label>Role/Position</Label>
             {roleTypes && roleTypes.length > 0 ? (
-              <Select value={editRole} onValueChange={setEditRole}>
+              <Select value={editRole || NO_ROLE_VALUE} onValueChange={(value) => setEditRole(value === NO_ROLE_VALUE ? "" : value)}>
                 <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No role</SelectItem>
-                  {roleTypes.map((rt) => (
+                  <SelectItem value={NO_ROLE_VALUE}>No role</SelectItem>
+                  {roleTypes.filter((rt) => rt.name && rt.name.trim()).map((rt) => (
                     <SelectItem key={rt.id} value={rt.name}>{rt.name}</SelectItem>
                   ))}
                 </SelectContent>
