@@ -112,6 +112,7 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
   const [date, setDate] = useState("");
   const [userId, setUserId] = useState("");
   const [roleDesc, setRoleDesc] = useState("");
+  const [linkedEventId, setLinkedEventId] = useState<string>("");
 
   // Edit state
   const [editEntry, setEditEntry] = useState<any>(null);
@@ -144,6 +145,22 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
     },
   });
 
+  // All upcoming events across all teams (for linking)
+  const { data: allEvents } = useQuery({
+    queryKey: ["all-upcoming-events-for-link"],
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("roster_events")
+        .select("id, name, event_date, event_time, roster_event_teams(teams(name))")
+        .gte("event_date", today)
+        .order("event_date")
+        .limit(100);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: roleTypes } = useTeamRoleTypes(teamId);
 
   const addEntry = useMutation({
@@ -153,14 +170,16 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
         user_id: userId,
         scheduled_date: date,
         role_description: roleDesc || null,
+        event_id: linkedEventId || null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Roster entry added!");
       setAddOpen(false);
-      setDate(""); setUserId(""); setRoleDesc("");
+      setDate(""); setUserId(""); setRoleDesc(""); setLinkedEventId("");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
