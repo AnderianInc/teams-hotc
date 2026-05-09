@@ -68,20 +68,20 @@ export default function PastorDutiesRoster() {
     enabled: !!teamId,
   });
 
-  const { data: dutyTypes } = useQuery({
-    queryKey: ["pastoral-duty-types", teamId],
-    queryFn: async () => {
-      if (!teamId) return [];
-      const { data, error } = await supabase
-        .from("team_role_types")
-        .select("id, name")
-        .eq("team_id", teamId)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!teamId,
-  });
+  const PRESET_DUTIES = [
+    "Welcome",
+    "Opening Prayer",
+    "Worship Lead",
+    "Announcements",
+    "Offering",
+    "Scripture Reading",
+    "Teaching",
+    "Sermon",
+    "Altar Call",
+    "Communion",
+    "Closing",
+    "Benediction",
+  ];
 
   const { data: duties, isLoading } = useQuery({
     queryKey: ["pastor-duties", teamId, sundayStr],
