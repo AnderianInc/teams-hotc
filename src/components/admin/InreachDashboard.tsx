@@ -390,7 +390,203 @@ export default function InreachDashboard() {
         </DialogContent>
       </Dialog>
 
+      <MemberDetailDialog
+        member={detailMember}
+        onClose={() => setDetailMember(null)}
+        onCreateFollowUp={(m) => { setDetailMember(null); setAssignDialogMember(m); }}
+      />
+
       <AutoTriggerSettings />
     </div>
+  );
+}
+
+function MemberDetailDialog({
+  member,
+  onClose,
+  onCreateFollowUp,
+}: {
+  member: any;
+  onClose: () => void;
+  onCreateFollowUp: (m: any) => void;
+}) {
+  const userId = member?.user_id;
+  const attendeeId = member?.attendee_id;
+
+  const { data: attendance } = useQuery({
+    queryKey: ["member-attendance-detail", userId, attendeeId],
+    enabled: !!member,
+    queryFn: async () => {
+      const since = format(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+      let q = supabase
+        .from("weekly_attendance")
+        .select("service_date, status, is_self_reported")
+        .gte("service_date", since)
+        .order("service_date", { ascending: false });
+      if (userId) q = q.eq("user_id", userId);
+      else if (attendeeId) q = q.eq("attendee_id", attendeeId);
+      else return [];
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: roster } = useQuery({
+    queryKey: ["member-roster-detail", userId],
+    enabled: !!member && !!userId,
+    queryFn: async () => {
+      const since = format(new Date(Date.now() - 180 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("roster_entries")
+        .select("scheduled_date, role_description, teams(name), roster_events(name)")
+        .eq("user_id", userId)
+        .gte("scheduled_date", since)
+        .order("scheduled_date", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: followUps } = useQuery({
+    queryKey: ["member-followups-detail", attendeeId],
+    enabled: !!member && !!attendeeId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("follow_ups")
+        .select("type, status, priority, due_date, notes, created_at")
+        .eq("attendee_id", attendeeId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  if (!member) return null;
+  const band = (member.engagement_band || "inactive") as EngagementBand;
+  const cfg = bandConfig[band];
+
+  const last30 = (attendance || []).filter((a: any) => {
+    const days = (Date.now() - new Date(a.service_date).getTime()) / (1000 * 60 * 60 * 24);
+    return days <= 30;
+  }).length;
+  const last90 = (attendance || []).filter((a: any) => {
+    const days = (Date.now() - new Date(a.service_date).getTime()) / (1000 * 60 * 60 * 24);
+    return days <= 90;
+  }).length;
+  const last365 = (attendance || []).length;
+
+  return (
+    <Dialog open={!!member} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {member.full_name || member.email || "Member"}
+            <Badge variant="outline" className={`text-xs ${cfg.color}`}>{cfg.label}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Quick stats */}
+          <div className="grid grid-cols-3 gap-2">
+            <Card><CardContent className="pt-4 pb-3 text-center">
+              <p className="text-2xl font-bold">{last30}</p>
+              <p className="text-xs text-muted-foreground">Attended (30d)</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4 pb-3 text-center">
+              <p className="text-2xl font-bold">{last90}</p>
+              <p className="text-xs text-muted-foreground">Attended (90d)</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4 pb-3 text-center">
+              <p className="text-2xl font-bold">{last365}</p>
+              <p className="text-xs text-muted-foreground">Attended (1y)</p>
+            </CardContent></Card>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-lg border p-3">
+              <p className="text-muted-foreground text-xs">Last attended</p>
+              <p className="font-medium">
+                {member.last_attendance_date
+                  ? `${new Date(member.last_attendance_date).toLocaleDateString()} (${member.days_since_last_attendance ?? "?"}d ago)`
+                  : "Never recorded"}
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-muted-foreground text-xs">Roster shifts (90d)</p>
+              <p className="font-medium">{member.roster_participations_90d ?? 0}</p>
+            </div>
+            <div className="rounded-lg border p-3 col-span-2">
+              <p className="text-muted-foreground text-xs">Contact</p>
+              <p className="font-medium text-xs">{member.email || "—"} {member.phone ? `· ${member.phone}` : ""}</p>
+            </div>
+          </div>
+
+          {/* Recent attendance */}
+          <div>
+            <p className="text-sm font-semibold mb-2">Recent Attendance</p>
+            {(attendance || []).length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No attendance records.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {(attendance || []).slice(0, 24).map((a: any, i: number) => (
+                  <Badge key={i} variant="outline" className="text-xs">
+                    {new Date(a.service_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {a.is_self_reported && <span className="ml-1 text-muted-foreground">·self</span>}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Roster shifts */}
+          <div>
+            <p className="text-sm font-semibold mb-2">Roster Shifts (180d)</p>
+            {(roster || []).length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No recent shifts.</p>
+            ) : (
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {(roster || []).map((r: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground w-20">
+                      {new Date(r.scheduled_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                    <Badge variant="secondary" className="text-xs">{(r.teams as any)?.name || "—"}</Badge>
+                    {r.role_description && <span className="text-muted-foreground">· {r.role_description}</span>}
+                    {(r.roster_events as any)?.name && <span className="text-muted-foreground">· {(r.roster_events as any).name}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Follow-ups */}
+          <div>
+            <p className="text-sm font-semibold mb-2">Follow-up History</p>
+            {(followUps || []).length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No follow-ups recorded.</p>
+            ) : (
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {(followUps || []).map((f: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <Badge variant="outline" className="text-xs">{f.type || "general"}</Badge>
+                    <Badge variant={f.status === "completed" ? "default" : "secondary"} className="text-xs">{f.status}</Badge>
+                    <span className="text-muted-foreground">
+                      {new Date(f.created_at).toLocaleDateString()}
+                    </span>
+                    {f.notes && <span className="truncate text-muted-foreground">— {f.notes}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Button className="w-full" onClick={() => onCreateFollowUp(member)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Inreach Follow-Up
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
