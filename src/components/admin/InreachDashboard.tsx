@@ -31,6 +31,7 @@ export default function InreachDashboard() {
   const [search, setSearch] = useState("");
   const [bandFilter, setBandFilter] = useState<"all" | EngagementBand>("all");
   const [assignDialogMember, setAssignDialogMember] = useState<any>(null);
+  const [detailMember, setDetailMember] = useState<any>(null);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
