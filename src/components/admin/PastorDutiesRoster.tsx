@@ -282,31 +282,28 @@ export default function PastorDutiesRoster() {
               </Select>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label>Duty</Label>
-              {hasDutyTypes ? (
-                <Select value={addDuty} onValueChange={setAddDuty}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select duty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {validDutyTypes.map((dt: any) => (
-                      <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="space-y-1">
-                  <Input
-                    placeholder="e.g. Sermon, Opening Prayer, Altar Call"
-                    value={addDuty}
-                    onChange={(e) => setAddDuty(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Add duty types in the team's Role Types tab to use a dropdown here.
-                  </p>
-                </div>
-              )}
+              <Input
+                placeholder="e.g. Welcome, Closing, Teaching"
+                value={addDuty}
+                onChange={(e) => setAddDuty(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-1">
+                {PRESET_DUTIES.map((d) => (
+                  <Badge
+                    key={d}
+                    variant={addDuty === d ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setAddDuty(d)}
+                  >
+                    {d}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tap a preset or type a custom duty.
+              </p>
             </div>
 
             <Button
