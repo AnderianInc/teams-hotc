@@ -44,6 +44,9 @@ import {
   MessageCircle,
   Inbox,
   ClipboardCheck,
+  Heart,
+  Network,
+  Upload,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
@@ -60,6 +63,8 @@ const adminSubItems = [
   { label: "Teams", value: "teams", icon: UsersRound },
   { label: "Roster", value: "roster", icon: CalendarDays },
   { label: "Attendance", value: "attendance", icon: ClipboardCheck },
+  { label: "Groups", value: "groups", icon: Network },
+  { label: "Inreach", value: "inreach", icon: Heart },
   { label: "Directory", value: "directory", icon: BookOpen },
   { label: "Communications", value: "communications", icon: Mail },
   { label: "Feedback", value: "feedback", icon: MessageCircle },
