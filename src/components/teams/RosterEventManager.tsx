@@ -554,7 +554,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                   <SelectValue placeholder="Select volunteer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {members?.map((m: any) => (
+                  {members?.filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
@@ -601,6 +601,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                 </SelectTrigger>
                 <SelectContent>
                   {allTeams?.filter((t) => {
+                    if (!t.id) return false;
                     const existing = (eventTeams || []).filter((et: any) => et.event_id === addTeamEventId).map((et: any) => et.team_id);
                     return !existing.includes(t.id);
                   }).map((t) => (
@@ -630,7 +631,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                   <SelectValue placeholder="Select volunteer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {members?.map((m: any) => (
+                  {members?.filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
