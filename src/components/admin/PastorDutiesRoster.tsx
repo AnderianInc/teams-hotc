@@ -337,24 +337,25 @@ export default function PastorDutiesRoster() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label>Duty</Label>
-              {hasDutyTypes ? (
-                <Select value={editDuty} onValueChange={setEditDuty}>
-                  <SelectTrigger><SelectValue placeholder="Select duty" /></SelectTrigger>
-                  <SelectContent>
-                    {validDutyTypes.map((dt: any) => (
-                      <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  placeholder="e.g. Sermon, Opening Prayer, Altar Call"
-                  value={editDuty}
-                  onChange={(e) => setEditDuty(e.target.value)}
-                />
-              )}
+              <Input
+                placeholder="e.g. Welcome, Closing, Teaching"
+                value={editDuty}
+                onChange={(e) => setEditDuty(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-1">
+                {PRESET_DUTIES.map((d) => (
+                  <Badge
+                    key={d}
+                    variant={editDuty === d ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setEditDuty(d)}
+                  >
+                    {d}
+                  </Badge>
+                ))}
+              </div>
             </div>
             <Button
               type="submit" className="w-full"
