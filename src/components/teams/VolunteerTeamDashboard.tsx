@@ -240,8 +240,42 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
             </DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); addEntry.mutate(); }} className="space-y-4">
               <div className="space-y-1">
+                <Label>Link to Existing Event (optional)</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={linkedEventId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setLinkedEventId(id);
+                    const evt = (allEvents || []).find((x: any) => x.id === id);
+                    if (evt) setDate(evt.event_date);
+                  }}
+                >
+                  <option value="">None — standalone entry</option>
+                  {(allEvents || []).map((evt: any) => {
+                    const teamNames = (evt.roster_event_teams || [])
+                      .map((rt: any) => rt.teams?.name)
+                      .filter(Boolean)
+                      .join(", ");
+                    const dateLabel = new Date(evt.event_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return (
+                      <option key={evt.id} value={evt.id}>
+                        {dateLabel} — {evt.name}{teamNames ? ` (${teamNames})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-xs text-muted-foreground">Pick an event from any team's roster to attach this assignment to.</p>
+              </div>
+              <div className="space-y-1">
                 <Label>Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  disabled={!!linkedEventId}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Team Member</Label>
