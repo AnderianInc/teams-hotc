@@ -303,7 +303,7 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
             <Select value={editUserId} onValueChange={setEditUserId}>
               <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>
               <SelectContent>
-                {members?.map((m: any) => (
+                {members?.filter((m: any) => m.user_id).map((m: any) => (
                   <SelectItem key={m.user_id} value={m.user_id}>{m.profiles?.full_name || "Unknown"}</SelectItem>
                 ))}
               </SelectContent>
