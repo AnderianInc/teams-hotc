@@ -69,6 +69,7 @@ const adminSubItems = [
   { label: "Communications", value: "communications", icon: Mail },
   { label: "Feedback", value: "feedback", icon: MessageCircle },
   { label: "Requests", value: "requests", icon: Inbox },
+  { label: "Import", value: "import", icon: Upload },
 ];
 
 export function AppSidebar() {
