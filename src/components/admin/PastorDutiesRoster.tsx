@@ -153,8 +153,6 @@ export default function PastorDutiesRoster() {
 
   const validPastoralTeams = (pastoralTeams || []).filter((t: any) => t.id);
   const validPastors = (pastors || []).filter((p: any) => p.user_id);
-  const validDutyTypes = (dutyTypes || []).filter((dt: any) => dt.name && dt.name.trim());
-  const hasDutyTypes = validDutyTypes.length > 0;
 
   return (
     <>
