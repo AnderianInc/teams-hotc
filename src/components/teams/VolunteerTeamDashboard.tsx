@@ -341,6 +341,8 @@ const STATUS_OPTIONS = [
   { value: "late",    label: "Late",    icon: Clock,  color: "text-orange-500" },
 ];
 
+const NO_ROLE_VALUE = "__no_role__";
+
 function TeamAttendance({ teamId }: { teamId: string }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [saving, setSaving] = useState<string | null>(null);
