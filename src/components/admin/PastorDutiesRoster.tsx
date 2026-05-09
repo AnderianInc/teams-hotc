@@ -272,7 +272,7 @@ export default function PastorDutiesRoster() {
                   <SelectValue placeholder="Select pastor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(pastors || []).map((p: any) => (
+                  {(pastors || []).filter((p: any) => p.user_id).map((p: any) => (
                     <SelectItem key={p.user_id} value={p.user_id}>
                       {(p.profiles as any)?.full_name || "Unknown"}
                     </SelectItem>
@@ -289,7 +289,7 @@ export default function PastorDutiesRoster() {
                     <SelectValue placeholder="Select duty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {dutyTypes.map((dt: any) => (
+                    {dutyTypes.filter((dt: any) => dt.name && dt.name.trim()).map((dt: any) => (
                       <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -331,7 +331,7 @@ export default function PastorDutiesRoster() {
               <Select value={editPastorId} onValueChange={setEditPastorId}>
                 <SelectTrigger><SelectValue placeholder="Select pastor" /></SelectTrigger>
                 <SelectContent>
-                  {(pastors || []).map((p: any) => (
+                  {(pastors || []).filter((p: any) => p.user_id).map((p: any) => (
                     <SelectItem key={p.user_id} value={p.user_id}>
                       {(p.profiles as any)?.full_name || "Unknown"}
                     </SelectItem>
@@ -345,7 +345,7 @@ export default function PastorDutiesRoster() {
                 <Select value={editDuty} onValueChange={setEditDuty}>
                   <SelectTrigger><SelectValue placeholder="Select duty" /></SelectTrigger>
                   <SelectContent>
-                    {dutyTypes.map((dt: any) => (
+                    {dutyTypes.filter((dt: any) => dt.name && dt.name.trim()).map((dt: any) => (
                       <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
                     ))}
                   </SelectContent>
