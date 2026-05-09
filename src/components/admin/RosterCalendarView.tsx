@@ -476,7 +476,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Teams</SelectItem>
-                    {teams?.map((t) => (
+                    {teams?.filter((t: any) => t.id).map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -793,7 +793,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                       <SelectValue placeholder="Select team" />
                     </SelectTrigger>
                     <SelectContent>
-                      {evtTeams.map((et: any) => (
+                      {evtTeams.filter((et: any) => et.team_id).map((et: any) => (
                         <SelectItem key={et.team_id} value={et.team_id}>
                           {(et.teams as any)?.name || "Unknown"}
                         </SelectItem>
@@ -810,7 +810,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                   <SelectValue placeholder={assignTeamId ? "Select volunteer" : "Select a team first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {members?.map((m: any) => (
+                  {members?.filter((m: any) => m.user_id).map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {m.profiles?.full_name || "Unknown"}
                     </SelectItem>
