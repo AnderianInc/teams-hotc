@@ -22,6 +22,10 @@ interface ProfileData {
   address: string;
   bio: string;
   avatar_url: string;
+  is_staff?: boolean;
+  staff_title?: string | null;
+  staff_role_name?: string | null;
+  reports_to_name?: string | null;
 }
 
 export default function Profile() {
@@ -44,19 +48,34 @@ export default function Profile() {
     (async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, email, phone, date_of_birth, address, bio, avatar_url")
+        .select("full_name, email, phone, date_of_birth, address, bio, avatar_url, is_staff, staff_title, staff_role_id, reports_to_user_id")
         .eq("user_id", user.id)
         .single();
 
       if (data) {
+        const d: any = data;
+        let staff_role_name: string | null = null;
+        let reports_to_name: string | null = null;
+        if (d.staff_role_id) {
+          const { data: r } = await supabase.from("staff_roles" as any).select("name").eq("id", d.staff_role_id).maybeSingle();
+          staff_role_name = (r as any)?.name ?? null;
+        }
+        if (d.reports_to_user_id) {
+          const { data: sup } = await supabase.from("profiles").select("full_name").eq("user_id", d.reports_to_user_id).maybeSingle();
+          reports_to_name = sup?.full_name ?? null;
+        }
         setProfile({
-          full_name: data.full_name ?? "",
-          email: data.email ?? "",
-          phone: (data as any).phone ?? "",
-          date_of_birth: (data as any).date_of_birth ?? "",
-          address: (data as any).address ?? "",
-          bio: (data as any).bio ?? "",
-          avatar_url: data.avatar_url ?? "",
+          full_name: d.full_name ?? "",
+          email: d.email ?? "",
+          phone: d.phone ?? "",
+          date_of_birth: d.date_of_birth ?? "",
+          address: d.address ?? "",
+          bio: d.bio ?? "",
+          avatar_url: d.avatar_url ?? "",
+          is_staff: !!d.is_staff,
+          staff_title: d.staff_title ?? null,
+          staff_role_name,
+          reports_to_name,
         });
       }
       if (error) console.error("Error loading profile:", error);
@@ -115,6 +134,14 @@ export default function Profile() {
           <div>
             <CardTitle>{profile.full_name || "Your Name"}</CardTitle>
             <CardDescription>{profile.email}</CardDescription>
+            {(profile.is_staff || profile.staff_title || profile.staff_role_name) && (
+              <p className="text-sm text-primary mt-1">
+                {profile.staff_title || profile.staff_role_name || "Staff"}
+              </p>
+            )}
+            {profile.reports_to_name && (
+              <p className="text-xs text-muted-foreground mt-0.5">Reports to {profile.reports_to_name}</p>
+            )}
           </div>
         </CardHeader>
 
