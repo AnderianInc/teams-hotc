@@ -112,6 +112,7 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
   const [date, setDate] = useState("");
   const [userId, setUserId] = useState("");
   const [roleDesc, setRoleDesc] = useState("");
+  const [linkedEventId, setLinkedEventId] = useState<string>("");
 
   // Edit state
   const [editEntry, setEditEntry] = useState<any>(null);
@@ -144,6 +145,22 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
     },
   });
 
+  // All upcoming events across all teams (for linking)
+  const { data: allEvents } = useQuery({
+    queryKey: ["all-upcoming-events-for-link"],
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("roster_events")
+        .select("id, name, event_date, event_time, roster_event_teams(teams(name))")
+        .gte("event_date", today)
+        .order("event_date")
+        .limit(100);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: roleTypes } = useTeamRoleTypes(teamId);
 
   const addEntry = useMutation({
@@ -153,14 +170,16 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
         user_id: userId,
         scheduled_date: date,
         role_description: roleDesc || null,
+        event_id: linkedEventId || null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Roster entry added!");
       setAddOpen(false);
-      setDate(""); setUserId(""); setRoleDesc("");
+      setDate(""); setUserId(""); setRoleDesc(""); setLinkedEventId("");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -221,8 +240,42 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
             </DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); addEntry.mutate(); }} className="space-y-4">
               <div className="space-y-1">
+                <Label>Link to Existing Event (optional)</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={linkedEventId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setLinkedEventId(id);
+                    const evt = (allEvents || []).find((x: any) => x.id === id);
+                    if (evt) setDate(evt.event_date);
+                  }}
+                >
+                  <option value="">None — standalone entry</option>
+                  {(allEvents || []).map((evt: any) => {
+                    const teamNames = (evt.roster_event_teams || [])
+                      .map((rt: any) => rt.teams?.name)
+                      .filter(Boolean)
+                      .join(", ");
+                    const dateLabel = new Date(evt.event_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return (
+                      <option key={evt.id} value={evt.id}>
+                        {dateLabel} — {evt.name}{teamNames ? ` (${teamNames})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-xs text-muted-foreground">Pick an event from any team's roster to attach this assignment to.</p>
+              </div>
+              <div className="space-y-1">
                 <Label>Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  disabled={!!linkedEventId}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Team Member</Label>
