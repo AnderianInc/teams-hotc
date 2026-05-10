@@ -20,6 +20,7 @@ export default function Welcome() {
     address: "",
     howHeard: "",
     prayerRequests: "",
+    smsOptIn: false,
   });
 
   const update = (field: string, value: string) =>
