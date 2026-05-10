@@ -52,6 +52,8 @@ const App = () => (
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/check-in" element={<CheckIn />} />
+            <Route path="/sms-policy" element={<SmsPolicy />} />
+            <Route path="/messaging-terms" element={<SmsPolicy />} />
             <Route path="/" element={<RootRoute />} />
             <Route
               element={
