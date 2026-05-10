@@ -22,6 +22,7 @@ import CheckIn from "@/pages/CheckIn";
 import Landing from "@/pages/Landing";
 import OrgChart from "@/pages/OrgChart";
 import SmsPolicy from "@/pages/SmsPolicy";
+import ProofOfConsent from "@/pages/ProofOfConsent";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,8 @@ const App = () => (
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/sms-policy" element={<SmsPolicy />} />
             <Route path="/messaging-terms" element={<SmsPolicy />} />
+            <Route path="/proof-of-consent" element={<ProofOfConsent />} />
+            <Route path="/sms-consent" element={<ProofOfConsent />} />
             <Route path="/" element={<RootRoute />} />
             <Route
               element={
