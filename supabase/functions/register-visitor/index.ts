@@ -114,7 +114,8 @@ serve(async (req) => {
 
           const smsBody =
             `Hi ${firstName.trim()}, welcome to House of Transformation Church! ` +
-            `We're so glad you joined us today. Someone from our team will be in touch soon. God bless!`;
+            `We're so glad you joined us today. Someone from our team will be in touch soon. ` +
+            `Reply STOP to unsubscribe, HELP for help. Msg & data rates may apply.`;
 
           const smsRes = await fetch("https://connector-gateway.lovable.dev/twilio/Messages.json", {
             method: "POST",
