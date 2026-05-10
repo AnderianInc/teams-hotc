@@ -92,7 +92,7 @@ export default function AttendeeList() {
     onSuccess: () => {
       toast.success("Visitor registered and added to outreach pipeline!");
       setAddOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "" });
+      setForm({ firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "", smsOptIn: false });
       queryClient.invalidateQueries({ queryKey: ["attendees"] });
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
     },
