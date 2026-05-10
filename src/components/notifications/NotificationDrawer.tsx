@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { Bell, CheckCheck, Circle } from "lucide-react";
+import { Bell, CheckCheck, Circle, Trash2, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,7 +27,7 @@ const typeLabels: Record<string, string> = {
 
 export function NotificationDrawer({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
-  const { notifications, unreadCount, isLoading, markRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, isLoading, markRead, markAllRead, clearNotification, clearAll } = useNotifications();
 
   function handleClick(n: AppNotification) {
     if (!n.read_at) markRead.mutate(n.id);
@@ -49,17 +49,31 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                 <span className="text-xs font-normal text-muted-foreground">({unreadCount} unread)</span>
               )}
             </SheetTitle>
-            {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => markAllRead.mutate()}
-                disabled={markAllRead.isPending}
-              >
-                <CheckCheck className="h-3 w-3 mr-1" />
-                Mark all read
-              </Button>
+            {notifications.length > 0 && (
+              <div className="flex items-center gap-1">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => markAllRead.mutate()}
+                    disabled={markAllRead.isPending}
+                  >
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                    Mark read
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-destructive hover:text-destructive"
+                  onClick={() => clearAll.mutate()}
+                  disabled={clearAll.isPending}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              </div>
             )}
           </div>
         </SheetHeader>
@@ -76,14 +90,11 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
           ) : (
             <div className="divide-y">
               {notifications.map((n) => (
-                <button
+                <div
                   key={n.id}
-                  onClick={() => handleClick(n)}
-                  className={cn(
-                    "w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors",
-                    !n.read_at && "bg-primary/5",
-                  )}
+                  className={cn("group relative hover:bg-muted/50 transition-colors", !n.read_at && "bg-primary/5")}
                 >
+                  <button onClick={() => handleClick(n)} className="w-full text-left px-4 py-3 pr-11">
                   <div className="flex items-start gap-2">
                     {!n.read_at && (
                       <Circle className="h-2 w-2 mt-1.5 shrink-0 fill-primary text-primary" />
@@ -103,7 +114,18 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                       )}
                     </div>
                   </div>
-                </button>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-2 h-7 w-7 opacity-60 hover:opacity-100"
+                    onClick={() => clearNotification.mutate(n.id)}
+                    disabled={clearNotification.isPending}
+                    aria-label="Clear notification"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               ))}
             </div>
           )}

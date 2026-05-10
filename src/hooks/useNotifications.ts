@@ -72,7 +72,28 @@ export function useNotifications() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] }),
   });
 
+  const clearNotification = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.from as any)("notifications")
+        .delete()
+        .eq("id", id)
+        .eq("recipient_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] }),
+  });
+
+  const clearAll = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase.from as any)("notifications")
+        .delete()
+        .eq("recipient_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] }),
+  });
+
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
-  return { notifications, unreadCount, isLoading, markRead, markAllRead };
+  return { notifications, unreadCount, isLoading, markRead, markAllRead, clearNotification, clearAll };
 }
