@@ -107,13 +107,29 @@ export default function OutreachPipeline() {
 
   const addToPipeline = useMutation({
     mutationFn: async (attendeeId: string) => {
-      const { error } = await (supabase.from as any)("follow_ups").insert({
-        attendee_id: attendeeId,
-        type: "outreach",
-        prospect_pipeline_stage: "visited",
-        status: "pending",
-      });
-      if (error) throw error;
+      // If an outreach follow-up already exists for this attendee, attach it to the
+      // pipeline instead of inserting a duplicate row.
+      const { data: existing } = await (supabase.from as any)("follow_ups")
+        .select("id")
+        .eq("attendee_id", attendeeId)
+        .eq("type", "outreach")
+        .limit(1)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error } = await (supabase.from as any)("follow_ups")
+          .update({ prospect_pipeline_stage: "visited" })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase.from as any)("follow_ups").insert({
+          attendee_id: attendeeId,
+          type: "outreach",
+          prospect_pipeline_stage: "visited",
+          status: "pending",
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });

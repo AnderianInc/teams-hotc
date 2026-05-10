@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2 } from "lucide-react";
+import { MessageSquare, Send, Loader2, Zap } from "lucide-react";
 
 interface SmsComposerProps {
   defaultTo?: string;
@@ -66,15 +66,40 @@ export default function SmsComposer({
     }
   };
 
+  const handleQuickTest = async () => {
+    // Load the current user's phone from their profile and pre-fill a test message
+    if (!user?.id) {
+      toast.error("You must be signed in to send a test");
+      return;
+    }
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("phone, full_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) { toast.error(error.message); return; }
+    if (!profile?.phone) {
+      toast.error("Add a phone number to your profile first");
+      return;
+    }
+    setTo(profile.phone);
+    setToName(profile.full_name || "Test");
+    setBody(`Test from HOTC Volunteer Hub at ${new Date().toLocaleTimeString()} — if you see this, SMS is working ✅`);
+    toast.info("Test message ready — click Send Text to deliver");
+  };
+
   const remaining = MAX_CHARS - body.length;
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
           Send Text Message
         </CardTitle>
+        <Button size="sm" variant="outline" onClick={handleQuickTest}>
+          <Zap className="h-3.5 w-3.5 mr-1.5" /> Quick Test
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
