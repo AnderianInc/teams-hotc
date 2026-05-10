@@ -66,6 +66,28 @@ export default function SmsComposer({
     }
   };
 
+  const handleQuickTest = async () => {
+    // Load the current user's phone from their profile and pre-fill a test message
+    if (!user?.id) {
+      toast.error("You must be signed in to send a test");
+      return;
+    }
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("phone, full_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) { toast.error(error.message); return; }
+    if (!profile?.phone) {
+      toast.error("Add a phone number to your profile first");
+      return;
+    }
+    setTo(profile.phone);
+    setToName(profile.full_name || "Test");
+    setBody(`Test from HOTC Volunteer Hub at ${new Date().toLocaleTimeString()} — if you see this, SMS is working ✅`);
+    toast.info("Test message ready — click Send Text to deliver");
+  };
+
   const remaining = MAX_CHARS - body.length;
 
   return (
