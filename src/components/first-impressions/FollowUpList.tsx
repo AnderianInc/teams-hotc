@@ -217,6 +217,36 @@ export default function FollowUpList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const assignFollowUp = useMutation({
+    mutationFn: async ({ id, userId }: { id: string; userId: string | null }) => {
+      const { error } = await (supabase.from as any)("follow_ups")
+        .update({ assigned_to: userId })
+        .eq("id", id);
+      if (error) throw error;
+      // Notify the assignee
+      if (userId) {
+        const fu = followUps?.find((f: any) => f.id === id);
+        const personName = fu?.attendees ? `${fu.attendees.first_name} ${fu.attendees.last_name}` : "someone";
+        try {
+          await supabase.functions.invoke("notify", {
+            body: {
+              recipient_id: userId,
+              type: "follow_up_assigned",
+              title: `Follow-up assigned`,
+              body: `You've been assigned to follow up with ${personName}.`,
+              url: "/admin?tab=first-impressions",
+            },
+          });
+        } catch (err) { console.error("notify failed", err); }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      toast.success("Assignee updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const deleteFollowUp = useMutation({
     mutationFn: async (id: string) => {
       const { data: deleted, error } = await (supabase.from as any)("follow_ups")
