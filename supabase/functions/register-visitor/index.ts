@@ -35,9 +35,11 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { firstName, lastName, email, phone, address, howHeard, prayerRequests } = await req.json();
+    const { firstName, lastName, email, phone, address, howHeard, prayerRequests, smsOptIn } = await req.json();
 
     if (!firstName || !lastName) throw new Error("First name and last name are required");
+
+    const optInTimestamp = smsOptIn && phone?.trim() ? new Date().toISOString() : null;
 
     const { data: attendee, error: attendeeError } = await adminClient
       .from("attendees")
@@ -52,6 +54,12 @@ serve(async (req) => {
         is_member: false,
         first_visit_date: new Date().toISOString().split("T")[0],
         tags: ["first-timer"],
+        sms_opt_in: !!optInTimestamp,
+        sms_opt_in_at: optInTimestamp,
+        sms_opt_in_source: optInTimestamp ? "welcome_form" : null,
+        sms_opt_in_text: optInTimestamp
+          ? "Yes, I agree to receive recurring text messages from House of Transformation Church about services, events, prayer follow-up and announcements. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to unsubscribe."
+          : null,
       })
       .select("id")
       .single();
