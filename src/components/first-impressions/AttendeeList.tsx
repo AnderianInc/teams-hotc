@@ -142,6 +142,23 @@ export default function AttendeeList() {
                   <Label>Phone</Label>
                   <Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
                 </div>
+                {form.phone && (
+                  <label className="flex items-start gap-2 cursor-pointer rounded-md border bg-muted/30 p-2">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 accent-primary"
+                      checked={form.smsOptIn}
+                      onChange={(e) => update("smsOptIn", e.target.checked)}
+                    />
+                    <span className="text-xs leading-snug">
+                      Visitor gave verbal/written consent to receive recurring SMS from HOTC (events, follow-up,
+                      announcements). Msg &amp; data rates may apply. Reply STOP to opt out.{" "}
+                      <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">
+                        Terms
+                      </a>.
+                    </span>
+                  </label>
+                )}
                 <div className="space-y-1">
                   <Label>Address</Label>
                   <Input value={form.address} onChange={(e) => update("address", e.target.value)} />
