@@ -123,16 +123,15 @@ serve(async (req) => {
           console.error("Welcome SMS failed:", smsErr);
         }
       } else {
-        // Twilio not configured — create a manual follow-up reminder instead
-        await adminClient.from("follow_ups").insert({
-          attendee_id: attendee.id,
-          type: "outreach",
-          priority: "normal",
-          status: "pending",
-          method: "text",
-          due_date: tomorrow,
-          notes: `Send a welcome text to ${fullName} at ${phone.trim()}.`,
-        });
+        // Twilio not configured — update the existing outreach follow-up to suggest a text instead of creating a duplicate
+        await adminClient.from("follow_ups")
+          .update({
+            method: "text",
+            notes: `Send a welcome text to ${fullName} at ${phone.trim()}.`,
+          })
+          .eq("attendee_id", attendee.id)
+          .eq("type", "outreach")
+          .eq("status", "pending");
       }
     }
 
