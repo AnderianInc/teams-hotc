@@ -52,6 +52,8 @@ export default function SmsComposer({
           to_name: toName.trim() || undefined,
           related_attendee_id: relatedAttendeeId || undefined,
           logged_by: user?.id,
+          override_consent: overrideConsent || undefined,
+          consent_note: overrideConsent ? consentNote.trim() : undefined,
         },
       });
       if (error) throw error;
@@ -60,6 +62,8 @@ export default function SmsComposer({
       setTo("");
       setToName("");
       setBody("");
+      setOverrideConsent(false);
+      setConsentNote("");
       onSent?.();
     } catch (e: unknown) {
       toast.error((e as Error).message || "Failed to send text");
