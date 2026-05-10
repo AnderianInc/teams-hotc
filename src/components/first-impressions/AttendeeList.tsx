@@ -41,6 +41,7 @@ export default function AttendeeList() {
     mutationFn: async () => {
       const tags = form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
       const today = new Date().toISOString().split("T")[0];
+      const optInTs = form.smsOptIn && form.phone ? new Date().toISOString() : null;
       const { data, error } = await supabase.from("attendees").insert({
         first_name: form.firstName,
         last_name: form.lastName,
@@ -51,7 +52,13 @@ export default function AttendeeList() {
         tags,
         first_visit_date: today,
         is_member: false,
-      }).select("id").single();
+        sms_opt_in: !!optInTs,
+        sms_opt_in_at: optInTs,
+        sms_opt_in_source: optInTs ? "staff_entered" : null,
+        sms_opt_in_text: optInTs
+          ? "Verbal/written opt-in recorded by First Impressions team member."
+          : null,
+      } as any).select("id").single();
       if (error) throw error;
 
       // Auto-create an outreach follow-up + pipeline entry for new first-time visitors
