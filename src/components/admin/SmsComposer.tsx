@@ -31,6 +31,8 @@ export default function SmsComposer({
   const [toName, setToName] = useState(defaultToName);
   const [body, setBody] = useState(defaultBody);
   const [sending, setSending] = useState(false);
+  const [overrideConsent, setOverrideConsent] = useState(false);
+  const [consentNote, setConsentNote] = useState("");
 
   const handleSend = async () => {
     if (!to.trim()) {
