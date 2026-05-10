@@ -60,16 +60,27 @@ serve(async (req) => {
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
     const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
-    // 1. General first-timer follow-up
-    await adminClient.from("follow_ups").insert({
-      attendee_id: attendee.id,
-      type: "outreach",
-      priority: "normal",
-      status: "pending",
-      method: "in_person",
-      due_date: tomorrow,
-      notes: `First-time visitor registered via welcome form.${howHeard ? ` How they heard: ${howHeard}.` : ""}${prayerRequests ? ` Prayer request submitted.` : ""}`,
-    });
+    // 1. General first-timer follow-up (skip if a pending outreach already exists for this attendee)
+    const { data: existingFu } = await adminClient
+      .from("follow_ups")
+      .select("id")
+      .eq("attendee_id", attendee.id)
+      .eq("status", "pending")
+      .eq("type", "outreach")
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingFu) {
+      await adminClient.from("follow_ups").insert({
+        attendee_id: attendee.id,
+        type: "outreach",
+        priority: "normal",
+        status: "pending",
+        method: "in_person",
+        due_date: tomorrow,
+        notes: `First-time visitor registered via welcome form.${howHeard ? ` How they heard: ${howHeard}.` : ""}${prayerRequests ? ` Prayer request submitted.` : ""}`,
+      });
+    }
 
     // 2. Send a welcome SMS immediately if phone is provided and Twilio is configured
     if (phone?.trim()) {
