@@ -92,11 +92,14 @@ export default function SmsComposer({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
           Send Text Message
         </CardTitle>
+        <Button size="sm" variant="outline" onClick={handleQuickTest}>
+          <Zap className="h-3.5 w-3.5 mr-1.5" /> Quick Test
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
