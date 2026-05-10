@@ -129,9 +129,28 @@ export default function FollowUpList() {
   });
 
   const { data: volunteers } = useQuery({
-    queryKey: ["volunteers-list"],
+    queryKey: ["fi-team-members-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("user_id, full_name").order("full_name");
+      // Restrict assignee options to members of the First Impressions team
+      const { data: team, error: teamErr } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("slug", "first-impressions")
+        .maybeSingle();
+      if (teamErr) throw teamErr;
+      if (!team) return [];
+      const { data: members, error: memErr } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", team.id);
+      if (memErr) throw memErr;
+      const userIds = (members ?? []).map((m: any) => m.user_id);
+      if (userIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", userIds)
+        .order("full_name");
       if (error) throw error;
       return data;
     },
