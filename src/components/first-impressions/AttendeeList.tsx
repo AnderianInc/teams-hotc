@@ -53,17 +53,32 @@ export default function AttendeeList() {
       }).select("id").single();
       if (error) throw error;
 
-      // Auto-create an outreach follow-up and place in pipeline for new first-time visitors
+      // Auto-create an outreach follow-up + pipeline entry for new first-time visitors
+      // (skip if one already exists to avoid duplicates)
       if (data?.id) {
         const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-        await (supabase.from as any)("follow_ups").insert({
-          attendee_id: data.id,
-          type: "outreach",
-          status: "pending",
-          prospect_pipeline_stage: "visited",
-          due_date: dueDate,
-          notes: `Auto-created: first-time visitor on ${today}`,
-        });
+        const { data: existing } = await (supabase.from as any)("follow_ups")
+          .select("id, prospect_pipeline_stage")
+          .eq("attendee_id", data.id)
+          .eq("type", "outreach")
+          .eq("status", "pending")
+          .limit(1)
+          .maybeSingle();
+
+        if (!existing) {
+          await (supabase.from as any)("follow_ups").insert({
+            attendee_id: data.id,
+            type: "outreach",
+            status: "pending",
+            prospect_pipeline_stage: "visited",
+            due_date: dueDate,
+            notes: `Auto-created: first-time visitor on ${today}`,
+          });
+        } else if (!existing.prospect_pipeline_stage) {
+          await (supabase.from as any)("follow_ups")
+            .update({ prospect_pipeline_stage: "visited" })
+            .eq("id", existing.id);
+        }
       }
     },
     onSuccess: () => {
