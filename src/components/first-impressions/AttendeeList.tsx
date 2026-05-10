@@ -95,6 +95,8 @@ export default function AttendeeList() {
       setForm({ firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "", smsOptIn: false });
       queryClient.invalidateQueries({ queryKey: ["attendees"] });
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-first-visitors"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
