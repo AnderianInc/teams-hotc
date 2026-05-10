@@ -20,9 +20,10 @@ export default function Welcome() {
     address: "",
     howHeard: "",
     prayerRequests: "",
+    smsOptIn: false,
   });
 
-  const update = (field: string, value: string) =>
+  const update = (field: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,6 +165,27 @@ export default function Welcome() {
                 rows={3}
               />
             </div>
+            {form.phone && (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 accent-primary"
+                    checked={form.smsOptIn}
+                    onChange={(e) => update("smsOptIn", e.target.checked)}
+                  />
+                  <span className="text-xs leading-snug">
+                    Yes, I agree to receive recurring text messages from House of Transformation Church about
+                    services, events, prayer follow-up and announcements at the number above. Message frequency
+                    varies. Msg &amp; data rates may apply. Reply <strong>HELP</strong> for help, <strong>STOP</strong>{" "}
+                    to unsubscribe. Consent is not required for any purchase. See our{" "}
+                    <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">
+                      SMS Terms &amp; Privacy
+                    </a>.
+                  </span>
+                </label>
+              </div>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Submitting..." : "Submit"}

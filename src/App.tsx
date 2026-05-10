@@ -21,6 +21,7 @@ import NotFound from "@/pages/NotFound";
 import CheckIn from "@/pages/CheckIn";
 import Landing from "@/pages/Landing";
 import OrgChart from "@/pages/OrgChart";
+import SmsPolicy from "@/pages/SmsPolicy";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,8 @@ const App = () => (
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/check-in" element={<CheckIn />} />
+            <Route path="/sms-policy" element={<SmsPolicy />} />
+            <Route path="/messaging-terms" element={<SmsPolicy />} />
             <Route path="/" element={<RootRoute />} />
             <Route
               element={

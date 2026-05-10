@@ -56,6 +56,8 @@ export default function FollowUpList() {
   const [smsTarget, setSmsTarget] = useState<{ phone: string; name: string; attendeeId: string; followUpId: string } | null>(null);
   const [smsBody, setSmsBody] = useState("");
   const [smsSending, setSmsSending] = useState(false);
+  const [smsOverride, setSmsOverride] = useState(false);
+  const [smsConsentNote, setSmsConsentNote] = useState("");
 
   const sendSms = async () => {
     if (!smsTarget || !smsBody.trim()) return;
@@ -69,6 +71,8 @@ export default function FollowUpList() {
           to_name: smsTarget.name,
           related_attendee_id: smsTarget.attendeeId,
           logged_by: user?.id,
+          override_consent: smsOverride || undefined,
+          consent_note: smsOverride ? smsConsentNote.trim() : undefined,
         },
       });
       if (error) throw error;
@@ -78,6 +82,8 @@ export default function FollowUpList() {
       toast.success("Text sent!");
       setSmsTarget(null);
       setSmsBody("");
+      setSmsOverride(false);
+      setSmsConsentNote("");
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
     } catch (e: any) {
       toast.error(e.message || "Failed to send text");
@@ -213,6 +219,36 @@ export default function FollowUpList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
       toast.success("Status updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const assignFollowUp = useMutation({
+    mutationFn: async ({ id, userId }: { id: string; userId: string | null }) => {
+      const { error } = await (supabase.from as any)("follow_ups")
+        .update({ assigned_to: userId })
+        .eq("id", id);
+      if (error) throw error;
+      // Notify the assignee
+      if (userId) {
+        const fu = followUps?.find((f: any) => f.id === id);
+        const personName = fu?.attendees ? `${fu.attendees.first_name} ${fu.attendees.last_name}` : "someone";
+        try {
+          await supabase.functions.invoke("notify", {
+            body: {
+              recipient_id: userId,
+              type: "follow_up_assigned",
+              title: `Follow-up assigned`,
+              body: `You've been assigned to follow up with ${personName}.`,
+              url: "/admin?tab=first-impressions",
+            },
+          });
+        } catch (err) { console.error("notify failed", err); }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      toast.success("Assignee updated");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -422,8 +458,25 @@ export default function FollowUpList() {
                         </span>
                       ) : "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {volunteerMap.get(fu.assigned_to) ?? <span className="italic">Unassigned</span>}
+                    <TableCell className="text-sm" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={fu.assigned_to ?? "__unassigned__"}
+                        onValueChange={(v) =>
+                          assignFollowUp.mutate({ id: fu.id, userId: v === "__unassigned__" ? null : v })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-36 text-xs">
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__unassigned__">
+                            <span className="italic text-muted-foreground">Unassigned</span>
+                          </SelectItem>
+                          {volunteers?.filter((v: any) => v.user_id).map((v: any) => (
+                            <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Badge variant="outline" className={`gap-1 ${statusColors[fu.status] || ""}`}>
@@ -574,6 +627,30 @@ export default function FollowUpList() {
                 placeholder="Your message..."
               />
               <div className="text-xs text-muted-foreground text-right">{smsBody.length} / 1600</div>
+
+              <div className="rounded-md border bg-muted/30 p-2 space-y-2">
+                <label className="flex items-start gap-2 cursor-pointer text-xs leading-snug">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                    checked={smsOverride}
+                    onChange={(e) => setSmsOverride(e.target.checked)}
+                  />
+                  <span>
+                    Recipient has given prior opt-in consent (overrides automatic check). See{" "}
+                    <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">terms</a>.
+                  </span>
+                </label>
+                {smsOverride && (
+                  <Input
+                    placeholder="How was consent obtained? (e.g. paper Connect Card, verbal at altar)"
+                    value={smsConsentNote}
+                    onChange={(e) => setSmsConsentNote(e.target.value)}
+                    className="text-xs h-8"
+                  />
+                )}
+              </div>
+
               <Button onClick={sendSms} disabled={smsSending || !smsBody.trim()} className="w-full">
                 {smsSending ? "Sending..." : "Send Text"}
               </Button>

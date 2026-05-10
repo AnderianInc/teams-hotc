@@ -164,6 +164,10 @@ export type Database = {
           notes: string | null
           phone: string | null
           prayer_requests: string | null
+          sms_opt_in: boolean
+          sms_opt_in_at: string | null
+          sms_opt_in_source: string | null
+          sms_opt_in_text: string | null
           tags: string[] | null
           updated_at: string
         }
@@ -181,6 +185,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           prayer_requests?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_in_text?: string | null
           tags?: string[] | null
           updated_at?: string
         }
@@ -198,6 +206,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           prayer_requests?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_in_text?: string | null
           tags?: string[] | null
           updated_at?: string
         }
@@ -595,6 +607,10 @@ export type Database = {
           org_team_id: string | null
           phone: string | null
           reports_to_user_id: string | null
+          sms_opt_in: boolean
+          sms_opt_in_at: string | null
+          sms_opt_in_source: string | null
+          sms_opt_in_text: string | null
           staff_role_id: string | null
           staff_title: string | null
           updated_at: string
@@ -615,6 +631,10 @@ export type Database = {
           org_team_id?: string | null
           phone?: string | null
           reports_to_user_id?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_in_text?: string | null
           staff_role_id?: string | null
           staff_title?: string | null
           updated_at?: string
@@ -635,6 +655,10 @@ export type Database = {
           org_team_id?: string | null
           phone?: string | null
           reports_to_user_id?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_in_text?: string | null
           staff_role_id?: string | null
           staff_title?: string | null
           updated_at?: string

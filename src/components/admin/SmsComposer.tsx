@@ -31,6 +31,8 @@ export default function SmsComposer({
   const [toName, setToName] = useState(defaultToName);
   const [body, setBody] = useState(defaultBody);
   const [sending, setSending] = useState(false);
+  const [overrideConsent, setOverrideConsent] = useState(false);
+  const [consentNote, setConsentNote] = useState("");
 
   const handleSend = async () => {
     if (!to.trim()) {
@@ -50,6 +52,8 @@ export default function SmsComposer({
           to_name: toName.trim() || undefined,
           related_attendee_id: relatedAttendeeId || undefined,
           logged_by: user?.id,
+          override_consent: overrideConsent || undefined,
+          consent_note: overrideConsent ? consentNote.trim() : undefined,
         },
       });
       if (error) throw error;
@@ -58,6 +62,8 @@ export default function SmsComposer({
       setTo("");
       setToName("");
       setBody("");
+      setOverrideConsent(false);
+      setConsentNote("");
       onSent?.();
     } catch (e: unknown) {
       toast.error((e as Error).message || "Failed to send text");
@@ -135,6 +141,30 @@ export default function SmsComposer({
             onChange={(e) => setBody(e.target.value.slice(0, MAX_CHARS))}
             rows={5}
           />
+        </div>
+
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <label className="flex items-start gap-2 cursor-pointer text-xs leading-snug">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-primary"
+              checked={overrideConsent}
+              onChange={(e) => setOverrideConsent(e.target.checked)}
+            />
+            <span>
+              I confirm this recipient has given prior opt-in consent to receive SMS from HOTC (overrides the
+              automatic opt-in check). See{" "}
+              <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">SMS terms</a>.
+            </span>
+          </label>
+          {overrideConsent && (
+            <Input
+              placeholder="How was consent obtained? (e.g. paper Connect Card 5/12, verbal at altar)"
+              value={consentNote}
+              onChange={(e) => setConsentNote(e.target.value)}
+              className="text-xs"
+            />
+          )}
         </div>
 
         <Button onClick={handleSend} disabled={sending || !to.trim() || !body.trim()} className="w-full">

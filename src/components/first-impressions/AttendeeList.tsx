@@ -18,9 +18,10 @@ export default function AttendeeList() {
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "",
+    smsOptIn: false,
   });
 
-  const update = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
+  const update = (f: string, v: string | boolean) => setForm((p) => ({ ...p, [f]: v }));
 
   const { data: attendees, isLoading } = useQuery({
     queryKey: ["attendees", search],
@@ -40,6 +41,7 @@ export default function AttendeeList() {
     mutationFn: async () => {
       const tags = form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
       const today = new Date().toISOString().split("T")[0];
+      const optInTs = form.smsOptIn && form.phone ? new Date().toISOString() : null;
       const { data, error } = await supabase.from("attendees").insert({
         first_name: form.firstName,
         last_name: form.lastName,
@@ -50,7 +52,13 @@ export default function AttendeeList() {
         tags,
         first_visit_date: today,
         is_member: false,
-      }).select("id").single();
+        sms_opt_in: !!optInTs,
+        sms_opt_in_at: optInTs,
+        sms_opt_in_source: optInTs ? "staff_entered" : null,
+        sms_opt_in_text: optInTs
+          ? "Verbal/written opt-in recorded by First Impressions team member."
+          : null,
+      } as any).select("id").single();
       if (error) throw error;
 
       // Auto-create an outreach follow-up + pipeline entry for new first-time visitors
@@ -84,7 +92,7 @@ export default function AttendeeList() {
     onSuccess: () => {
       toast.success("Visitor registered and added to outreach pipeline!");
       setAddOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "" });
+      setForm({ firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "", smsOptIn: false });
       queryClient.invalidateQueries({ queryKey: ["attendees"] });
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
     },
@@ -134,6 +142,23 @@ export default function AttendeeList() {
                   <Label>Phone</Label>
                   <Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
                 </div>
+                {form.phone && (
+                  <label className="flex items-start gap-2 cursor-pointer rounded-md border bg-muted/30 p-2">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 accent-primary"
+                      checked={form.smsOptIn}
+                      onChange={(e) => update("smsOptIn", e.target.checked)}
+                    />
+                    <span className="text-xs leading-snug">
+                      Visitor gave verbal/written consent to receive recurring SMS from HOTC (events, follow-up,
+                      announcements). Msg &amp; data rates may apply. Reply STOP to opt out.{" "}
+                      <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">
+                        Terms
+                      </a>.
+                    </span>
+                  </label>
+                )}
                 <div className="space-y-1">
                   <Label>Address</Label>
                   <Input value={form.address} onChange={(e) => update("address", e.target.value)} />
