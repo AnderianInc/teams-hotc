@@ -97,8 +97,8 @@ serve(async (req) => {
         .is("prospect_pipeline_stage", null);
     }
 
-    // 2. Send a welcome SMS immediately if phone is provided and Twilio is configured
-    if (phone?.trim()) {
+    // 2. Send a welcome SMS immediately if phone is provided, opt-in given, and Twilio is configured
+    if (phone?.trim() && optInTimestamp) {
       const twilioApiKey = Deno.env.get("TWILIO_API_KEY");
       const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER");
       const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
