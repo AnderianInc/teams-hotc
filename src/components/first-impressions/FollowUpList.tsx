@@ -627,6 +627,30 @@ export default function FollowUpList() {
                 placeholder="Your message..."
               />
               <div className="text-xs text-muted-foreground text-right">{smsBody.length} / 1600</div>
+
+              <div className="rounded-md border bg-muted/30 p-2 space-y-2">
+                <label className="flex items-start gap-2 cursor-pointer text-xs leading-snug">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                    checked={smsOverride}
+                    onChange={(e) => setSmsOverride(e.target.checked)}
+                  />
+                  <span>
+                    Recipient has given prior opt-in consent (overrides automatic check). See{" "}
+                    <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">terms</a>.
+                  </span>
+                </label>
+                {smsOverride && (
+                  <Input
+                    placeholder="How was consent obtained? (e.g. paper Connect Card, verbal at altar)"
+                    value={smsConsentNote}
+                    onChange={(e) => setSmsConsentNote(e.target.value)}
+                    className="text-xs h-8"
+                  />
+                )}
+              </div>
+
               <Button onClick={sendSms} disabled={smsSending || !smsBody.trim()} className="w-full">
                 {smsSending ? "Sending..." : "Send Text"}
               </Button>
