@@ -56,6 +56,8 @@ export default function FollowUpList() {
   const [smsTarget, setSmsTarget] = useState<{ phone: string; name: string; attendeeId: string; followUpId: string } | null>(null);
   const [smsBody, setSmsBody] = useState("");
   const [smsSending, setSmsSending] = useState(false);
+  const [smsOverride, setSmsOverride] = useState(false);
+  const [smsConsentNote, setSmsConsentNote] = useState("");
 
   const sendSms = async () => {
     if (!smsTarget || !smsBody.trim()) return;
@@ -69,6 +71,8 @@ export default function FollowUpList() {
           to_name: smsTarget.name,
           related_attendee_id: smsTarget.attendeeId,
           logged_by: user?.id,
+          override_consent: smsOverride || undefined,
+          consent_note: smsOverride ? smsConsentNote.trim() : undefined,
         },
       });
       if (error) throw error;
@@ -78,6 +82,8 @@ export default function FollowUpList() {
       toast.success("Text sent!");
       setSmsTarget(null);
       setSmsBody("");
+      setSmsOverride(false);
+      setSmsConsentNote("");
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
     } catch (e: any) {
       toast.error(e.message || "Failed to send text");
