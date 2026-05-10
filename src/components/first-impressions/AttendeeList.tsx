@@ -18,9 +18,10 @@ export default function AttendeeList() {
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "",
+    smsOptIn: false,
   });
 
-  const update = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
+  const update = (f: string, v: string | boolean) => setForm((p) => ({ ...p, [f]: v }));
 
   const { data: attendees, isLoading } = useQuery({
     queryKey: ["attendees", search],
