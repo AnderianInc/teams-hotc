@@ -179,23 +179,49 @@ export default function FollowUpList() {
       const { error } = await (supabase.from as any)("follow_ups").insert(payload);
       if (error) throw error;
 
-      // Notify the assignee
+      // Notify the assignee (push + email)
       if (assignedTo) {
         const person = attendees?.find((a) => a.id === attendeeId);
         const personName = person ? `${person.first_name} ${person.last_name}` : "someone";
+        const dueText = dueDate ? ` by ${new Date(dueDate).toLocaleDateString()}` : "";
         try {
           await supabase.functions.invoke("notify", {
             body: {
               recipient_id: assignedTo,
               type: "follow_up_assigned",
               title: `New ${fuType} follow-up assigned`,
-              body: `You've been assigned to follow up with ${personName}${dueDate ? ` by ${new Date(dueDate).toLocaleDateString()}` : ""}.`,
+              body: `You've been assigned to follow up with ${personName}${dueText}.`,
               url: "/team/first-impressions",
               high_priority: priority === "urgent" || priority === "high",
             },
           });
         } catch (err) {
           console.error("Follow-up notification failed:", err);
+        }
+        try {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("user_id", assignedTo)
+            .maybeSingle();
+          if (prof?.email) {
+            await supabase.functions.invoke("send-email", {
+              body: {
+                to: prof.email,
+                to_name: prof.full_name,
+                subject: `Follow-up assigned: ${personName}`,
+                html: `<div style="font-family:sans-serif;max-width:520px">
+                  <h2>You have a new ${fuType} follow-up</h2>
+                  <p>Hi ${prof.full_name || "there"},</p>
+                  <p>You've been assigned to follow up with <strong>${personName}</strong>${dueText}.</p>
+                  ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ""}
+                  <p><a href="https://teams.hotc.life/team/first-impressions">Open the First Impressions dashboard</a></p>
+                </div>`,
+              },
+            });
+          }
+        } catch (err) {
+          console.error("Assignee email failed:", err);
         }
       }
     },
@@ -229,21 +255,45 @@ export default function FollowUpList() {
         .update({ assigned_to: userId })
         .eq("id", id);
       if (error) throw error;
-      // Notify the assignee
+      // Notify the assignee (push + email)
       if (userId) {
         const fu = followUps?.find((f: any) => f.id === id);
         const personName = fu?.attendees ? `${fu.attendees.first_name} ${fu.attendees.last_name}` : "someone";
+        const dueText = fu?.due_date ? ` by ${new Date(fu.due_date).toLocaleDateString()}` : "";
         try {
           await supabase.functions.invoke("notify", {
             body: {
               recipient_id: userId,
               type: "follow_up_assigned",
               title: `Follow-up assigned`,
-              body: `You've been assigned to follow up with ${personName}.`,
-              url: "/admin?tab=first-impressions",
+              body: `You've been assigned to follow up with ${personName}${dueText}.`,
+              url: "/team/first-impressions",
             },
           });
         } catch (err) { console.error("notify failed", err); }
+        try {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (prof?.email) {
+            await supabase.functions.invoke("send-email", {
+              body: {
+                to: prof.email,
+                to_name: prof.full_name,
+                subject: `Follow-up assigned: ${personName}`,
+                html: `<div style="font-family:sans-serif;max-width:520px">
+                  <h2>You have a new follow-up</h2>
+                  <p>Hi ${prof.full_name || "there"},</p>
+                  <p>You've been assigned to follow up with <strong>${personName}</strong>${dueText}.</p>
+                  ${fu?.notes ? `<p><strong>Notes:</strong> ${fu.notes}</p>` : ""}
+                  <p><a href="https://teams.hotc.life/team/first-impressions">Open the First Impressions dashboard</a></p>
+                </div>`,
+              },
+            });
+          }
+        } catch (err) { console.error("assignee email failed", err); }
       }
     },
     onSuccess: () => {
