@@ -21,6 +21,7 @@ import NotFound from "@/pages/NotFound";
 import CheckIn from "@/pages/CheckIn";
 import Landing from "@/pages/Landing";
 import OrgChart from "@/pages/OrgChart";
+import SmsPolicy from "@/pages/SmsPolicy";
 
 const queryClient = new QueryClient();
 
