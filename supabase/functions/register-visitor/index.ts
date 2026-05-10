@@ -78,8 +78,15 @@ serve(async (req) => {
         status: "pending",
         method: "in_person",
         due_date: tomorrow,
+        prospect_pipeline_stage: "visited",
         notes: `First-time visitor registered via welcome form.${howHeard ? ` How they heard: ${howHeard}.` : ""}${prayerRequests ? ` Prayer request submitted.` : ""}`,
       });
+    } else {
+      // Make sure the existing follow-up is on the pipeline as well
+      await adminClient.from("follow_ups")
+        .update({ prospect_pipeline_stage: "visited" })
+        .eq("id", (existingFu as any).id)
+        .is("prospect_pipeline_stage", null);
     }
 
     // 2. Send a welcome SMS immediately if phone is provided and Twilio is configured
