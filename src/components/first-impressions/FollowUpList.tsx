@@ -452,8 +452,25 @@ export default function FollowUpList() {
                         </span>
                       ) : "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {volunteerMap.get(fu.assigned_to) ?? <span className="italic">Unassigned</span>}
+                    <TableCell className="text-sm" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={fu.assigned_to ?? "__unassigned__"}
+                        onValueChange={(v) =>
+                          assignFollowUp.mutate({ id: fu.id, userId: v === "__unassigned__" ? null : v })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-36 text-xs">
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__unassigned__">
+                            <span className="italic text-muted-foreground">Unassigned</span>
+                          </SelectItem>
+                          {volunteers?.filter((v: any) => v.user_id).map((v: any) => (
+                            <SelectItem key={v.user_id} value={v.user_id}>{v.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Badge variant="outline" className={`gap-1 ${statusColors[fu.status] || ""}`}>
