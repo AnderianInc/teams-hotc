@@ -114,7 +114,10 @@ export default function AdminPanel() {
           <BulkImport />
         </TabsContent>
         <TabsContent value="settings">
-          <TimezoneSettings />
+          <div className="space-y-6">
+            <AdminRolesManager />
+            <TimezoneSettings />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
