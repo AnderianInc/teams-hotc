@@ -78,7 +78,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "HOTC <hotc@pneumanation.com>",
+          from: "HOTC <contact@hotc.life>",
           to: [person.email],
           subject,
           html,

@@ -25,7 +25,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "HOTC <hotc@pneumanation.com>",
+        from: "HOTC <contact@hotc.life>",
         to: Array.isArray(to) ? to : [to],
         subject,
         html: html || undefined,

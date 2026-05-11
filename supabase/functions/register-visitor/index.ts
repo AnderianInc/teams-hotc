@@ -201,7 +201,7 @@ serve(async (req) => {
               method: "POST",
               headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
               body: JSON.stringify({
-                from: "HOTC <hotc@pneumanation.com>",
+                from: "HOTC <contact@hotc.life>",
                 to: adminEmails,
                 subject: `New first-time visitor: ${fullName}`,
                 html: `<div style="font-family:sans-serif;max-width:520px">
@@ -261,7 +261,7 @@ serve(async (req) => {
         method: "POST",
         headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: "HOTC <hotc@pneumanation.com>",
+          from: "HOTC <contact@hotc.life>",
           to: [email.trim()],
           subject,
           html,
