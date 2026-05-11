@@ -50,6 +50,23 @@ export default function Dashboard() {
     enabled: !!userId,
   });
 
+  // My open follow-ups (assigned to me)
+  const { data: myFollowUps } = useQuery({
+    queryKey: ["my-follow-ups", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await (supabase.from as any)("follow_ups")
+        .select("id, type, status, due_date, notes, attendees(first_name, last_name)")
+        .eq("assigned_to", userId)
+        .not("status", "in", '("connected","closed")')
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!userId,
+  });
+
   // My attendance status for this week
   const { data: myAttendance } = useQuery({
     queryKey: ["my-attendance-this-week", userId, thisServiceDate],
@@ -168,7 +185,47 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* This week's attendance call-to-action if not recorded */}
+      {/* My follow-ups */}
+      {myFollowUps && myFollowUps.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4" /> My Follow-Ups
+              <Badge variant="secondary" className="ml-1">{myFollowUps.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            {(myFollowUps as any[]).map((f) => (
+              <div
+                key={f.id}
+                className="flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer hover:bg-muted/40"
+                onClick={() => navigate("/team/first-impressions")}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {f.attendees?.first_name} {f.attendees?.last_name}
+                  </p>
+                  <div className="flex gap-1.5 items-center mt-0.5">
+                    <Badge variant="outline" className="text-xs capitalize">{f.type ?? "outreach"}</Badge>
+                    <Badge variant="outline" className="text-xs capitalize">{f.status}</Badge>
+                    {f.due_date && (
+                      <span className="text-xs text-muted-foreground">
+                        Due {format(new Date(f.due_date + "T00:00:00"), "MMM d")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </div>
+            ))}
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate("/team/first-impressions")}>
+              Open First Impressions dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+
       {!myAttendance && (
         <Card className="border-dashed">
           <CardContent className="py-4 flex items-center gap-3">

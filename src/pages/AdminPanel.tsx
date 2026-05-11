@@ -16,6 +16,7 @@ import BulkImport from "@/components/admin/BulkImport";
 import Organogram from "@/components/admin/Organogram";
 import StaffRolesManager from "@/components/admin/StaffRolesManager";
 import TimezoneSettings from "@/components/admin/TimezoneSettings";
+import AdminRolesManager from "@/components/admin/AdminRolesManager";
 
 const ADMIN_TABS = new Set([
   "volunteers",
@@ -113,7 +114,10 @@ export default function AdminPanel() {
           <BulkImport />
         </TabsContent>
         <TabsContent value="settings">
-          <TimezoneSettings />
+          <div className="space-y-6">
+            <AdminRolesManager />
+            <TimezoneSettings />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
