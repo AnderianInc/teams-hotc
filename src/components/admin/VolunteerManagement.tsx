@@ -403,6 +403,8 @@ export default function VolunteerManagement() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <EditVolunteerDialog open={editOpen} onOpenChange={setEditOpen} profile={editProfile} />
       </CardContent>
     </Card>
   );
