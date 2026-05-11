@@ -23,6 +23,8 @@ import Landing from "@/pages/Landing";
 import OrgChart from "@/pages/OrgChart";
 import SmsPolicy from "@/pages/SmsPolicy";
 import ProofOfConsent from "@/pages/ProofOfConsent";
+import { useEffect } from "react";
+import { loadChurchTimezone } from "@/lib/timezone";
 
 const queryClient = new QueryClient();
 
