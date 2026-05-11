@@ -50,6 +50,23 @@ export default function Dashboard() {
     enabled: !!userId,
   });
 
+  // My open follow-ups (assigned to me)
+  const { data: myFollowUps } = useQuery({
+    queryKey: ["my-follow-ups", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await (supabase.from as any)("follow_ups")
+        .select("id, type, status, due_date, notes, attendees(first_name, last_name)")
+        .eq("assigned_to", userId)
+        .not("status", "in", '("connected","closed")')
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!userId,
+  });
+
   // My attendance status for this week
   const { data: myAttendance } = useQuery({
     queryKey: ["my-attendance-this-week", userId, thisServiceDate],
