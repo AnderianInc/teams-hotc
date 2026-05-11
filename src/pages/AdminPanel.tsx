@@ -30,6 +30,7 @@ const ADMIN_TABS = new Set([
   "feedback",
   "requests",
   "import",
+  "settings",
 ]);
 
 export default function AdminPanel() {
