@@ -68,6 +68,7 @@ export default function AdminPanel() {
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="volunteers">
           <VolunteerManagement />
