@@ -12,9 +12,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Mail, RefreshCw, MoreHorizontal, Trash2, Download, Search, UserCheck } from "lucide-react";
+import { UserPlus, Mail, RefreshCw, MoreHorizontal, Trash2, Download, Search, UserCheck, Pencil } from "lucide-react";
 import { downloadCsv } from "@/lib/csvExport";
 import { useAllTeams } from "@/hooks/useTeams";
+import EditVolunteerDialog from "./EditVolunteerDialog";
 
 interface ProfileWithTeam {
   id: string;
