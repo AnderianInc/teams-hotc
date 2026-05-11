@@ -112,6 +112,9 @@ export default function AdminPanel() {
         <TabsContent value="import">
           <BulkImport />
         </TabsContent>
+        <TabsContent value="settings">
+          <TimezoneSettings />
+        </TabsContent>
       </Tabs>
     </div>
   );
