@@ -287,26 +287,33 @@ export default function PastorDutiesRoster() {
             </div>
 
             <div className="space-y-2">
-              <Label>Duty</Label>
+              <Label>Duties (select one or more)</Label>
               <Input
-                placeholder="e.g. Welcome, Closing, Teaching"
+                placeholder="Custom duty (or select presets below)"
                 value={addDuty}
                 onChange={(e) => setAddDuty(e.target.value)}
               />
               <div className="flex flex-wrap gap-1">
-                {PRESET_DUTIES.map((d) => (
-                  <Badge
-                    key={d}
-                    variant={addDuty === d ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setAddDuty(d)}
-                  >
-                    {d}
-                  </Badge>
-                ))}
+                {PRESET_DUTIES.map((d) => {
+                  const list = addDuty.split(",").map((x) => x.trim()).filter(Boolean);
+                  const selected = list.includes(d);
+                  return (
+                    <Badge
+                      key={d}
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const next = selected ? list.filter((x) => x !== d) : [...list, d];
+                        setAddDuty(next.join(", "));
+                      }}
+                    >
+                      {d}
+                    </Badge>
+                  );
+                })}
               </div>
               <p className="text-xs text-muted-foreground">
-                Tap a preset or type a custom duty.
+                Tap presets to toggle. Multiple duties saved together.
               </p>
             </div>
 
