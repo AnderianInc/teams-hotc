@@ -221,7 +221,11 @@ export default function PastorDutiesRoster() {
                       </TableCell>
                       <TableCell>
                         {d.role_description ? (
-                          <Badge variant="secondary">{d.role_description}</Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {d.role_description.split(",").map((duty: string, i: number) => (
+                              <Badge key={i} variant="secondary">{duty.trim()}</Badge>
+                            ))}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}
