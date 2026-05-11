@@ -15,6 +15,7 @@ import InreachDashboard from "@/components/admin/InreachDashboard";
 import BulkImport from "@/components/admin/BulkImport";
 import Organogram from "@/components/admin/Organogram";
 import StaffRolesManager from "@/components/admin/StaffRolesManager";
+import TimezoneSettings from "@/components/admin/TimezoneSettings";
 
 const ADMIN_TABS = new Set([
   "volunteers",
@@ -29,6 +30,7 @@ const ADMIN_TABS = new Set([
   "feedback",
   "requests",
   "import",
+  "settings",
 ]);
 
 export default function AdminPanel() {
@@ -66,6 +68,7 @@ export default function AdminPanel() {
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="volunteers">
           <VolunteerManagement />
@@ -108,6 +111,9 @@ export default function AdminPanel() {
         </TabsContent>
         <TabsContent value="import">
           <BulkImport />
+        </TabsContent>
+        <TabsContent value="settings">
+          <TimezoneSettings />
         </TabsContent>
       </Tabs>
     </div>

@@ -23,11 +23,17 @@ import Landing from "@/pages/Landing";
 import OrgChart from "@/pages/OrgChart";
 import SmsPolicy from "@/pages/SmsPolicy";
 import ProofOfConsent from "@/pages/ProofOfConsent";
+import { useEffect } from "react";
+import { loadChurchTimezone } from "@/lib/timezone";
 
 const queryClient = new QueryClient();
 
 function RootRoute() {
   const { session, isLoading } = useAuth();
+  useEffect(() => {
+    // Warm the church timezone cache so non-React date formatters use it.
+    loadChurchTimezone().catch(() => { /* fall back to default */ });
+  }, []);
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
