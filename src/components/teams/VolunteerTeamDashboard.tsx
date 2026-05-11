@@ -640,5 +640,79 @@ function TeamAttendance({ teamId }: { teamId: string }) {
         )}
       </CardContent>
     </Card>
+    <TeamAttendanceMetrics teamId={teamId} memberIds={(members || []).map((m: any) => m.user_id)} />
+    </>
+  );
+}
+
+function TeamAttendanceMetrics({ teamId, memberIds }: { teamId: string; memberIds: string[] }) {
+  const weeks = 8;
+  const startDate = format(startOfWeek(subWeeks(new Date(), weeks - 1), { weekStartsOn: 0 }), "yyyy-MM-dd");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["team-attendance-metrics", teamId, startDate, memberIds.length],
+    enabled: memberIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("weekly_attendance")
+        .select("service_date, status, user_id")
+        .in("user_id", memberIds)
+        .gte("service_date", startDate);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const chartData = Array.from({ length: weeks }).map((_, i) => {
+    const weekDate = startOfWeek(subWeeks(new Date(), weeks - 1 - i), { weekStartsOn: 0 });
+    const ds = format(weekDate, "yyyy-MM-dd");
+    const rows = (data || []).filter((d: any) => d.service_date === ds);
+    return {
+      week: format(weekDate, "MMM d"),
+      Present: rows.filter((r: any) => r.status === "present").length,
+      Absent: rows.filter((r: any) => r.status === "absent").length,
+      Excused: rows.filter((r: any) => r.status === "excused").length,
+      Late: rows.filter((r: any) => r.status === "late").length,
+    };
+  });
+
+  const totalPresent = chartData.reduce((s, c) => s + c.Present, 0);
+  const totalSlots = chartData.reduce((s, c) => s + c.Present + c.Absent + c.Excused + c.Late, 0);
+  const rate = totalSlots > 0 ? Math.round((totalPresent / totalSlots) * 100) : 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" /> Attendance Trends
+        </CardTitle>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Last {weeks} weeks · {rate}% present rate ({totalPresent}/{totalSlots} marked)
+        </p>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-center text-muted-foreground py-8">Loading metrics...</p>
+        ) : memberIds.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">No team members yet.</p>
+        ) : (
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="week" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="Present" stackId="a" fill="hsl(var(--primary))" />
+                <Bar dataKey="Late" stackId="a" fill="hsl(25 95% 53%)" />
+                <Bar dataKey="Excused" stackId="a" fill="hsl(45 93% 47%)" />
+                <Bar dataKey="Absent" stackId="a" fill="hsl(var(--destructive))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
