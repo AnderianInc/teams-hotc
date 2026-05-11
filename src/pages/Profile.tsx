@@ -86,10 +86,23 @@ export default function Profile() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
+
+    let emailChangeMsg = "";
+    if (profile.email && profile.email !== user.email) {
+      const { error: authErr } = await supabase.auth.updateUser({ email: profile.email });
+      if (authErr) {
+        toast({ title: "Email update failed", description: authErr.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      emailChangeMsg = " A confirmation email may be sent to verify the new address.";
+    }
+
     const { error } = await supabase
       .from("profiles")
       .update({
         full_name: profile.full_name,
+        email: profile.email,
         phone: profile.phone,
         date_of_birth: profile.date_of_birth || null,
         address: profile.address,
@@ -101,9 +114,31 @@ export default function Profile() {
     if (error) {
       toast({ title: "Error", description: "Failed to save profile.", variant: "destructive" });
     } else {
-      toast({ title: "Saved", description: "Your profile has been updated." });
+      toast({ title: "Saved", description: "Your profile has been updated." + emailChangeMsg });
     }
     setSaving(false);
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, cacheControl: "3600" });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = data.publicUrl;
+      setProfile((p) => ({ ...p, avatar_url: url }));
+      await supabase.from("profiles").update({ avatar_url: url } as any).eq("user_id", user.id);
+      toast({ title: "Photo updated", description: "Your profile picture has been updated." });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const initials = profile.full_name
