@@ -30,6 +30,10 @@ const queryClient = new QueryClient();
 
 function RootRoute() {
   const { session, isLoading } = useAuth();
+  useEffect(() => {
+    // Warm the church timezone cache so non-React date formatters use it.
+    loadChurchTimezone().catch(() => { /* fall back to default */ });
+  }, []);
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
