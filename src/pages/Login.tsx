@@ -30,14 +30,14 @@ export default function Login() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+    const { error } = await supabase.functions.invoke("send-password-reset", {
+      body: { email, redirectTo: `${window.location.origin}/reset-password` },
     });
     setLoading(false);
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Check your email for a password reset link.");
+      toast.success("If that email exists, a reset link is on its way from contact@hotc.life.");
       setMode("login");
     }
   };
