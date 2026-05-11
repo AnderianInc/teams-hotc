@@ -354,6 +354,12 @@ export default function VolunteerManagement() {
                           </>
                         )}
                         <DropdownMenuItem
+                          onClick={() => { setEditProfile(p); setEditOpen(true); }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => { setDeleteProfile(p); setDeleteOpen(true); }}
                         >
