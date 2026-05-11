@@ -293,10 +293,10 @@ function NotificationSettingsSection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Bell className="h-4 w-4" /> Push Notifications
+            <Bell className="h-4 w-4" /> Browser Push Notifications
           </CardTitle>
           <CardDescription>
-            Push notifications are not supported in this browser or no VAPID key is configured.
+            Browser push notifications aren't available on this device yet — but in-app notifications (the bell icon) and email/SMS alerts still work normally. To enable browser pushes, an admin needs to configure a VAPID key.
           </CardDescription>
         </CardHeader>
       </Card>
