@@ -221,7 +221,11 @@ export default function PastorDutiesRoster() {
                       </TableCell>
                       <TableCell>
                         {d.role_description ? (
-                          <Badge variant="secondary">{d.role_description}</Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {d.role_description.split(",").map((duty: string, i: number) => (
+                              <Badge key={i} variant="secondary">{duty.trim()}</Badge>
+                            ))}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}
@@ -283,26 +287,33 @@ export default function PastorDutiesRoster() {
             </div>
 
             <div className="space-y-2">
-              <Label>Duty</Label>
+              <Label>Duties (select one or more)</Label>
               <Input
-                placeholder="e.g. Welcome, Closing, Teaching"
+                placeholder="Custom duty (or select presets below)"
                 value={addDuty}
                 onChange={(e) => setAddDuty(e.target.value)}
               />
               <div className="flex flex-wrap gap-1">
-                {PRESET_DUTIES.map((d) => (
-                  <Badge
-                    key={d}
-                    variant={addDuty === d ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setAddDuty(d)}
-                  >
-                    {d}
-                  </Badge>
-                ))}
+                {PRESET_DUTIES.map((d) => {
+                  const list = addDuty.split(",").map((x) => x.trim()).filter(Boolean);
+                  const selected = list.includes(d);
+                  return (
+                    <Badge
+                      key={d}
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const next = selected ? list.filter((x) => x !== d) : [...list, d];
+                        setAddDuty(next.join(", "));
+                      }}
+                    >
+                      {d}
+                    </Badge>
+                  );
+                })}
               </div>
               <p className="text-xs text-muted-foreground">
-                Tap a preset or type a custom duty.
+                Tap presets to toggle. Multiple duties saved together.
               </p>
             </div>
 
@@ -338,23 +349,30 @@ export default function PastorDutiesRoster() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Duty</Label>
+              <Label>Duties (select one or more)</Label>
               <Input
-                placeholder="e.g. Welcome, Closing, Teaching"
+                placeholder="Custom duty (or select presets below)"
                 value={editDuty}
                 onChange={(e) => setEditDuty(e.target.value)}
               />
               <div className="flex flex-wrap gap-1">
-                {PRESET_DUTIES.map((d) => (
-                  <Badge
-                    key={d}
-                    variant={editDuty === d ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setEditDuty(d)}
-                  >
-                    {d}
-                  </Badge>
-                ))}
+                {PRESET_DUTIES.map((d) => {
+                  const list = editDuty.split(",").map((x) => x.trim()).filter(Boolean);
+                  const selected = list.includes(d);
+                  return (
+                    <Badge
+                      key={d}
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        const next = selected ? list.filter((x) => x !== d) : [...list, d];
+                        setEditDuty(next.join(", "));
+                      }}
+                    >
+                      {d}
+                    </Badge>
+                  );
+                })}
               </div>
             </div>
             <Button

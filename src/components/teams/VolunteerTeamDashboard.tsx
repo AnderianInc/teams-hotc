@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Calendar, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import { Calendar, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 import RosterEventManager from "@/components/teams/RosterEventManager";
@@ -173,9 +174,57 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
         event_id: linkedEventId || null,
       });
       if (error) throw error;
+
+      // Notify the assigned member (in-app + push + email fallback)
+      const member = (members as any)?.find((m: any) => m.user_id === userId);
+      const memberName = member?.profiles?.full_name || "Volunteer";
+      const memberEmail = member?.profiles?.email;
+      const dateStr = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric",
+      });
+
+      try {
+        await supabase.functions.invoke("notify", {
+          body: {
+            recipient_id: userId,
+            type: "roster_assigned",
+            title: `You've been added to the ${teamSlug.replace(/-/g, " ")} roster`,
+            body: `${dateStr}${roleDesc ? ` · ${roleDesc}` : ""}`,
+            url: "/",
+            high_priority: true,
+          },
+        });
+      } catch (err) {
+        console.error("notify failed", err);
+      }
+
+      if (memberEmail) {
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              to: memberEmail,
+              to_name: memberName,
+              subject: `You've been added to the roster for ${dateStr}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2>Hi ${memberName},</h2>
+                  <p>You've been added to the team roster.</p>
+                  <div style="background:#f5f5f5;padding:16px;border-radius:8px;margin:16px 0;">
+                    <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
+                    ${roleDesc ? `<p style="margin:4px 0;"><strong>Role:</strong> ${roleDesc}</p>` : ""}
+                  </div>
+                  <p>— House of Transformation Church</p>
+                </div>
+              `,
+            },
+          });
+        } catch (err) {
+          console.error("email failed", err);
+        }
+      }
     },
     onSuccess: () => {
-      toast.success("Roster entry added!");
+      toast.success("Roster entry added & member notified!");
       setAddOpen(false);
       setDate(""); setUserId(""); setRoleDesc(""); setLinkedEventId("");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
@@ -511,6 +560,7 @@ function TeamAttendance({ teamId }: { teamId: string }) {
   const unmarked = (members || []).filter((m: any) => !attMap.get(m.user_id)).length;
 
   return (
+    <div className="space-y-4">
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -587,6 +637,80 @@ function TeamAttendance({ teamId }: { teamId: string }) {
                 })}
               </TableBody>
             </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+    <TeamAttendanceMetrics teamId={teamId} memberIds={(members || []).map((m: any) => m.user_id)} />
+    </div>
+  );
+}
+
+function TeamAttendanceMetrics({ teamId, memberIds }: { teamId: string; memberIds: string[] }) {
+  const weeks = 8;
+  const startDate = format(startOfWeek(subWeeks(new Date(), weeks - 1), { weekStartsOn: 0 }), "yyyy-MM-dd");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["team-attendance-metrics", teamId, startDate, memberIds.length],
+    enabled: memberIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("weekly_attendance")
+        .select("service_date, status, user_id")
+        .in("user_id", memberIds)
+        .gte("service_date", startDate);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const chartData = Array.from({ length: weeks }).map((_, i) => {
+    const weekDate = startOfWeek(subWeeks(new Date(), weeks - 1 - i), { weekStartsOn: 0 });
+    const ds = format(weekDate, "yyyy-MM-dd");
+    const rows = (data || []).filter((d: any) => d.service_date === ds);
+    return {
+      week: format(weekDate, "MMM d"),
+      Present: rows.filter((r: any) => r.status === "present").length,
+      Absent: rows.filter((r: any) => r.status === "absent").length,
+      Excused: rows.filter((r: any) => r.status === "excused").length,
+      Late: rows.filter((r: any) => r.status === "late").length,
+    };
+  });
+
+  const totalPresent = chartData.reduce((s, c) => s + c.Present, 0);
+  const totalSlots = chartData.reduce((s, c) => s + c.Present + c.Absent + c.Excused + c.Late, 0);
+  const rate = totalSlots > 0 ? Math.round((totalPresent / totalSlots) * 100) : 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" /> Attendance Trends
+        </CardTitle>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Last {weeks} weeks · {rate}% present rate ({totalPresent}/{totalSlots} marked)
+        </p>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-center text-muted-foreground py-8">Loading metrics...</p>
+        ) : memberIds.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">No team members yet.</p>
+        ) : (
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="week" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="Present" stackId="a" fill="hsl(var(--primary))" />
+                <Bar dataKey="Late" stackId="a" fill="hsl(25 95% 53%)" />
+                <Bar dataKey="Excused" stackId="a" fill="hsl(45 93% 47%)" />
+                <Bar dataKey="Absent" stackId="a" fill="hsl(var(--destructive))" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </CardContent>
