@@ -560,6 +560,7 @@ function TeamAttendance({ teamId }: { teamId: string }) {
   const unmarked = (members || []).filter((m: any) => !attMap.get(m.user_id)).length;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-3">
