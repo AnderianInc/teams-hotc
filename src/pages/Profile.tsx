@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, User, Trash2, Lock, Bell, BellOff } from "lucide-react";
+import { Loader2, Save, User, Trash2, Lock, Bell, BellOff, Upload } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import VolunteerAvailability from "@/components/profile/VolunteerAvailability";
 
