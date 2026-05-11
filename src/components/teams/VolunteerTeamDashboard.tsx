@@ -173,9 +173,57 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
         event_id: linkedEventId || null,
       });
       if (error) throw error;
+
+      // Notify the assigned member (in-app + push + email fallback)
+      const member = (members as any)?.find((m: any) => m.user_id === userId);
+      const memberName = member?.profiles?.full_name || "Volunteer";
+      const memberEmail = member?.profiles?.email;
+      const dateStr = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric",
+      });
+
+      try {
+        await supabase.functions.invoke("notify", {
+          body: {
+            recipient_id: userId,
+            type: "roster_assigned",
+            title: `You've been added to the ${teamSlug.replace(/-/g, " ")} roster`,
+            body: `${dateStr}${roleDesc ? ` · ${roleDesc}` : ""}`,
+            url: "/",
+            high_priority: true,
+          },
+        });
+      } catch (err) {
+        console.error("notify failed", err);
+      }
+
+      if (memberEmail) {
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              to: memberEmail,
+              to_name: memberName,
+              subject: `You've been added to the roster for ${dateStr}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2>Hi ${memberName},</h2>
+                  <p>You've been added to the team roster.</p>
+                  <div style="background:#f5f5f5;padding:16px;border-radius:8px;margin:16px 0;">
+                    <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
+                    ${roleDesc ? `<p style="margin:4px 0;"><strong>Role:</strong> ${roleDesc}</p>` : ""}
+                  </div>
+                  <p>— House of Transformation Church</p>
+                </div>
+              `,
+            },
+          });
+        } catch (err) {
+          console.error("email failed", err);
+        }
+      }
     },
     onSuccess: () => {
-      toast.success("Roster entry added!");
+      toast.success("Roster entry added & member notified!");
       setAddOpen(false);
       setDate(""); setUserId(""); setRoleDesc(""); setLinkedEventId("");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
