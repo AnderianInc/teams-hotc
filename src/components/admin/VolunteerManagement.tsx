@@ -42,6 +42,8 @@ export default function VolunteerManagement() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteProfile, setDeleteProfile] = useState<ProfileWithTeam | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editProfile, setEditProfile] = useState<ProfileWithTeam | null>(null);
 
   const { data: teams } = useAllTeams();
 
