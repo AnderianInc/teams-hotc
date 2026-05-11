@@ -642,7 +642,7 @@ function TeamAttendance({ teamId }: { teamId: string }) {
       </CardContent>
     </Card>
     <TeamAttendanceMetrics teamId={teamId} memberIds={(members || []).map((m: any) => m.user_id)} />
-    </>
+    </div>
   );
 }
 
