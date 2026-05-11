@@ -249,6 +249,20 @@ export default function FollowUpList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateMethod = useMutation({
+    mutationFn: async ({ id, method }: { id: string; method: string | null }) => {
+      const { error } = await (supabase.from as any)("follow_ups")
+        .update({ method })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      toast.success("Method updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const assignFollowUp = useMutation({
     mutationFn: async ({ id, userId }: { id: string; userId: string | null }) => {
       const { error } = await (supabase.from as any)("follow_ups")
