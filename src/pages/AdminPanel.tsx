@@ -15,6 +15,7 @@ import InreachDashboard from "@/components/admin/InreachDashboard";
 import BulkImport from "@/components/admin/BulkImport";
 import Organogram from "@/components/admin/Organogram";
 import StaffRolesManager from "@/components/admin/StaffRolesManager";
+import TimezoneSettings from "@/components/admin/TimezoneSettings";
 
 const ADMIN_TABS = new Set([
   "volunteers",
