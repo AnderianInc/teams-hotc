@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, User, Trash2, Lock, Bell, BellOff } from "lucide-react";
+import { Loader2, Save, User, Trash2, Lock, Bell, BellOff, Upload } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import VolunteerAvailability from "@/components/profile/VolunteerAvailability";
 
@@ -86,10 +86,23 @@ export default function Profile() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
+
+    let emailChangeMsg = "";
+    if (profile.email && profile.email !== user.email) {
+      const { error: authErr } = await supabase.auth.updateUser({ email: profile.email });
+      if (authErr) {
+        toast({ title: "Email update failed", description: authErr.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      emailChangeMsg = " A confirmation email may be sent to verify the new address.";
+    }
+
     const { error } = await supabase
       .from("profiles")
       .update({
         full_name: profile.full_name,
+        email: profile.email,
         phone: profile.phone,
         date_of_birth: profile.date_of_birth || null,
         address: profile.address,
@@ -101,9 +114,31 @@ export default function Profile() {
     if (error) {
       toast({ title: "Error", description: "Failed to save profile.", variant: "destructive" });
     } else {
-      toast({ title: "Saved", description: "Your profile has been updated." });
+      toast({ title: "Saved", description: "Your profile has been updated." + emailChangeMsg });
     }
     setSaving(false);
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, cacheControl: "3600" });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = data.publicUrl;
+      setProfile((p) => ({ ...p, avatar_url: url }));
+      await supabase.from("profiles").update({ avatar_url: url } as any).eq("user_id", user.id);
+      toast({ title: "Photo updated", description: "Your profile picture has been updated." });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const initials = profile.full_name
@@ -127,10 +162,30 @@ export default function Profile() {
 
       <Card>
         <CardHeader className="flex flex-row items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={profile.avatar_url} />
-            <AvatarFallback className="text-lg">{initials || <User className="h-6 w-6" />}</AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={profile.avatar_url} />
+              <AvatarFallback className="text-lg">{initials || <User className="h-6 w-6" />}</AvatarFallback>
+            </Avatar>
+            <label
+              htmlFor="avatar-upload"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border bg-background shadow hover:bg-accent"
+              title="Change profile picture"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleAvatarUpload(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
           <div>
             <CardTitle>{profile.full_name || "Your Name"}</CardTitle>
             <CardDescription>{profile.email}</CardDescription>
@@ -167,25 +222,27 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="dob">Date of Birth</Label>
-              <Input
-                id="dob"
-                type="date"
-                value={profile.date_of_birth}
-                onChange={(e) => setProfile((p) => ({ ...p, date_of_birth: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="avatar_url">Avatar URL</Label>
-              <Input
-                id="avatar_url"
-                placeholder="https://..."
-                value={profile.avatar_url}
-                onChange={(e) => setProfile((p) => ({ ...p, avatar_url: e.target.value }))}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={profile.email}
+              onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Changing your email will require confirmation at the new address.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dob">Date of Birth</Label>
+            <Input
+              id="dob"
+              type="date"
+              value={profile.date_of_birth}
+              onChange={(e) => setProfile((p) => ({ ...p, date_of_birth: e.target.value }))}
+            />
           </div>
 
           <div className="space-y-2">
@@ -236,10 +293,10 @@ function NotificationSettingsSection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Bell className="h-4 w-4" /> Push Notifications
+            <Bell className="h-4 w-4" /> Browser Push Notifications
           </CardTitle>
           <CardDescription>
-            Push notifications are not supported in this browser or no VAPID key is configured.
+            Browser push notifications aren't available on this device yet — but in-app notifications (the bell icon) and email/SMS alerts still work normally. To enable browser pushes, an admin needs to configure a VAPID key.
           </CardDescription>
         </CardHeader>
       </Card>

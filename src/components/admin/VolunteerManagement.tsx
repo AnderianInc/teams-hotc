@@ -12,9 +12,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Mail, RefreshCw, MoreHorizontal, Trash2, Download, Search, UserCheck } from "lucide-react";
+import { UserPlus, Mail, RefreshCw, MoreHorizontal, Trash2, Download, Search, UserCheck, Pencil } from "lucide-react";
 import { downloadCsv } from "@/lib/csvExport";
 import { useAllTeams } from "@/hooks/useTeams";
+import EditVolunteerDialog from "./EditVolunteerDialog";
 
 interface ProfileWithTeam {
   id: string;
@@ -41,6 +42,8 @@ export default function VolunteerManagement() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteProfile, setDeleteProfile] = useState<ProfileWithTeam | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editProfile, setEditProfile] = useState<ProfileWithTeam | null>(null);
 
   const { data: teams } = useAllTeams();
 
@@ -351,6 +354,12 @@ export default function VolunteerManagement() {
                           </>
                         )}
                         <DropdownMenuItem
+                          onClick={() => { setEditProfile(p); setEditOpen(true); }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => { setDeleteProfile(p); setDeleteOpen(true); }}
                         >
@@ -394,6 +403,8 @@ export default function VolunteerManagement() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <EditVolunteerDialog open={editOpen} onOpenChange={setEditOpen} profile={editProfile} />
       </CardContent>
     </Card>
   );
