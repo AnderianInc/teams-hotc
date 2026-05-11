@@ -249,6 +249,20 @@ export default function FollowUpList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateMethod = useMutation({
+    mutationFn: async ({ id, method }: { id: string; method: string | null }) => {
+      const { error } = await (supabase.from as any)("follow_ups")
+        .update({ method })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      toast.success("Method updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const assignFollowUp = useMutation({
     mutationFn: async ({ id, userId }: { id: string; userId: string | null }) => {
       const { error } = await (supabase.from as any)("follow_ups")
@@ -499,7 +513,26 @@ export default function FollowUpList() {
                         {fu.type || "outreach"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="capitalize text-muted-foreground">{fu.method || "—"}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={fu.method ?? "__none__"}
+                        onValueChange={(v) =>
+                          updateMethod.mutate({ id: fu.id, method: v === "__none__" ? null : v })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-32 text-xs capitalize">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__"><span className="italic text-muted-foreground">None</span></SelectItem>
+                          <SelectItem value="call">Phone Call</SelectItem>
+                          <SelectItem value="text">Text Message</SelectItem>
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="in_person">In-Person</SelectItem>
+                          <SelectItem value="visit">Visit</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell className={overdue ? "text-destructive font-medium" : "text-muted-foreground"}>
                       {fu.due_date ? (
                         <span className="flex items-center gap-1">
