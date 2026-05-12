@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams } from "@/hooks/useTeams";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
   Baby, Music, Monitor, Coffee, HandHelping, Sparkles, LayoutDashboard,
-  CalendarDays, ClipboardCheck, Users, ChevronRight, CheckCircle2, Clock,
+  CalendarDays, ClipboardCheck, Users, ChevronRight, CheckCircle2, Clock, Check, X,
 } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
 
@@ -38,12 +42,12 @@ export default function Dashboard() {
       const until = format(addDays(new Date(), 30), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("roster_entries")
-        .select("id, scheduled_date, role_description, teams(name)")
+        .select("id, scheduled_date, role_description, response_status, decline_reason, team_id, teams(name)")
         .eq("user_id", userId)
         .gte("scheduled_date", today)
         .lte("scheduled_date", until)
         .order("scheduled_date")
-        .limit(5);
+        .limit(10);
       if (error) throw error;
       return data || [];
     },
