@@ -139,7 +139,7 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
     queryFn: async () => {
       const { data, error } = await supabase
         .from("team_members")
-        .select("user_id, profiles:user_id(full_name)")
+        .select("user_id, profiles:user_id(full_name, email)")
         .eq("team_id", teamId);
       if (error) throw error;
       return data;
@@ -175,10 +175,18 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
       });
       if (error) throw error;
 
-      // Notify the assigned member (in-app + push + email fallback)
+      // Notify the assigned member (in-app + push + email)
       const member = (members as any)?.find((m: any) => m.user_id === userId);
       const memberName = member?.profiles?.full_name || "Volunteer";
-      const memberEmail = member?.profiles?.email;
+      let memberEmail = member?.profiles?.email as string | undefined;
+      if (!memberEmail) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("user_id", userId)
+          .maybeSingle();
+        memberEmail = prof?.email || undefined;
+      }
       const dateStr = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
         weekday: "long", month: "long", day: "numeric", year: "numeric",
       });
