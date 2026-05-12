@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams } from "@/hooks/useTeams";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
   Baby, Music, Monitor, Coffee, HandHelping, Sparkles, LayoutDashboard,
-  CalendarDays, ClipboardCheck, Users, ChevronRight, CheckCircle2, Clock,
+  CalendarDays, ClipboardCheck, Users, ChevronRight, CheckCircle2, Clock, Check, X,
 } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
 
@@ -25,9 +29,77 @@ export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const { data: memberships, isLoading } = useMyTeams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [declineFor, setDeclineFor] = useState<any>(null);
+  const [declineReason, setDeclineReason] = useState("");
+  const [responding, setResponding] = useState<string | null>(null);
 
   const userId = user?.id;
   const thisServiceDate = format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd");
+
+  const respondToAssignment = async (
+    assignment: any,
+    status: "accepted" | "declined",
+    reason?: string,
+  ) => {
+    setResponding(assignment.id);
+    try {
+      const { error } = await supabase
+        .from("roster_entries")
+        .update({
+          response_status: status,
+          decline_reason: status === "declined" ? (reason || null) : null,
+          responded_at: new Date().toISOString(),
+        })
+        .eq("id", assignment.id);
+      if (error) throw error;
+
+      const { data: leads } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", assignment.team_id)
+        .eq("role", "team_lead");
+      const { data: admins } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      const recipientIds = Array.from(new Set([
+        ...(leads || []).map((l: any) => l.user_id),
+        ...(admins || []).map((a: any) => a.user_id),
+      ])).filter((id) => id !== userId);
+
+      const teamName = (assignment.teams as any)?.name || "team";
+      const dateStr = format(new Date(assignment.scheduled_date + "T00:00:00"), "EEE, MMM d");
+      const memberName = user?.user_metadata?.full_name || user?.email || "A member";
+      const verb = status === "accepted" ? "accepted" : "declined";
+      const title = `${memberName} ${verb} a ${teamName} assignment`;
+      const body = `${dateStr}${assignment.role_description ? ` · ${assignment.role_description}` : ""}${reason ? ` — Reason: ${reason}` : ""}`;
+
+      await Promise.allSettled(
+        recipientIds.map((rid) =>
+          supabase.functions.invoke("notify", {
+            body: {
+              recipient_id: rid,
+              type: status === "accepted" ? "roster_accepted" : "roster_declined",
+              title,
+              body,
+              url: "/",
+              high_priority: status === "declined",
+            },
+          })
+        )
+      );
+
+      toast.success(status === "accepted" ? "Assignment accepted" : "Assignment declined — team lead notified");
+      setDeclineFor(null);
+      setDeclineReason("");
+      queryClient.invalidateQueries({ queryKey: ["my-upcoming-assignments", userId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to respond");
+    } finally {
+      setResponding(null);
+    }
+  };
 
   // My upcoming roster assignments (next 30 days)
   const { data: upcomingAssignments } = useQuery({
@@ -38,12 +110,12 @@ export default function Dashboard() {
       const until = format(addDays(new Date(), 30), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("roster_entries")
-        .select("id, scheduled_date, role_description, teams(name)")
+        .select("id, scheduled_date, role_description, response_status, decline_reason, team_id, teams(name)")
         .eq("user_id", userId)
         .gte("scheduled_date", today)
         .lte("scheduled_date", until)
         .order("scheduled_date")
-        .limit(5);
+        .limit(10);
       if (error) throw error;
       return data || [];
     },
@@ -165,20 +237,50 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="pt-0 space-y-2">
             {(upcomingAssignments as any[]).map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <div className="flex items-center gap-3">
+              <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 gap-2 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="text-center min-w-[36px]">
                     <p className="text-xs text-muted-foreground">{format(new Date(a.scheduled_date + "T00:00:00"), "MMM")}</p>
                     <p className="text-lg font-bold leading-none">{format(new Date(a.scheduled_date + "T00:00:00"), "d")}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{(a.teams as any)?.name || "Team"}</p>
-                    {a.role_description && (
-                      <Badge variant="outline" className="text-xs mt-0.5">{a.role_description}</Badge>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{(a.teams as any)?.name || "Team"}</p>
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                      {a.role_description && (
+                        <Badge variant="outline" className="text-xs">{a.role_description}</Badge>
+                      )}
+                      {a.response_status === "accepted" && (
+                        <Badge className="text-xs bg-green-600 hover:bg-green-600">Accepted</Badge>
+                      )}
+                      {a.response_status === "declined" && (
+                        <Badge variant="destructive" className="text-xs">Declined</Badge>
+                      )}
+                    </div>
+                    {a.response_status === "declined" && a.decline_reason && (
+                      <p className="text-xs text-muted-foreground italic mt-0.5">"{a.decline_reason}"</p>
                     )}
                   </div>
                 </div>
-                <Clock className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-1 ml-auto">
+                  {a.response_status !== "accepted" && (
+                    <Button
+                      size="sm" variant="outline" className="h-7 text-xs"
+                      disabled={responding === a.id}
+                      onClick={() => respondToAssignment(a, "accepted")}
+                    >
+                      <Check className="h-3 w-3 mr-1" /> Accept
+                    </Button>
+                  )}
+                  {a.response_status !== "declined" && (
+                    <Button
+                      size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
+                      disabled={responding === a.id}
+                      onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
+                    >
+                      <X className="h-3 w-3 mr-1" /> Decline
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>
@@ -298,6 +400,43 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+      <Dialog open={!!declineFor} onOpenChange={(o) => { if (!o) { setDeclineFor(null); setDeclineReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline assignment</DialogTitle>
+          </DialogHeader>
+          {declineFor && (
+            <div className="space-y-3">
+              <div className="rounded-md border p-3 bg-muted/30 text-sm">
+                <p className="font-medium">{(declineFor.teams as any)?.name}</p>
+                <p className="text-muted-foreground text-xs">
+                  {format(new Date(declineFor.scheduled_date + "T00:00:00"), "EEEE, MMMM d, yyyy")}
+                  {declineFor.role_description ? ` · ${declineFor.role_description}` : ""}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Reason (shared with team lead)</label>
+                <Textarea
+                  placeholder="e.g. Out of town, Illness, Family commitment..."
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeclineFor(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={!declineReason.trim() || responding === declineFor?.id}
+              onClick={() => respondToAssignment(declineFor, "declined", declineReason.trim())}
+            >
+              {responding === declineFor?.id ? "Sending..." : "Decline assignment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

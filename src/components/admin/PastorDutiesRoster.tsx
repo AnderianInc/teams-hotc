@@ -60,7 +60,7 @@ export default function PastorDutiesRoster() {
       if (!teamId) return [];
       const { data, error } = await supabase
         .from("team_members")
-        .select("user_id, profiles:user_id(full_name)")
+        .select("user_id, profiles:user_id(full_name, email)")
         .eq("team_id", teamId);
       if (error) throw error;
       return data;
@@ -112,9 +112,50 @@ export default function PastorDutiesRoster() {
         event_id: null,
       });
       if (error) throw error;
+
+      // Notify the pastor (in-app/push + email)
+      const pastor = (pastors as any)?.find((p: any) => p.user_id === addPastorId);
+      const pastorName = pastor?.profiles?.full_name || "Pastor";
+      const pastorEmail = pastor?.profiles?.email as string | undefined;
+      const dateStr = format(sunday, "EEEE, MMMM d, yyyy");
+
+      try {
+        await supabase.functions.invoke("notify", {
+          body: {
+            recipient_id: addPastorId,
+            type: "roster_assigned",
+            title: `You've been assigned a Sunday duty`,
+            body: `${dateStr} · ${addDuty.trim()}`,
+            url: "/",
+            high_priority: true,
+          },
+        });
+      } catch (err) { console.error("notify failed", err); }
+
+      if (pastorEmail) {
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              to: pastorEmail,
+              to_name: pastorName,
+              subject: `Sunday duty assigned for ${dateStr}`,
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+                <h2>Hi ${pastorName},</h2>
+                <p>You've been assigned a Sunday duty.</p>
+                <div style="background:#f5f5f5;padding:16px;border-radius:8px;margin:16px 0;">
+                  <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
+                  <p style="margin:4px 0;"><strong>Duty:</strong> ${addDuty.trim()}</p>
+                </div>
+                <p>You can accept or decline this assignment from your dashboard at <a href="https://teams.hotc.life">teams.hotc.life</a>.</p>
+                <p>— House of Transformation Church</p>
+              </div>`,
+            },
+          });
+        } catch (err) { console.error("email failed", err); }
+      }
     },
     onSuccess: () => {
-      toast.success("Duty assigned");
+      toast.success("Duty assigned & pastor notified");
       setAddOpen(false);
       setAddPastorId("");
       setAddDuty("");

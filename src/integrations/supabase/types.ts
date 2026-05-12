@@ -754,9 +754,12 @@ export type Database = {
       roster_entries: {
         Row: {
           created_at: string
+          decline_reason: string | null
           event_id: string | null
           id: string
           notes: string | null
+          responded_at: string | null
+          response_status: string
           role_description: string | null
           scheduled_date: string
           team_id: string
@@ -764,9 +767,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          decline_reason?: string | null
           event_id?: string | null
           id?: string
           notes?: string | null
+          responded_at?: string | null
+          response_status?: string
           role_description?: string | null
           scheduled_date: string
           team_id: string
@@ -774,9 +780,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          decline_reason?: string | null
           event_id?: string | null
           id?: string
           notes?: string | null
+          responded_at?: string | null
+          response_status?: string
           role_description?: string | null
           scheduled_date?: string
           team_id?: string
@@ -1099,6 +1108,7 @@ export type Database = {
         Row: {
           blocked_date: string
           created_at: string
+          end_date: string | null
           id: string
           reason: string | null
           user_id: string
@@ -1106,6 +1116,7 @@ export type Database = {
         Insert: {
           blocked_date: string
           created_at?: string
+          end_date?: string | null
           id?: string
           reason?: string | null
           user_id: string
@@ -1113,6 +1124,7 @@ export type Database = {
         Update: {
           blocked_date?: string
           created_at?: string
+          end_date?: string | null
           id?: string
           reason?: string | null
           user_id?: string
