@@ -237,20 +237,50 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="pt-0 space-y-2">
             {(upcomingAssignments as any[]).map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <div className="flex items-center gap-3">
+              <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 gap-2 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="text-center min-w-[36px]">
                     <p className="text-xs text-muted-foreground">{format(new Date(a.scheduled_date + "T00:00:00"), "MMM")}</p>
                     <p className="text-lg font-bold leading-none">{format(new Date(a.scheduled_date + "T00:00:00"), "d")}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{(a.teams as any)?.name || "Team"}</p>
-                    {a.role_description && (
-                      <Badge variant="outline" className="text-xs mt-0.5">{a.role_description}</Badge>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{(a.teams as any)?.name || "Team"}</p>
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                      {a.role_description && (
+                        <Badge variant="outline" className="text-xs">{a.role_description}</Badge>
+                      )}
+                      {a.response_status === "accepted" && (
+                        <Badge className="text-xs bg-green-600 hover:bg-green-600">Accepted</Badge>
+                      )}
+                      {a.response_status === "declined" && (
+                        <Badge variant="destructive" className="text-xs">Declined</Badge>
+                      )}
+                    </div>
+                    {a.response_status === "declined" && a.decline_reason && (
+                      <p className="text-xs text-muted-foreground italic mt-0.5">"{a.decline_reason}"</p>
                     )}
                   </div>
                 </div>
-                <Clock className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-1 ml-auto">
+                  {a.response_status !== "accepted" && (
+                    <Button
+                      size="sm" variant="outline" className="h-7 text-xs"
+                      disabled={responding === a.id}
+                      onClick={() => respondToAssignment(a, "accepted")}
+                    >
+                      <Check className="h-3 w-3 mr-1" /> Accept
+                    </Button>
+                  )}
+                  {a.response_status !== "declined" && (
+                    <Button
+                      size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
+                      disabled={responding === a.id}
+                      onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
+                    >
+                      <X className="h-3 w-3 mr-1" /> Decline
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>
