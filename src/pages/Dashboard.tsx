@@ -29,9 +29,77 @@ export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const { data: memberships, isLoading } = useMyTeams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [declineFor, setDeclineFor] = useState<any>(null);
+  const [declineReason, setDeclineReason] = useState("");
+  const [responding, setResponding] = useState<string | null>(null);
 
   const userId = user?.id;
   const thisServiceDate = format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd");
+
+  const respondToAssignment = async (
+    assignment: any,
+    status: "accepted" | "declined",
+    reason?: string,
+  ) => {
+    setResponding(assignment.id);
+    try {
+      const { error } = await supabase
+        .from("roster_entries")
+        .update({
+          response_status: status,
+          decline_reason: status === "declined" ? (reason || null) : null,
+          responded_at: new Date().toISOString(),
+        })
+        .eq("id", assignment.id);
+      if (error) throw error;
+
+      const { data: leads } = await supabase
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", assignment.team_id)
+        .eq("role", "team_lead");
+      const { data: admins } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      const recipientIds = Array.from(new Set([
+        ...(leads || []).map((l: any) => l.user_id),
+        ...(admins || []).map((a: any) => a.user_id),
+      ])).filter((id) => id !== userId);
+
+      const teamName = (assignment.teams as any)?.name || "team";
+      const dateStr = format(new Date(assignment.scheduled_date + "T00:00:00"), "EEE, MMM d");
+      const memberName = user?.user_metadata?.full_name || user?.email || "A member";
+      const verb = status === "accepted" ? "accepted" : "declined";
+      const title = `${memberName} ${verb} a ${teamName} assignment`;
+      const body = `${dateStr}${assignment.role_description ? ` · ${assignment.role_description}` : ""}${reason ? ` — Reason: ${reason}` : ""}`;
+
+      await Promise.allSettled(
+        recipientIds.map((rid) =>
+          supabase.functions.invoke("notify", {
+            body: {
+              recipient_id: rid,
+              type: status === "accepted" ? "roster_accepted" : "roster_declined",
+              title,
+              body,
+              url: "/",
+              high_priority: status === "declined",
+            },
+          })
+        )
+      );
+
+      toast.success(status === "accepted" ? "Assignment accepted" : "Assignment declined — team lead notified");
+      setDeclineFor(null);
+      setDeclineReason("");
+      queryClient.invalidateQueries({ queryKey: ["my-upcoming-assignments", userId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to respond");
+    } finally {
+      setResponding(null);
+    }
+  };
 
   // My upcoming roster assignments (next 30 days)
   const { data: upcomingAssignments } = useQuery({
