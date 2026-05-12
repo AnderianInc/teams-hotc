@@ -400,6 +400,43 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+      <Dialog open={!!declineFor} onOpenChange={(o) => { if (!o) { setDeclineFor(null); setDeclineReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline assignment</DialogTitle>
+          </DialogHeader>
+          {declineFor && (
+            <div className="space-y-3">
+              <div className="rounded-md border p-3 bg-muted/30 text-sm">
+                <p className="font-medium">{(declineFor.teams as any)?.name}</p>
+                <p className="text-muted-foreground text-xs">
+                  {format(new Date(declineFor.scheduled_date + "T00:00:00"), "EEEE, MMMM d, yyyy")}
+                  {declineFor.role_description ? ` · ${declineFor.role_description}` : ""}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Reason (shared with team lead)</label>
+                <Textarea
+                  placeholder="e.g. Out of town, Illness, Family commitment..."
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeclineFor(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={!declineReason.trim() || responding === declineFor?.id}
+              onClick={() => respondToAssignment(declineFor, "declined", declineReason.trim())}
+            >
+              {responding === declineFor?.id ? "Sending..." : "Decline assignment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
