@@ -18,6 +18,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cart
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 import RosterEventManager from "@/components/teams/RosterEventManager";
+import RosterCalendarView from "@/components/admin/RosterCalendarView";
+import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
 
 const PRESET_PASTOR_DUTIES = [
   "Welcome",
@@ -63,6 +65,10 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
             <CalendarPlus className="h-4 w-4 mr-2" />
             Events
           </TabsTrigger>
+          <TabsTrigger value="calendar">
+            <CalendarDays className="h-4 w-4 mr-2" />
+            Calendar
+          </TabsTrigger>
           <TabsTrigger value="roster">
             <Calendar className="h-4 w-4 mr-2" />
             Roster
@@ -81,6 +87,9 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
         </TabsContent>
         <TabsContent value="events">
           <RosterEventManager teamId={teamId} teamName={teamName} />
+        </TabsContent>
+        <TabsContent value="calendar">
+          <RosterCalendarView teamId={teamId} />
         </TabsContent>
         <TabsContent value="roster">
           <RosterSchedule teamId={teamId} teamSlug={teamSlug} />
