@@ -645,7 +645,15 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                                 <Badge variant="outline" className="text-xs">{(a.teams as any)?.name || "—"}</Badge>
                               </TableCell>
                               <TableCell>
-                                {a.role_description ? <Badge variant="secondary" className="text-xs">{a.role_description}</Badge> : <span className="text-muted-foreground text-xs">—</span>}
+                                <div className="flex flex-wrap gap-1">
+                                  {a.role_description ? <Badge variant="secondary" className="text-xs">{a.role_description}</Badge> : <span className="text-muted-foreground text-xs">—</span>}
+                                  <Badge
+                                    variant={a.response_status === "declined" ? "destructive" : a.response_status === "accepted" ? "default" : "outline"}
+                                    className="text-xs"
+                                  >
+                                    {getRosterResponseLabel(a.response_status)}
+                                  </Badge>
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-0.5">
@@ -676,6 +684,12 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                       <span className="font-medium truncate">{e.profiles?.full_name || "Unknown"}</span>
                       {e.role_description && <Badge variant="outline" className="text-xs shrink-0">{e.role_description}</Badge>}
                       <Badge variant="secondary" className="text-xs shrink-0">{(e.teams as any)?.name}</Badge>
+                      <Badge
+                        variant={e.response_status === "declined" ? "destructive" : e.response_status === "accepted" ? "default" : "outline"}
+                        className="text-xs shrink-0"
+                      >
+                        {getRosterResponseLabel(e.response_status)}
+                      </Badge>
                     </div>
                     <div className="flex gap-0.5 shrink-0">
                       <Button
