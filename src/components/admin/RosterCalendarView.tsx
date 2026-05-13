@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ChevronLeft, ChevronRight, CalendarDays, Plus, UserPlus, Trash2, Repeat, Pencil } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday, addWeeks } from "date-fns";
 import { toast } from "sonner";
+import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
 
 interface RosterCalendarViewProps {
   teamId?: string;
@@ -142,7 +143,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     queryFn: async () => {
       let query = supabase
         .from("roster_entries")
-        .select("id, scheduled_date, role_description, user_id, team_id, teams(name), profiles:user_id(full_name)")
+        .select("id, scheduled_date, role_description, response_status, decline_reason, user_id, team_id, teams(name), profiles:user_id(full_name)")
         .is("event_id", null)
         .gte("scheduled_date", format(monthStart, "yyyy-MM-dd"))
         .lte("scheduled_date", format(monthEnd, "yyyy-MM-dd"))
@@ -258,6 +259,13 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   const assignVolunteer = useMutation({
     mutationFn: async () => {
       if (!assignEvent || !assignTeamId) throw new Error("No event/team selected");
+      const member = members?.find((m: any) => m.user_id === assignUserId);
+      await assertUserAvailableForRoster(
+        assignUserId,
+        assignEvent.event_date,
+        (member?.profiles as any)?.full_name || "This volunteer",
+      );
+
       const { error } = await supabase.from("roster_entries").insert({
         team_id: assignTeamId,
         user_id: assignUserId,
@@ -268,7 +276,6 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
       if (error) throw error;
 
       // Send notification email
-      const member = members?.find((m: any) => m.user_id === assignUserId);
       const email = (member?.profiles as any)?.email;
       const name = (member?.profiles as any)?.full_name || "Volunteer";
       const teamName = teams?.find((t) => t.id === assignTeamId)?.name || "your team";
@@ -357,6 +364,12 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
 
   const updateAssignment = useMutation({
     mutationFn: async ({ id, user_id, role_description }: { id: string; user_id: string; role_description: string | null }) => {
+      const source = editAssignment;
+      const member = editMembers?.find((m: any) => m.user_id === user_id);
+      if (source?.scheduled_date) {
+        await assertUserAvailableForRoster(user_id, source.scheduled_date, (member?.profiles as any)?.full_name || "This volunteer");
+      }
+
       const { error } = await supabase.from("roster_entries").update({ user_id, role_description }).eq("id", id);
       if (error) throw error;
     },
