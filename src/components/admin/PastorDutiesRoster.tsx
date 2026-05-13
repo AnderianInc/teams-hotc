@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ChevronLeft, ChevronRight, BookOpen, Plus, Trash2, Pencil } from "lucide-react";
 import { format, addWeeks, subWeeks, isSunday, nextSunday, startOfDay } from "date-fns";
 import { toast } from "sonner";
+import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
 
 function getUpcomingSunday(date = new Date()): Date {
   const d = startOfDay(date);
@@ -89,7 +90,7 @@ export default function PastorDutiesRoster() {
       if (!teamId) return [];
       const { data, error } = await supabase
         .from("roster_entries")
-        .select("id, user_id, role_description, profiles:user_id(full_name)")
+        .select("id, user_id, role_description, response_status, decline_reason, profiles:user_id(full_name)")
         .eq("team_id", teamId)
         .eq("scheduled_date", sundayStr)
         .is("event_id", null);
@@ -104,6 +105,10 @@ export default function PastorDutiesRoster() {
       if (!teamId || !addPastorId || !addDuty.trim()) {
         throw new Error("Select a pastor and enter a duty");
       }
+      const pastor = (pastors as any)?.find((p: any) => p.user_id === addPastorId);
+      const pastorName = pastor?.profiles?.full_name || "This pastor";
+      await assertUserAvailableForRoster(addPastorId, sundayStr, pastorName);
+
       const { error } = await supabase.from("roster_entries").insert({
         team_id: teamId,
         user_id: addPastorId,
@@ -114,8 +119,6 @@ export default function PastorDutiesRoster() {
       if (error) throw error;
 
       // Notify the pastor (in-app/push + email)
-      const pastor = (pastors as any)?.find((p: any) => p.user_id === addPastorId);
-      const pastorName = pastor?.profiles?.full_name || "Pastor";
       const pastorEmail = pastor?.profiles?.email as string | undefined;
       const dateStr = format(sunday, "EEEE, MMMM d, yyyy");
 
@@ -179,6 +182,9 @@ export default function PastorDutiesRoster() {
   const updateDutyMutation = useMutation({
     mutationFn: async () => {
       if (!editPastorId || !editDuty.trim()) throw new Error("Select a pastor and enter a duty");
+      const pastor = (pastors as any)?.find((p: any) => p.user_id === editPastorId);
+      await assertUserAvailableForRoster(editPastorId, sundayStr, pastor?.profiles?.full_name || "This pastor");
+
       const { error } = await supabase.from("roster_entries")
         .update({ user_id: editPastorId, role_description: editDuty.trim() })
         .eq("id", editEntry.id);
