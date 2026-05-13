@@ -94,6 +94,11 @@ export default function Dashboard() {
       setDeclineFor(null);
       setDeclineReason("");
       queryClient.invalidateQueries({ queryKey: ["my-upcoming-assignments", userId] });
+      queryClient.invalidateQueries({ queryKey: ["roster"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-event-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-standalone-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-church-roster"] });
     } catch (e: any) {
       toast.error(e.message || "Failed to respond");
     } finally {

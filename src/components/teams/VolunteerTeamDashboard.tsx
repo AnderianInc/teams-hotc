@@ -12,12 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Calendar, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { Calendar, CalendarDays, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
 import RosterEventManager from "@/components/teams/RosterEventManager";
+import RosterCalendarView from "@/components/admin/RosterCalendarView";
+import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
 
 const PRESET_PASTOR_DUTIES = [
   "Welcome",
@@ -63,6 +65,10 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
             <CalendarPlus className="h-4 w-4 mr-2" />
             Events
           </TabsTrigger>
+          <TabsTrigger value="calendar">
+            <CalendarDays className="h-4 w-4 mr-2" />
+            Calendar
+          </TabsTrigger>
           <TabsTrigger value="roster">
             <Calendar className="h-4 w-4 mr-2" />
             Roster
@@ -81,6 +87,9 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
         </TabsContent>
         <TabsContent value="events">
           <RosterEventManager teamId={teamId} teamName={teamName} />
+        </TabsContent>
+        <TabsContent value="calendar">
+          <RosterCalendarView teamId={teamId} />
         </TabsContent>
         <TabsContent value="roster">
           <RosterSchedule teamId={teamId} teamSlug={teamSlug} />
@@ -166,6 +175,10 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
 
   const addEntry = useMutation({
     mutationFn: async () => {
+      const member = (members as any)?.find((m: any) => m.user_id === userId);
+      const memberName = member?.profiles?.full_name || "This volunteer";
+      await assertUserAvailableForRoster(userId, date, memberName);
+
       const { error } = await supabase.from("roster_entries").insert({
         team_id: teamId,
         user_id: userId,
@@ -176,8 +189,6 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
       if (error) throw error;
 
       // Notify the assigned member (in-app + push + email)
-      const member = (members as any)?.find((m: any) => m.user_id === userId);
-      const memberName = member?.profiles?.full_name || "Volunteer";
       let memberEmail = member?.profiles?.email as string | undefined;
       if (!memberEmail) {
         const { data: prof } = await supabase
@@ -237,12 +248,17 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
       setDate(""); setUserId(""); setRoleDesc(""); setLinkedEventId("");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
       queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-standalone-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const updateEntry = useMutation({
     mutationFn: async () => {
+      const member = (members as any)?.find((m: any) => m.user_id === editUserId);
+      await assertUserAvailableForRoster(editUserId, editDate, member?.profiles?.full_name || "This volunteer");
+
       const { error } = await supabase.from("roster_entries").update({
         user_id: editUserId,
         scheduled_date: editDate,
@@ -254,6 +270,8 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
       toast.success("Entry updated");
       setEditEntry(null);
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-standalone-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -266,6 +284,8 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
     onSuccess: () => {
       toast.success("Entry removed");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-standalone-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -411,6 +431,12 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
                         {e.role_description && (
                           <Badge variant="outline" className="text-xs">{e.role_description}</Badge>
                         )}
+                        <Badge
+                          variant={e.response_status === "declined" ? "destructive" : e.response_status === "accepted" ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {getRosterResponseLabel(e.response_status)}
+                        </Badge>
                         <Button
                           size="icon" variant="ghost" className="h-6 w-6"
                           onClick={() => { setEditEntry(e); setEditUserId(e.user_id); setEditDate(e.scheduled_date); setEditRole(e.role_description || ""); }}
