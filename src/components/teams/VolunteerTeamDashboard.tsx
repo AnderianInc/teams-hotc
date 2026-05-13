@@ -175,6 +175,10 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
 
   const addEntry = useMutation({
     mutationFn: async () => {
+      const member = (members as any)?.find((m: any) => m.user_id === userId);
+      const memberName = member?.profiles?.full_name || "This volunteer";
+      await assertUserAvailableForRoster(userId, date, memberName);
+
       const { error } = await supabase.from("roster_entries").insert({
         team_id: teamId,
         user_id: userId,
@@ -185,8 +189,6 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
       if (error) throw error;
 
       // Notify the assigned member (in-app + push + email)
-      const member = (members as any)?.find((m: any) => m.user_id === userId);
-      const memberName = member?.profiles?.full_name || "Volunteer";
       let memberEmail = member?.profiles?.email as string | undefined;
       if (!memberEmail) {
         const { data: prof } = await supabase
@@ -252,6 +254,9 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
 
   const updateEntry = useMutation({
     mutationFn: async () => {
+      const member = (members as any)?.find((m: any) => m.user_id === editUserId);
+      await assertUserAvailableForRoster(editUserId, editDate, member?.profiles?.full_name || "This volunteer");
+
       const { error } = await supabase.from("roster_entries").update({
         user_id: editUserId,
         scheduled_date: editDate,
@@ -263,6 +268,8 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
       toast.success("Entry updated");
       setEditEntry(null);
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-standalone-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
