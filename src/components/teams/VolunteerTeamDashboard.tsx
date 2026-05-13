@@ -248,6 +248,8 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
       setDate(""); setUserId(""); setRoleDesc(""); setLinkedEventId("");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
       queryClient.invalidateQueries({ queryKey: ["roster-event-assignments", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-standalone-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -282,6 +284,8 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
     onSuccess: () => {
       toast.success("Entry removed");
       queryClient.invalidateQueries({ queryKey: ["roster", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["roster-standalone-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-assignments-calendar"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -427,6 +431,12 @@ function RosterSchedule({ teamId, teamSlug }: { teamId: string; teamSlug: string
                         {e.role_description && (
                           <Badge variant="outline" className="text-xs">{e.role_description}</Badge>
                         )}
+                        <Badge
+                          variant={e.response_status === "declined" ? "destructive" : e.response_status === "accepted" ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {getRosterResponseLabel(e.response_status)}
+                        </Badge>
                         <Button
                           size="icon" variant="ghost" className="h-6 w-6"
                           onClick={() => { setEditEntry(e); setEditUserId(e.user_id); setEditDate(e.scheduled_date); setEditRole(e.role_description || ""); }}
