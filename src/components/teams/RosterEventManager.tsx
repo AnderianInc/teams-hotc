@@ -487,11 +487,19 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
                       <TableRow key={a.id}>
                         <TableCell className="font-medium text-sm">{a.profiles?.full_name || "Unknown"}</TableCell>
                         <TableCell>
-                          {a.role_description ? (
-                            <Badge variant="secondary" className="text-xs">{a.role_description}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
+                          <div className="flex flex-wrap gap-1">
+                            {a.role_description ? (
+                              <Badge variant="secondary" className="text-xs">{a.role_description}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                            <Badge
+                              variant={a.response_status === "declined" ? "destructive" : a.response_status === "accepted" ? "default" : "outline"}
+                              className="text-xs"
+                            >
+                              {getRosterResponseLabel(a.response_status)}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
