@@ -194,8 +194,8 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
     mutationFn: async () => {
       if (!selectedEvent) throw new Error("No event selected");
       const member = members?.find((m: any) => m.user_id === assignUserId);
-      const memberName = member?.profiles?.full_name || "This volunteer";
-      await assertUserAvailableForRoster(assignUserId, selectedEvent.event_date, memberName);
+      const availabilityName = member?.profiles?.full_name || "This volunteer";
+      await assertUserAvailableForRoster(assignUserId, selectedEvent.event_date, availabilityName);
 
       const { error } = await supabase.from("roster_entries").insert({
         team_id: teamId,
@@ -283,7 +283,7 @@ export default function RosterEventManager({ teamId, teamName }: RosterEventMana
     mutationFn: async ({ id, user_id, role_description }: { id: string; user_id: string; role_description: string | null }) => {
       const assignment = (assignments || []).find((a: any) => a.id === id);
       const member = members?.find((m: any) => m.user_id === user_id);
-      const date = assignment?.scheduled_date || assignment?.roster_events?.event_date;
+      const date = assignment?.scheduled_date;
       if (date) await assertUserAvailableForRoster(user_id, date, member?.profiles?.full_name || "This volunteer");
 
       const { error } = await supabase.from("roster_entries").update({ user_id, role_description }).eq("id", id);
