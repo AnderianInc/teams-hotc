@@ -272,9 +272,23 @@ export default function PastorDutiesRoster() {
                             {d.role_description.split(",").map((duty: string, i: number) => (
                               <Badge key={i} variant="secondary">{duty.trim()}</Badge>
                             ))}
+                            <Badge
+                              variant={d.response_status === "declined" ? "destructive" : d.response_status === "accepted" ? "default" : "outline"}
+                              className="text-xs"
+                            >
+                              {getRosterResponseLabel(d.response_status)}
+                            </Badge>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
+                          <div className="flex flex-wrap gap-1">
+                            <span className="text-muted-foreground text-sm">—</span>
+                            <Badge
+                              variant={d.response_status === "declined" ? "destructive" : d.response_status === "accepted" ? "default" : "outline"}
+                              className="text-xs"
+                            >
+                              {getRosterResponseLabel(d.response_status)}
+                            </Badge>
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
