@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Calendar, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { Calendar, CalendarDays, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
