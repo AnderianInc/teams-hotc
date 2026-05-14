@@ -66,6 +66,7 @@ export default function AdminPanel() {
           <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="inreach">Inreach</TabsTrigger>
           <TabsTrigger value="directory">Directory</TabsTrigger>
+          <TabsTrigger value="birthdays">Birthdays</TabsTrigger>
           <TabsTrigger value="organogram">Org Chart</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
