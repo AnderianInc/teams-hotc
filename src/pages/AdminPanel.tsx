@@ -27,6 +27,7 @@ const ADMIN_TABS = new Set([
   "groups",
   "inreach",
   "directory",
+  "birthdays",
   "organogram",
   "communications",
   "feedback",
