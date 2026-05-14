@@ -98,6 +98,9 @@ export default function AdminPanel() {
         <TabsContent value="directory">
           <ChurchDirectory />
         </TabsContent>
+        <TabsContent value="birthdays">
+          <BirthdaysPanel />
+        </TabsContent>
         <TabsContent value="organogram">
           <div className="space-y-6">
             <StaffRolesManager />
