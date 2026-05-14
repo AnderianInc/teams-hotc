@@ -17,6 +17,7 @@ import Organogram from "@/components/admin/Organogram";
 import StaffRolesManager from "@/components/admin/StaffRolesManager";
 import TimezoneSettings from "@/components/admin/TimezoneSettings";
 import AdminRolesManager from "@/components/admin/AdminRolesManager";
+import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 
 const ADMIN_TABS = new Set([
   "volunteers",
