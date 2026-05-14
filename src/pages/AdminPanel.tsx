@@ -17,6 +17,7 @@ import Organogram from "@/components/admin/Organogram";
 import StaffRolesManager from "@/components/admin/StaffRolesManager";
 import TimezoneSettings from "@/components/admin/TimezoneSettings";
 import AdminRolesManager from "@/components/admin/AdminRolesManager";
+import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 
 const ADMIN_TABS = new Set([
   "volunteers",
@@ -26,6 +27,7 @@ const ADMIN_TABS = new Set([
   "groups",
   "inreach",
   "directory",
+  "birthdays",
   "organogram",
   "communications",
   "feedback",
@@ -64,6 +66,7 @@ export default function AdminPanel() {
           <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="inreach">Inreach</TabsTrigger>
           <TabsTrigger value="directory">Directory</TabsTrigger>
+          <TabsTrigger value="birthdays">Birthdays</TabsTrigger>
           <TabsTrigger value="organogram">Org Chart</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
@@ -94,6 +97,9 @@ export default function AdminPanel() {
         </TabsContent>
         <TabsContent value="directory">
           <ChurchDirectory />
+        </TabsContent>
+        <TabsContent value="birthdays">
+          <BirthdaysPanel />
         </TabsContent>
         <TabsContent value="organogram">
           <div className="space-y-6">
