@@ -75,8 +75,6 @@ export default function AdminPanel() {
   const activeSub = groupDef.subs.length
     ? (groupDef.subs.find((s) => s.value === requestedTab)?.value ?? groupDef.default)
     : groupDef.default;
-    ? (groupDef.subs.find((s) => s.value === requestedTab)?.value ?? groupDef.default)
-    : groupDef.default;
 
   const setTab = (value: string) => setSearchParams({ tab: value });
 
@@ -92,9 +90,9 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      <Tabs value={activeGroup} onValueChange={(v) => setTab(GROUPS[v as GroupKey].default)} className="w-full">
+      <Tabs value={activeGroup} onValueChange={(v) => setTab(GROUPS[v].default)} className="w-full">
         <TabsList>
-          {(Object.keys(GROUPS) as GroupKey[]).map((k) => (
+          {Object.keys(GROUPS).map((k) => (
             <TabsTrigger key={k} value={k}>{GROUPS[k].label}</TabsTrigger>
           ))}
         </TabsList>
