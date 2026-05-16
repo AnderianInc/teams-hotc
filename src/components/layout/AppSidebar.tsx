@@ -60,6 +60,7 @@ const teamIcons: Record<string, React.ElementType> = {
 };
 
 const adminSubItems = [
+  { label: "Dashboard", value: "dashboard", icon: LayoutDashboard },
   { label: "Teams", value: "teams", icon: UsersRound },
   { label: "Directory", value: "directory", icon: BookOpen },
   { label: "Communications", value: "communications", icon: Mail },
