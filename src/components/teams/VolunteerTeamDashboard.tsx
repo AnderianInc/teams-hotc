@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Calendar, CalendarDays, Users, Plus, Settings, CalendarPlus, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { CalendarDays, Users, Plus, Settings, ClipboardCheck, Check, X, Clock, AlertCircle, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
@@ -61,17 +61,9 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
             <Users className="h-4 w-4 mr-2" />
             Members
           </TabsTrigger>
-          <TabsTrigger value="events">
-            <CalendarPlus className="h-4 w-4 mr-2" />
-            Events
-          </TabsTrigger>
-          <TabsTrigger value="calendar">
+          <TabsTrigger value="schedule">
             <CalendarDays className="h-4 w-4 mr-2" />
-            Calendar
-          </TabsTrigger>
-          <TabsTrigger value="roster">
-            <Calendar className="h-4 w-4 mr-2" />
-            Roster
+            Schedule
           </TabsTrigger>
           <TabsTrigger value="attendance">
             <ClipboardCheck className="h-4 w-4 mr-2" />
@@ -85,14 +77,26 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
         <TabsContent value="members">
           <TeamMemberManager teamId={teamId} teamName={teamName} />
         </TabsContent>
-        <TabsContent value="events">
-          <RosterEventManager teamId={teamId} teamName={teamName} />
-        </TabsContent>
-        <TabsContent value="calendar">
-          <RosterCalendarView teamId={teamId} />
-        </TabsContent>
-        <TabsContent value="roster">
-          <RosterSchedule teamId={teamId} teamSlug={teamSlug} />
+        <TabsContent value="schedule">
+          <div className="space-y-4">
+            <RosterCalendarView teamId={teamId} />
+            <details className="rounded-lg border bg-card">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/50 select-none">
+                Manage events (list view)
+              </summary>
+              <div className="border-t p-4">
+                <RosterEventManager teamId={teamId} teamName={teamName} />
+              </div>
+            </details>
+            <details className="rounded-lg border bg-card">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/50 select-none">
+                {teamSlug === "pastoral-team" ? "Sunday duties (list view)" : "Roster entries (list view)"}
+              </summary>
+              <div className="border-t p-4">
+                <RosterSchedule teamId={teamId} teamSlug={teamSlug} />
+              </div>
+            </details>
+          </div>
         </TabsContent>
         <TabsContent value="attendance">
           <TeamAttendance teamId={teamId} />
