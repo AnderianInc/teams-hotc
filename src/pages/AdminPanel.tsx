@@ -107,6 +107,9 @@ export default function AdminPanel() {
           ))}
         </TabsList>
 
+        {/* Dashboard */}
+        <TabsContent value="dashboard"><AdminDashboard /></TabsContent>
+
         {/* Teams group */}
         <TabsContent value="teams">
           <Tabs value={activeSub} onValueChange={setTab}>
