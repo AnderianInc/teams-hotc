@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
             }
           }
 
-          const eventDate = r.event_date || r.scheduled_for || r.meeting_date || null;
+          const eventDate = r.event_date || r.scheduled_for || r.meeting_date || r.preferred_date || null;
 
           await supabase.from("external_records").upsert(
             {
