@@ -21,11 +21,17 @@ import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 import InterestMeetings from "@/components/admin/InterestMeetings";
+import AdminDashboard from "@/components/admin/AdminDashboard";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };
 
 const GROUPS: Record<string, Group> = {
+  dashboard: {
+    label: "Dashboard",
+    default: "dashboard",
+    subs: [],
+  },
   teams: {
     label: "Teams",
     default: "teams-teams",
@@ -68,12 +74,12 @@ function findGroup(tab: string): string {
     if (tab === key) return key;
     if (g.subs.some((s) => s.value === tab)) return key;
   }
-  return "teams";
+  return "dashboard";
 }
 
 export default function AdminPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get("tab") || GROUPS.teams.default;
+  const requestedTab = searchParams.get("tab") || GROUPS.dashboard.default;
   const activeGroup = findGroup(requestedTab);
   const groupDef = GROUPS[activeGroup];
   const activeSub = groupDef.subs.length
@@ -100,6 +106,9 @@ export default function AdminPanel() {
             <TabsTrigger key={k} value={k}>{GROUPS[k].label}</TabsTrigger>
           ))}
         </TabsList>
+
+        {/* Dashboard */}
+        <TabsContent value="dashboard"><AdminDashboard /></TabsContent>
 
         {/* Teams group */}
         <TabsContent value="teams">
