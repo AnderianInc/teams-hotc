@@ -74,12 +74,12 @@ function findGroup(tab: string): string {
     if (tab === key) return key;
     if (g.subs.some((s) => s.value === tab)) return key;
   }
-  return "teams";
+  return "dashboard";
 }
 
 export default function AdminPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get("tab") || GROUPS.teams.default;
+  const requestedTab = searchParams.get("tab") || GROUPS.dashboard.default;
   const activeGroup = findGroup(requestedTab);
   const groupDef = GROUPS[activeGroup];
   const activeSub = groupDef.subs.length
