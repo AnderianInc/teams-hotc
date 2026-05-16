@@ -19,6 +19,7 @@ import TimezoneSettings from "@/components/admin/TimezoneSettings";
 import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
+import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };
@@ -54,6 +55,7 @@ const GROUPS: Record<string, Group> = {
       { value: "set-feedback", label: "Feedback" },
       { value: "set-requests", label: "Requests" },
       { value: "set-sources", label: "External Sources" },
+      { value: "set-outreach", label: "Planned Outreach" },
       { value: "set-import", label: "Import" },
     ],
   },
@@ -162,6 +164,7 @@ export default function AdminPanel() {
             <TabsContent value="set-feedback"><FeedbackReview /></TabsContent>
             <TabsContent value="set-requests"><DeletionRequests /></TabsContent>
             <TabsContent value="set-sources"><ExternalSourcesPanel /></TabsContent>
+            <TabsContent value="set-outreach"><PlannedOutreachPanel /></TabsContent>
             <TabsContent value="set-import"><BulkImport /></TabsContent>
           </Tabs>
         </TabsContent>

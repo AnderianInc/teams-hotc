@@ -1381,6 +1381,10 @@ export type Database = {
       }
     }
     Functions: {
+      advance_interest_pipeline: {
+        Args: { _attendee_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
