@@ -692,28 +692,46 @@ export type Database = {
       }
       outreach_sequence_runs: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
+          body: string | null
+          channel: string | null
           detail: string | null
           external_record_id: string
           id: string
+          recipient: string | null
           sent_at: string
           sequence_id: string
           status: string
+          subject: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          body?: string | null
+          channel?: string | null
           detail?: string | null
           external_record_id: string
           id?: string
+          recipient?: string | null
           sent_at?: string
           sequence_id: string
           status?: string
+          subject?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          body?: string | null
+          channel?: string | null
           detail?: string | null
           external_record_id?: string
           id?: string
+          recipient?: string | null
           sent_at?: string
           sequence_id?: string
           status?: string
+          subject?: string | null
         }
         Relationships: [
           {
@@ -742,6 +760,7 @@ export type Database = {
           description: string | null
           id: string
           offset_days: number
+          requires_approval: boolean
           source: string
           step_order: number
           template_slug: string | null
@@ -756,6 +775,7 @@ export type Database = {
           description?: string | null
           id?: string
           offset_days?: number
+          requires_approval?: boolean
           source: string
           step_order: number
           template_slug?: string | null
@@ -770,6 +790,7 @@ export type Database = {
           description?: string | null
           id?: string
           offset_days?: number
+          requires_approval?: boolean
           source?: string
           step_order?: number
           template_slug?: string | null
