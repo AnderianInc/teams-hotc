@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarClock, PlayCircle, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -27,11 +28,48 @@ type Sequence = {
   audience: "requester" | "fi_team";
   description: string | null;
   active: boolean;
+  requires_approval: boolean;
+};
+
+type Run = {
+  id: string;
+  external_record_id: string;
+  sequence_id: string;
+  status: "sent" | "skipped" | "failed" | "pending_approval";
+  detail: string | null;
+  sent_at: string;
+  subject: string | null;
+  body: string | null;
+  recipient: string | null;
+  channel: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+};
+
+// Template registry mirrored from edge function for preview only
+const TEMPLATES: Record<string, { subject: string; body: string }> = {
+  "prayer-alert-fi": { subject: "New prayer request received", body: "A new prayer request has come in from {{first_name}}.\n\nDetails: {{notes}}\n\nPlease follow up promptly." },
+  "prayer-ack-requester": { subject: "We're praying for you", body: "Hi {{first_name}}, we received your prayer request and our team is praying for you. — HOTC" },
+  "prayer-checkin-d3": { subject: "Checking in", body: "Hi {{first_name}}, just checking in — still praying with you. Anything we can help with? — HOTC" },
+  "prayer-invite-meeting": { subject: "You're invited to our prayer meeting", body: "Hi {{first_name}},\n\nWe'd love to have you join our next prayer gathering. Reply to this email for details.\n\n— HOTC" },
+  "visit-ack-requester": { subject: "Thank you for requesting a visit", body: "Hi {{first_name}},\n\nWe received your visit request and a member of our team will be in touch shortly to coordinate.\n\n— HOTC" },
+  "visit-alert-fi": { subject: "New visit request received", body: "A visit request from {{first_name}} just arrived. Please coordinate pickup/visit details.\n\nNotes: {{notes}}" },
+  "visit-pickup-confirm": { subject: "Pickup confirmation", body: "Hi {{first_name}}, this is HOTC confirming your visit. We'll send pickup details shortly." },
+  "interest-ack-sms": { subject: "Interest meeting confirmed", body: "Hi {{first_name}}, you're confirmed for our interest meeting on {{event_date}}. — HOTC" },
+  "interest-ack-email": { subject: "Interest meeting confirmed", body: "Hi {{first_name}},\n\nThanks for your interest! You're confirmed for our meeting on {{event_date}}. We'll send reminders as the date approaches.\n\n— HOTC" },
+  "interest-reminder-7d": { subject: "1 week until our meeting", body: "Hi {{first_name}}, just a heads-up — your interest meeting is one week away ({{event_date}})." },
+  "interest-reminder-2d": { subject: "2 days to go", body: "Hi {{first_name}}, your interest meeting is in 2 days ({{event_date}})." },
+  "interest-reminder-1d-email": { subject: "Tomorrow's meeting", body: "Hi {{first_name}}, looking forward to seeing you tomorrow ({{event_date}})." },
+  "interest-reminder-1d-sms": { subject: "Tomorrow", body: "Hi {{first_name}}, see you tomorrow ({{event_date}})! — HOTC" },
+  "interest-day-of-email": { subject: "Today's the day", body: "Hi {{first_name}}, looking forward to seeing you today. — HOTC" },
+  "interest-day-of-sms": { subject: "Today", body: "Hi {{first_name}}, see you today! — HOTC" },
 };
 
 export default function PlannedOutreachPanel() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [reviewRunId, setReviewRunId] = useState<string | null>(null);
+  const [previewSlug, setPreviewSlug] = useState<string | null>(null);
 
   const { data: sequences = [] } = useQuery({
     queryKey: ["outreach-sequences-full"],
@@ -63,35 +101,26 @@ export default function PlannedOutreachPanel() {
 
   const { data: runs = [] } = useQuery({
     queryKey: ["outreach-runs"],
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("outreach_sequence_runs")
         .select("*")
         .order("sent_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
       if (error) throw error;
-      return data || [];
+      return (data || []) as Run[];
     },
   });
 
-  const runKey = (recId: string, seqId: string) => `${recId}:${seqId}`;
-  const ranMap = useMemo(() => {
-    const m = new Map<string, any>();
-    runs.forEach((r: any) => m.set(runKey(r.external_record_id, r.sequence_id), r));
+  const runByKey = useMemo(() => {
+    const m = new Map<string, Run>();
+    runs.forEach((r) => m.set(`${r.external_record_id}:${r.sequence_id}`, r));
     return m;
   }, [runs]);
 
-  // Build planned list
   const planned = useMemo(() => {
-    const rows: Array<{
-      recordId: string;
-      source: string;
-      name: string;
-      seq: Sequence;
-      dueAt: number;
-      ran?: any;
-    }> = [];
+    const rows: Array<{ recordId: string; source: string; name: string; seq: Sequence; dueAt: number; ran?: Run }> = [];
     for (const rec of records as any[]) {
       const seqs = sequences.filter((s) => s.source === rec.source && s.active);
       for (const seq of seqs) {
@@ -104,28 +133,52 @@ export default function PlannedOutreachPanel() {
           name: rec.payload?.name || "—",
           seq,
           dueAt,
-          ran: ranMap.get(runKey(rec.id, seq.id)),
+          ran: runByKey.get(`${rec.id}:${seq.id}`),
         });
       }
     }
     return rows.sort((a, b) => a.dueAt - b.dueAt);
-  }, [records, sequences, ranMap]);
+  }, [records, sequences, runByKey]);
 
   const now = Date.now();
+  const pendingApproval = runs.filter((r) => r.status === "pending_approval");
   const upcoming = planned.filter((p) => !p.ran && p.dueAt > now);
   const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now);
-  const completed = planned.filter((p) => p.ran);
+  const completed = planned.filter((p) => p.ran && p.ran.status !== "pending_approval");
 
-  const runNow = useMutation({
+  const runDispatcher = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("outreach-dispatch", { body: {} });
       if (error) throw error;
       return data;
     },
     onSuccess: (d: any) => {
-      toast.success(`Dispatched ${d?.dispatched ?? 0}, skipped ${d?.skipped ?? 0}`);
+      toast.success(`Queued ${d?.queued ?? 0}, sent ${d?.dispatched ?? 0}, skipped ${d?.skipped ?? 0}`);
       qc.invalidateQueries({ queryKey: ["outreach-runs"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const decide = useMutation({
+    mutationFn: async ({ run_id, action, reason }: { run_id: string; action: "approve" | "reject"; reason?: string }) => {
+      const { data, error } = await supabase.functions.invoke("outreach-approve", { body: { run_id, action, reason } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any, vars) => {
+      toast.success(vars.action === "approve" ? `Sent (${d?.status})` : "Rejected");
+      setReviewRunId(null);
+      qc.invalidateQueries({ queryKey: ["outreach-runs"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleApproval = useMutation({
+    mutationFn: async ({ id, requires_approval }: { id: string; requires_approval: boolean }) => {
+      const { error } = await supabase.from("outreach_sequences").update({ requires_approval }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["outreach-sequences-full"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -137,55 +190,111 @@ export default function PlannedOutreachPanel() {
     onSuccess: () => {
       toast.success("Step removed");
       qc.invalidateQueries({ queryKey: ["outreach-sequences-full"] });
-      qc.invalidateQueries({ queryKey: ["outreach-sequences"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const renderRow = (p: typeof planned[number]) => (
-    <TableRow key={`${p.recordId}-${p.seq.id}`}>
+  const seqById = useMemo(() => new Map(sequences.map((s) => [s.id, s])), [sequences]);
+  const recById = useMemo(() => new Map((records as any[]).map((r) => [r.id, r])), [records]);
+  const activeRun = reviewRunId ? runs.find((r) => r.id === reviewRunId) : null;
+
+  const statusBadge = (s: Run["status"]) => {
+    if (s === "sent") return <Badge>sent</Badge>;
+    if (s === "failed") return <Badge variant="destructive">failed</Badge>;
+    if (s === "pending_approval") return <Badge variant="secondary">needs approval</Badge>;
+    return <Badge variant="outline">skipped</Badge>;
+  };
+
+  const renderPlannedRow = (p: typeof planned[number]) => (
+    <TableRow
+      key={`${p.recordId}-${p.seq.id}`}
+      className={p.ran ? "cursor-pointer hover:bg-muted/50" : ""}
+      onClick={() => p.ran && setReviewRunId(p.ran.id)}
+    >
       <TableCell><Badge variant="outline">{SRC_LABEL[p.source]}</Badge></TableCell>
       <TableCell className="font-medium">{p.name}</TableCell>
       <TableCell className="text-xs">{p.seq.description || p.seq.template_slug}</TableCell>
       <TableCell><Badge variant="secondary" className="text-xs">{p.seq.channel}</Badge></TableCell>
       <TableCell className="text-xs text-muted-foreground">{p.seq.audience}</TableCell>
       <TableCell className="text-xs">
-        {format(new Date(p.dueAt), "MMM d, h:mm a")}
-        <span className="text-muted-foreground"> ({formatDistanceToNow(new Date(p.dueAt), { addSuffix: true })})</span>
+        {format(new Date(p.dueAt), "MMM d, h:mm a")}{" "}
+        <span className="text-muted-foreground">({formatDistanceToNow(new Date(p.dueAt), { addSuffix: true })})</span>
       </TableCell>
       <TableCell>
-        {p.ran ? (
-          <Badge variant={p.ran.status === "sent" ? "default" : p.ran.status === "failed" ? "destructive" : "outline"}>
-            {p.ran.status}
-          </Badge>
-        ) : p.dueAt <= now ? (
-          <Badge variant="destructive">due</Badge>
-        ) : (
-          <Badge variant="outline">scheduled</Badge>
-        )}
+        {p.ran ? statusBadge(p.ran.status) : p.dueAt <= now ? <Badge variant="destructive">due</Badge> : <Badge variant="outline">scheduled</Badge>}
       </TableCell>
     </TableRow>
   );
 
   return (
     <div className="space-y-6">
+      {pendingApproval.length > 0 && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm">
+          <ShieldAlert className="h-4 w-4 text-amber-600" />
+          <span className="font-medium">{pendingApproval.length} outreach message{pendingApproval.length === 1 ? "" : "s"} waiting for your review.</span>
+        </div>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <CalendarClock className="h-4 w-4" /> Planned outreach
           </CardTitle>
-          <Button size="sm" onClick={() => runNow.mutate()} disabled={runNow.isPending}>
-            <PlayCircle className={`h-4 w-4 mr-2 ${runNow.isPending ? "animate-pulse" : ""}`} />
+          <Button size="sm" onClick={() => runDispatcher.mutate()} disabled={runDispatcher.isPending}>
+            <PlayCircle className={`h-4 w-4 mr-2 ${runDispatcher.isPending ? "animate-pulse" : ""}`} />
             Run dispatcher now
           </Button>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="due">
+          <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
             <TabsList>
+              <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
               <TabsTrigger value="due">Due now ({dueNow.length})</TabsTrigger>
               <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="pending">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead>Subject / preview</TableHead>
+                    <TableHead>Queued</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingApproval.map((r) => {
+                    const seq = seqById.get(r.sequence_id);
+                    const rec = recById.get(r.external_record_id);
+                    return (
+                      <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
+                        <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source}</Badge></TableCell>
+                        <TableCell className="font-medium">
+                          {rec?.payload?.name || "—"}
+                          <div className="text-xs text-muted-foreground">{r.recipient}</div>
+                        </TableCell>
+                        <TableCell><Badge variant="secondary" className="text-xs">{r.channel}</Badge></TableCell>
+                        <TableCell className="text-xs max-w-[420px] truncate">
+                          <span className="font-medium">{r.subject}</span> — {r.body?.slice(0, 100)}
+                        </TableCell>
+                        <TableCell className="text-xs">{formatDistanceToNow(new Date(r.sent_at), { addSuffix: true })}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setReviewRunId(r.id); }}>Review</Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {pendingApproval.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nothing waiting</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TabsContent>
+
             {(["due", "upcoming", "completed"] as const).map((key) => {
               const list = key === "due" ? dueNow : key === "upcoming" ? upcoming : completed;
               return (
@@ -203,7 +312,7 @@ export default function PlannedOutreachPanel() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {list.slice(0, 200).map(renderRow)}
+                      {list.slice(0, 200).map(renderPlannedRow)}
                       {list.length === 0 && (
                         <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
                       )}
@@ -221,17 +330,11 @@ export default function PlannedOutreachPanel() {
           <CardTitle className="text-base">Automation steps</CardTitle>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-1" /> New step
-              </Button>
+              <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> New step</Button>
             </DialogTrigger>
             <NewStepDialog
               existingSteps={sequences}
-              onDone={() => {
-                setOpen(false);
-                qc.invalidateQueries({ queryKey: ["outreach-sequences-full"] });
-                qc.invalidateQueries({ queryKey: ["outreach-sequences"] });
-              }}
+              onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["outreach-sequences-full"] }); }}
             />
           </Dialog>
         </CardHeader>
@@ -244,9 +347,10 @@ export default function PlannedOutreachPanel() {
                 <TableHead>Step</TableHead>
                 <TableHead>Channel</TableHead>
                 <TableHead>Audience</TableHead>
-                <TableHead>Offset (d)</TableHead>
+                <TableHead>Offset</TableHead>
                 <TableHead>Anchor</TableHead>
-                <TableHead>Active</TableHead>
+                <TableHead>Review before send</TableHead>
+                <TableHead>Template</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -258,17 +362,23 @@ export default function PlannedOutreachPanel() {
                   <TableCell className="text-xs">{s.description || s.template_slug}</TableCell>
                   <TableCell>{s.channel}</TableCell>
                   <TableCell>{s.audience}</TableCell>
-                  <TableCell>{s.offset_days}</TableCell>
+                  <TableCell>{s.offset_days}d</TableCell>
                   <TableCell className="text-xs">{s.anchor}</TableCell>
-                  <TableCell>{s.active ? "Yes" : "No"}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={s.requires_approval}
+                      onCheckedChange={(v) => toggleApproval.mutate({ id: s.id, requires_approval: v })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {s.template_slug && TEMPLATES[s.template_slug] ? (
+                      <Button size="sm" variant="ghost" onClick={() => setPreviewSlug(s.template_slug)}>Preview</Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        if (confirm("Remove this automation step?")) removeSeq.mutate(s.id);
-                      }}
-                    >
+                    <Button size="sm" variant="ghost" onClick={() => { if (confirm("Remove this step?")) removeSeq.mutate(s.id); }}>
                       <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   </TableCell>
@@ -278,17 +388,78 @@ export default function PlannedOutreachPanel() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Review dialog */}
+      <Dialog open={!!reviewRunId} onOpenChange={(o) => !o && setReviewRunId(null)}>
+        <DialogContent className="max-w-2xl">
+          {activeRun && (() => {
+            const seq = seqById.get(activeRun.sequence_id);
+            const rec = recById.get(activeRun.external_record_id);
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{activeRun.subject || "Outreach message"}</DialogTitle>
+                  <DialogDescription>
+                    {SRC_LABEL[seq?.source || ""] || seq?.source} · {activeRun.channel} · to {activeRun.recipient || "—"}
+                    {rec?.payload?.name ? ` (${rec.payload.name})` : ""}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Step: {seq?.description || seq?.template_slug}</span>
+                    <span>·</span>
+                    <span>Status: </span>{statusBadge(activeRun.status)}
+                  </div>
+                  {activeRun.detail && (
+                    <div className="rounded border bg-muted/30 px-3 py-2 text-xs"><strong>Note:</strong> {activeRun.detail}</div>
+                  )}
+                  <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{activeRun.body}</pre>
+                  </div>
+                  {activeRun.approved_at && (
+                    <div className="text-xs text-muted-foreground">
+                      Actioned {format(new Date(activeRun.approved_at), "MMM d, h:mm a")}
+                    </div>
+                  )}
+                </div>
+                {activeRun.status === "pending_approval" && (
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => decide.mutate({ run_id: activeRun.id, action: "reject", reason: "Reviewer rejected" })} disabled={decide.isPending}>
+                      <X className="h-4 w-4 mr-1" /> Reject
+                    </Button>
+                    <Button onClick={() => decide.mutate({ run_id: activeRun.id, action: "approve" })} disabled={decide.isPending}>
+                      <Check className="h-4 w-4 mr-1" /> Approve & send
+                    </Button>
+                  </DialogFooter>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Template preview */}
+      <Dialog open={!!previewSlug} onOpenChange={(o) => !o && setPreviewSlug(null)}>
+        <DialogContent>
+          {previewSlug && TEMPLATES[previewSlug] && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{TEMPLATES[previewSlug].subject}</DialogTitle>
+                <DialogDescription>Template: {previewSlug}</DialogDescription>
+              </DialogHeader>
+              <div className="rounded border bg-background p-3 max-h-[50vh] overflow-auto">
+                <pre className="whitespace-pre-wrap font-sans text-sm">{TEMPLATES[previewSlug].body}</pre>
+              </div>
+              <p className="text-xs text-muted-foreground">Placeholders like <code>{"{{first_name}}"}</code> are filled per recipient at send time.</p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function NewStepDialog({
-  existingSteps,
-  onDone,
-}: {
-  existingSteps: Sequence[];
-  onDone: () => void;
-}) {
+function NewStepDialog({ existingSteps, onDone }: { existingSteps: Sequence[]; onDone: () => void }) {
   const [source, setSource] = useState<"prayer" | "visit" | "interest">("interest");
   const [channel, setChannel] = useState<"email" | "sms" | "task">("email");
   const [audience, setAudience] = useState<"requester" | "fi_team">("requester");
@@ -296,39 +467,28 @@ function NewStepDialog({
   const [offset, setOffset] = useState(1);
   const [description, setDescription] = useState("");
   const [templateSlug, setTemplateSlug] = useState("");
+  const [requiresApproval, setRequiresApproval] = useState(true);
 
   const nextOrder = (existingSteps.filter((s) => s.source === source).reduce((m, s) => Math.max(m, s.step_order), 0)) + 1;
 
   const create = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("outreach_sequences").insert({
-        source,
-        step_order: nextOrder,
-        offset_days: offset,
-        anchor,
-        channel,
-        template_slug: templateSlug || null,
-        audience,
-        description: description || null,
-        active: true,
+        source, step_order: nextOrder, offset_days: offset, anchor, channel,
+        template_slug: templateSlug || null, audience, description: description || null,
+        active: true, requires_approval: requiresApproval,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("Automation step created");
-      onDone();
-    },
+    onSuccess: () => { toast.success("Step created"); onDone(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   return (
     <DialogContent>
-      <DialogHeader>
-        <DialogTitle>New automation step</DialogTitle>
-      </DialogHeader>
+      <DialogHeader><DialogTitle>New automation step</DialogTitle></DialogHeader>
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label>Source</Label>
+        <div><Label>Source</Label>
           <Select value={source} onValueChange={(v: any) => setSource(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -338,8 +498,7 @@ function NewStepDialog({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Channel</Label>
+        <div><Label>Channel</Label>
           <Select value={channel} onValueChange={(v: any) => setChannel(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -349,8 +508,7 @@ function NewStepDialog({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Audience</Label>
+        <div><Label>Audience</Label>
           <Select value={audience} onValueChange={(v: any) => setAudience(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -359,8 +517,7 @@ function NewStepDialog({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Anchor</Label>
+        <div><Label>Anchor</Label>
           <Select value={anchor} onValueChange={(v: any) => setAnchor(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -369,22 +526,21 @@ function NewStepDialog({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Offset (days from anchor; negative = before)</Label>
+        <div><Label>Offset (days; negative = before)</Label>
           <Input type="number" value={offset} onChange={(e) => setOffset(parseInt(e.target.value, 10) || 0)} />
         </div>
-        <div>
-          <Label>Template slug</Label>
+        <div><Label>Template slug</Label>
           <Input value={templateSlug} onChange={(e) => setTemplateSlug(e.target.value)} placeholder="interest-ack-email" />
         </div>
-        <div className="col-span-2">
-          <Label>Description</Label>
+        <div className="col-span-2"><Label>Description</Label>
           <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Friendly description" />
         </div>
+        <div className="col-span-2 flex items-center gap-2">
+          <Switch checked={requiresApproval} onCheckedChange={setRequiresApproval} id="ra" />
+          <Label htmlFor="ra">Require admin review before sending</Label>
+        </div>
       </div>
-      <DialogFooter>
-        <Button onClick={() => create.mutate()} disabled={create.isPending}>Create step</Button>
-      </DialogFooter>
+      <DialogFooter><Button onClick={() => create.mutate()} disabled={create.isPending}>Create step</Button></DialogFooter>
     </DialogContent>
   );
 }
