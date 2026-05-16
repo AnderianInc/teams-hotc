@@ -133,6 +133,8 @@ export default function AdminPanel() {
             <TabsContent value="dir-groups"><GroupsManagement /></TabsContent>
             <TabsContent value="dir-birthdays"><BirthdaysPanel /></TabsContent>
             <TabsContent value="dir-inreach"><InreachDashboard /></TabsContent>
+            <TabsContent value="dir-meetings"><InterestMeetings /></TabsContent>
+            <TabsContent value="dir-outreach"><PlannedOutreachPanel /></TabsContent>
           </Tabs>
         </TabsContent>
 
