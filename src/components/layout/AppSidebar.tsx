@@ -60,18 +60,11 @@ const teamIcons: Record<string, React.ElementType> = {
 };
 
 const adminSubItems = [
-  { label: "Volunteers", value: "volunteers", icon: UserCheck },
   { label: "Teams", value: "teams", icon: UsersRound },
-  { label: "Roster", value: "roster", icon: CalendarDays },
-  { label: "Attendance", value: "attendance", icon: ClipboardCheck },
-  { label: "Groups", value: "groups", icon: Network },
-  { label: "Inreach", value: "inreach", icon: Heart },
   { label: "Directory", value: "directory", icon: BookOpen },
-  { label: "Org Chart", value: "organogram", icon: Network },
   { label: "Communications", value: "communications", icon: Mail },
-  { label: "Feedback", value: "feedback", icon: MessageCircle },
-  { label: "Requests", value: "requests", icon: Inbox },
-  { label: "Import", value: "import", icon: Upload },
+  { label: "Org Chart", value: "organogram", icon: Network },
+  { label: "Settings", value: "settings", icon: Shield },
 ];
 
 export function AppSidebar() {
