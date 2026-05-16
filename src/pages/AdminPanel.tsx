@@ -19,6 +19,7 @@ import TimezoneSettings from "@/components/admin/TimezoneSettings";
 import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
+import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };
