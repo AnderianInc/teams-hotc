@@ -79,7 +79,7 @@ export function AppSidebar() {
 
   // Extract active tab from URL search params
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get("tab") || "volunteers";
+  const activeTab = searchParams.get("tab") || "dashboard";
 
   const handleAdminTab = (tab: string) => {
     navigate(`/admin?tab=${tab}`);
