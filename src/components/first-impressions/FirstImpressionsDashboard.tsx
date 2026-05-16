@@ -4,6 +4,7 @@ import AttendeeList from "./AttendeeList";
 import FollowUpList from "./FollowUpList";
 import QRCodeDisplay from "./QRCodeDisplay";
 import OutreachPipeline from "./OutreachPipeline";
+import IncomingExternal from "./IncomingExternal";
 
 export default function FirstImpressionsDashboard() {
   return (
