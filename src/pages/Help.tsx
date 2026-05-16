@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, BookOpen, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Search, BookOpen, ThumbsUp, ThumbsDown, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,13 +76,28 @@ export default function Help() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-          <BookOpen className="h-5 w-5 text-primary-foreground" />
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
+            <BookOpen className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-display font-bold tracking-tight">Help Center</h1>
+            <p className="text-muted-foreground">How to use HOTC Volunteer Hub</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-display font-bold tracking-tight">Help Center</h1>
-          <p className="text-muted-foreground">How to use HOTC Volunteer Hub</p>
+        <div className="flex items-center gap-2">
+          {current && (
+            <Button variant="ghost" size="sm" onClick={() => navigate("/help")}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> All articles
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+          <Button variant="default" size="sm" onClick={() => navigate("/dashboard")}>
+            Back to app
+          </Button>
         </div>
       </div>
 
