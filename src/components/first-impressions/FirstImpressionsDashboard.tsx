@@ -19,7 +19,6 @@ export default function FirstImpressionsDashboard() {
         </div>
       </div>
 
-      <IncomingExternal />
 
       <Tabs defaultValue="attendees" className="w-full">
         <TabsList>
