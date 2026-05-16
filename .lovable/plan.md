@@ -1,79 +1,120 @@
 
+## Goal
+1. Read three external data sources (prayer requests, visit requests, interest meetings) from the read-only API and merge them into this app's `attendees` + `follow_ups` outreach pipeline with source-specific automated sequences that converge on Visited → Connected → Member.
+2. Add an in-app Docs & Help center so admins, staff, team leads, and members can learn the system without external training.
 
-## Fix Roster Calendar: Event Creation, Deletion, and Assignment Issues
+---
 
-### Root Cause Analysis
+## Part A — Outreach integration
 
-There are two key problems:
+### 1. External API sync
+New edge function `outreach-sync` (admin-only + scheduled):
+- Stores secret `OUTREACH_API_KEY` (you'll provide after approval).
+- On each run, hits `/prayer-requests`, `/visit-requests`, `/interest-meetings` with `?since=<last_sync>&limit=500`, paginating with `offset`.
+- Tracks last-sync timestamp per endpoint in a new `external_sync_state` table.
+- Manual "Sync now" button (admin) plus `pg_cron` every 15 min.
 
-1. **RLS blocking event creation**: When creating events from the admin calendar, `team_id` is set to `null` (since events are now top-level entities with teams linked via `roster_event_teams`). The team lead INSERT policy on `roster_events` requires `team_id IS NOT NULL`, so it fails silently. Only the admin ALL policy works, but if the current user's admin role isn't detected, nothing happens.
+### 2. Data model
+**`external_records`**: `source` (`prayer`|`visit`|`interest`), `external_id` (UUID upstream), `payload jsonb`, `status` (`pending_review`|`merged`|`created`|`ignored`), `attendee_id`, `received_at`, `processed_at`. Unique `(source, external_id)`.
 
-2. **RLS blocking event deletion**: The `deleteEvent` mutation deletes from `roster_entries`, `roster_event_teams`, and `roster_events` in sequence. The team lead DELETE policy on `roster_events` also requires `team_id IS NOT NULL`, so deleting top-level events (with `team_id = null`) fails for team leads.
+**`external_sync_state`**: `source`, `last_synced_at`, `last_run_status`, `last_error`.
 
-3. **Assign dialog member loading**: The `members` query in `RosterCalendarView` depends on `assignTeamId`, which loads members for the selected team. This works correctly but the `roleTypes` query uses `activeTeamId` (a derived value from `assignTeamId || editTeamId`) which could be stale.
+**`outreach_sequences`**: `source`, `step_order`, `offset_days`, `anchor` (`received`|`event_date`), `channel` (`email`|`sms`|`task`), `template_slug`, `audience` (`requester`|`fi_team`).
 
-### What Gets Fixed
+**`outreach_sequence_runs`**: tracks dispatched steps to prevent duplicates (`external_record_id`, `step_order`, `sent_at`).
 
-**1. Database Migration — Fix RLS policies for top-level events**
-- Update `roster_events` INSERT policy for team leads to also allow inserting when `team_id IS NULL` if the user is a team lead of any team (since the team association goes through the junction table)
-- Update `roster_events` DELETE and UPDATE policies similarly
-- Alternative (simpler): Allow team leads to insert/update/delete events where `team_id IS NULL` by checking if they lead any team
+### 3. Dedup logic
+- Exact match on email or normalized phone → link, mark `merged`.
+- Near match (same last name + phone last-4) → `pending_review` for FI to confirm.
+- No match → create attendee with source tag, mark `created`.
 
-**2. RosterCalendarView.tsx — Ensure dialogs and mutations work**
-- Verify the create event flow properly opens and submits
-- Ensure delete event cascade works (entries → event_teams → events)
-- Fix the assign volunteer flow to correctly load members based on the selected team within the event
+### 4. Tag taxonomy
+- `source:prayer-request`, `source:visit-request`, `source:interest-meeting`.
+- `contacted` + `contacted:<YYYY-MM-DD>` auto-applied via DB trigger on `follow_up_activities` insert (works for existing first-timers too).
 
-**3. RosterEventManager.tsx — Team dashboard event management**
-- Same RLS fix applies; team leads creating events with `team_id = null` need the policy update
+### 5. Source sequences (seeded; admin-editable)
+All sequences end by ensuring an outreach `follow_ups` row exists so the existing pipeline picks them up.
 
-### Technical Details
+**Prayer request** *(default — please confirm)*
+- Day 0: alert email to FI/pastoral team, assign on-call pastor, SMS acknowledgement to requester (if opted-in).
+- Day 3: SMS check-in.
+- Day 7: invite to next prayer meeting (email).
+- Day 10: enter pipeline at `interested`.
 
-**Migration SQL:**
-```sql
--- Drop restrictive team lead policies on roster_events
-DROP POLICY IF EXISTS "Team leads can insert roster events" ON public.roster_events;
-DROP POLICY IF EXISTS "Team leads can delete roster events" ON public.roster_events;
-DROP POLICY IF EXISTS "Team leads can update roster events" ON public.roster_events;
+**Visit request**
+- Day 0: email acknowledgement to requester, alert email to FI team, SMS to confirm pickup details.
+- Add to pipeline at `interested`; once `first_visit_date` is set, existing first-timer trigger advances to `visited`.
+- (Twilio delivery receipts: noted as future work.)
 
--- Create a helper function: is user a lead of ANY team?
-CREATE OR REPLACE FUNCTION public.is_any_team_lead(_user_id uuid)
-RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.team_members
-    WHERE user_id = _user_id AND role = 'team_lead'
-  )
-$$;
+**Interest meeting** (anchored to `event_date`)
+- Day 0: SMS + email acknowledgement.
+- E-7, E-2, E-1, E-0: email reminders (plus SMS on E-1 and E-0).
+- Post-event: enter pipeline at `visited`.
 
--- Team leads can insert events (top-level with null team_id)
-CREATE POLICY "Team leads can insert roster events"
-ON public.roster_events FOR INSERT TO authenticated
-WITH CHECK (public.is_any_team_lead(auth.uid()));
+A new `outreach-dispatch` edge function runs hourly via cron, finds due steps, and sends via existing `send-email` / `send-sms` functions. SMS gated by `sms_opt_in`.
 
--- Team leads can update events they created or that link to their team
-CREATE POLICY "Team leads can update roster events"
-ON public.roster_events FOR UPDATE TO authenticated
-USING (
-  public.is_any_team_lead(auth.uid())
-  OR (team_id IS NOT NULL AND is_team_lead(auth.uid(), team_id))
-);
+### 6. UI
+**Admin Panel → "External Sources" tab**: connection status, last sync, "Sync now", sequence editor, pending-review duplicate queue (Merge / Create-new / Ignore).
 
--- Team leads can delete events
-CREATE POLICY "Team leads can delete roster events"
-ON public.roster_events FOR DELETE TO authenticated
-USING (
-  public.is_any_team_lead(auth.uid())
-  OR (team_id IS NOT NULL AND is_team_lead(auth.uid(), team_id))
-);
-```
+**First Impressions dashboard → "Incoming" panel**: new external records (last 14 days) grouped by source with "Open follow-up" action; source badges on existing pipeline cards.
 
-**Files to modify:**
-- `src/components/admin/RosterCalendarView.tsx` — Add better error handling/toast on mutation failures, ensure the day-click → create event flow works end-to-end
-- `src/components/teams/RosterEventManager.tsx` — Same error handling improvements
+---
 
-**Files to create:**
-- New migration for RLS policy updates and `is_any_team_lead` function
+## Part B — In-app Docs & Help
 
+### Structure
+New route `/help` (also linked from sidebar footer and a `?` icon in the top bar). Markdown-driven, rendered with `react-markdown`. Content lives in `src/content/help/*.md` so non-devs can edit via the codebase view; an index in `src/content/help/index.ts` defines the navigation tree and required role for each article.
+
+### Sections (initial articles)
+**Getting started**
+- Welcome & system overview
+- Roles explained (Admin, Staff, Team Lead, Member)
+- Signing in, profile setup, SMS opt-in
+
+**First Impressions**
+- Registering a visitor at the kiosk / QR welcome
+- Outreach pipeline: stages and how cards advance
+- External sources (prayer/visit/interest): what auto-syncs and what to review
+- Logging a follow-up activity (and the auto "contacted" tag)
+
+**Children's Ministry**
+- Check-in / check-out flow, offline mode, printer pairing
+- Registering a family, age/grade rooms
+
+**Teams & Scheduling**
+- Adding members, team types (Ministry / Volunteer / Staff)
+- Building a roster, blocking dates, accepting/declining assignments
+- Calendar view
+
+**Communications**
+- Sending email/SMS, using templates and the AI composer
+- Birthday automation
+- SMS opt-in rules
+
+**Admin**
+- Directory management, deletion requests, organogram
+- Security & RLS overview (plain English)
+- Configuring external sources & sequences
+
+**Troubleshooting & FAQ**
+- "I'm not receiving roster emails" → check spam, notification settings, profile email
+- "External record didn't sync" → check Admin → External Sources → last-run status
+- Common error messages
+
+### Features of the help center
+- Sidebar with section tree + sticky breadcrumbs.
+- Client-side search across article titles + body (Fuse.js).
+- Role-aware visibility (Admin-only articles hidden from members).
+- Each article supports embedded screenshots (`src/content/help/images/`) and short looped GIFs where useful.
+- "Was this helpful?" thumbs that write to a new `help_feedback` table (admin reads in Admin Panel → Feedback).
+- Contextual "Learn more" links from key UI surfaces (pipeline header, scheduling screen, kiosk page) deep-link into the matching article.
+
+### Public docs entry point
+- Public `/help` works without auth for general articles flagged `public: true` (e.g. "What is HOTC Volunteer Hub", SMS policy summary). Role-gated articles redirect to login.
+
+---
+
+## Open items to confirm
+1. Prayer-request sequence — confirm or amend the default above.
+2. OK to auto-create attendees for unmatched external records, or require FI review first in all cases?
+3. Any articles you want in the first cut beyond the list above?
