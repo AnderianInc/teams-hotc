@@ -79,7 +79,7 @@ export default function ExternalSourcesPanel() {
 
   const updateSeq = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Record<string, any> }) => {
-      const { error } = await supabase.from("outreach_sequences").update(patch).eq("id", id);
+      const { error } = await supabase.from("outreach_sequences").update(patch as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
