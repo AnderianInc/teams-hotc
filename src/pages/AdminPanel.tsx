@@ -164,6 +164,7 @@ export default function AdminPanel() {
             <TabsContent value="set-feedback"><FeedbackReview /></TabsContent>
             <TabsContent value="set-requests"><DeletionRequests /></TabsContent>
             <TabsContent value="set-sources"><ExternalSourcesPanel /></TabsContent>
+            <TabsContent value="set-outreach"><PlannedOutreachPanel /></TabsContent>
             <TabsContent value="set-import"><BulkImport /></TabsContent>
           </Tabs>
         </TabsContent>
