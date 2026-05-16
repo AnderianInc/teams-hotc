@@ -20,32 +20,63 @@ import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 
-const ADMIN_TABS = new Set([
-  "volunteers",
-  "teams",
-  "roster",
-  "attendance",
-  "groups",
-  "inreach",
-  "directory",
-  "birthdays",
-  "organogram",
-  "communications",
-  "feedback",
-  "requests",
-  "import",
-  "sources",
-  "settings",
-]);
+type SubTab = { value: string; label: string };
+type Group = { label: string; default: string; subs: SubTab[] };
+
+const GROUPS: Record<string, Group> = {
+  teams: {
+    label: "Teams",
+    default: "teams-teams",
+    subs: [
+      { value: "teams-teams", label: "Teams" },
+      { value: "teams-volunteers", label: "Volunteers" },
+      { value: "teams-roster", label: "Roster" },
+    ],
+  },
+  directory: {
+    label: "Directory",
+    default: "dir-directory",
+    subs: [
+      { value: "dir-directory", label: "Directory" },
+      { value: "dir-attendance", label: "Attendance" },
+      { value: "dir-groups", label: "Groups" },
+      { value: "dir-birthdays", label: "Birthdays" },
+      { value: "dir-inreach", label: "Inreach" },
+    ],
+  },
+  communications: { label: "Communications", default: "communications", subs: [] },
+  organogram: { label: "Org Chart", default: "organogram", subs: [] },
+  settings: {
+    label: "Settings",
+    default: "set-general",
+    subs: [
+      { value: "set-general", label: "General" },
+      { value: "set-feedback", label: "Feedback" },
+      { value: "set-requests", label: "Requests" },
+      { value: "set-sources", label: "External Sources" },
+      { value: "set-import", label: "Import" },
+    ],
+  },
+};
+
+function findGroup(tab: string): string {
+  for (const [key, g] of Object.entries(GROUPS)) {
+    if (tab === key) return key;
+    if (g.subs.some((s) => s.value === tab)) return key;
+  }
+  return "teams";
+}
 
 export default function AdminPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get("tab") || "volunteers";
-  const activeTab = ADMIN_TABS.has(requestedTab) ? requestedTab : "roster";
+  const requestedTab = searchParams.get("tab") || GROUPS.teams.default;
+  const activeGroup = findGroup(requestedTab);
+  const groupDef = GROUPS[activeGroup];
+  const activeSub = groupDef.subs.length
+    ? (groupDef.subs.find((s) => s.value === requestedTab)?.value ?? groupDef.default)
+    : groupDef.default;
 
-  const handleTabChange = (value: string) => {
-    setSearchParams({ tab: value });
-  };
+  const setTab = (value: string) => setSearchParams({ tab: value });
 
   return (
     <div className="space-y-6">
@@ -55,81 +86,84 @@ export default function AdminPanel() {
         </div>
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight">Admin Panel</h1>
-          <p className="text-muted-foreground">Manage teams, volunteers, and settings</p>
+          <p className="text-muted-foreground">Manage teams, directory, and settings</p>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
-          <TabsTrigger value="teams">Teams</TabsTrigger>
-          <TabsTrigger value="roster">Roster</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="groups">Groups</TabsTrigger>
-          <TabsTrigger value="inreach">Inreach</TabsTrigger>
-          <TabsTrigger value="directory">Directory</TabsTrigger>
-          <TabsTrigger value="birthdays">Birthdays</TabsTrigger>
-          <TabsTrigger value="organogram">Org Chart</TabsTrigger>
-          <TabsTrigger value="communications">Communications</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
-          <TabsTrigger value="import">Import</TabsTrigger>
-          <TabsTrigger value="sources">External Sources</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+      <Tabs value={activeGroup} onValueChange={(v) => setTab(GROUPS[v].default)} className="w-full">
+        <TabsList>
+          {Object.keys(GROUPS).map((k) => (
+            <TabsTrigger key={k} value={k}>{GROUPS[k].label}</TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="volunteers">
-          <VolunteerManagement />
-        </TabsContent>
+
+        {/* Teams group */}
         <TabsContent value="teams">
-          <TeamManagement />
+          <Tabs value={activeSub} onValueChange={setTab}>
+            <TabsList className="bg-muted/50">
+              {GROUPS.teams.subs.map((s) => (
+                <TabsTrigger key={s.value} value={s.value}>{s.label}</TabsTrigger>
+              ))}
+            </TabsList>
+            <TabsContent value="teams-teams"><TeamManagement /></TabsContent>
+            <TabsContent value="teams-volunteers"><VolunteerManagement /></TabsContent>
+            <TabsContent value="teams-roster">
+              <div className="space-y-6">
+                <RosterCalendarView />
+                <ChurchRoster />
+              </div>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value="roster">
-          <div className="space-y-6">
-            <RosterCalendarView />
-            <ChurchRoster />
-          </div>
-        </TabsContent>
-        <TabsContent value="attendance">
-          <WeeklyAttendance />
-        </TabsContent>
-        <TabsContent value="groups">
-          <GroupsManagement />
-        </TabsContent>
-        <TabsContent value="inreach">
-          <InreachDashboard />
-        </TabsContent>
+
+        {/* Directory group */}
         <TabsContent value="directory">
-          <ChurchDirectory />
+          <Tabs value={activeSub} onValueChange={setTab}>
+            <TabsList className="bg-muted/50">
+              {GROUPS.directory.subs.map((s) => (
+                <TabsTrigger key={s.value} value={s.value}>{s.label}</TabsTrigger>
+              ))}
+            </TabsList>
+            <TabsContent value="dir-directory"><ChurchDirectory /></TabsContent>
+            <TabsContent value="dir-attendance"><WeeklyAttendance /></TabsContent>
+            <TabsContent value="dir-groups"><GroupsManagement /></TabsContent>
+            <TabsContent value="dir-birthdays"><BirthdaysPanel /></TabsContent>
+            <TabsContent value="dir-inreach"><InreachDashboard /></TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value="birthdays">
-          <BirthdaysPanel />
+
+        {/* Communications */}
+        <TabsContent value="communications">
+          <CommunicationsPanel />
         </TabsContent>
+
+        {/* Org Chart */}
         <TabsContent value="organogram">
           <div className="space-y-6">
             <StaffRolesManager />
             <Organogram />
           </div>
         </TabsContent>
-        <TabsContent value="communications">
-          <CommunicationsPanel />
-        </TabsContent>
-        <TabsContent value="feedback">
-          <FeedbackReview />
-        </TabsContent>
-        <TabsContent value="requests">
-          <DeletionRequests />
-        </TabsContent>
-        <TabsContent value="import">
-          <BulkImport />
-        </TabsContent>
-        <TabsContent value="sources">
-          <ExternalSourcesPanel />
-        </TabsContent>
+
+        {/* Settings group */}
         <TabsContent value="settings">
-          <div className="space-y-6">
-            <AdminRolesManager />
-            <TimezoneSettings />
-          </div>
+          <Tabs value={activeSub} onValueChange={setTab}>
+            <TabsList className="bg-muted/50">
+              {GROUPS.settings.subs.map((s) => (
+                <TabsTrigger key={s.value} value={s.value}>{s.label}</TabsTrigger>
+              ))}
+            </TabsList>
+            <TabsContent value="set-general">
+              <div className="space-y-6">
+                <AdminRolesManager />
+                <TimezoneSettings />
+              </div>
+            </TabsContent>
+            <TabsContent value="set-feedback"><FeedbackReview /></TabsContent>
+            <TabsContent value="set-requests"><DeletionRequests /></TabsContent>
+            <TabsContent value="set-sources"><ExternalSourcesPanel /></TabsContent>
+            <TabsContent value="set-import"><BulkImport /></TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
