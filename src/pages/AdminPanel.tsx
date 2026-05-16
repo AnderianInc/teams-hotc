@@ -55,6 +55,7 @@ const GROUPS: Record<string, Group> = {
       { value: "set-feedback", label: "Feedback" },
       { value: "set-requests", label: "Requests" },
       { value: "set-sources", label: "External Sources" },
+      { value: "set-outreach", label: "Planned Outreach" },
       { value: "set-import", label: "Import" },
     ],
   },
