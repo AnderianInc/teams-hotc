@@ -21,11 +21,17 @@ import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 import InterestMeetings from "@/components/admin/InterestMeetings";
+import AdminDashboard from "@/components/admin/AdminDashboard";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };
 
 const GROUPS: Record<string, Group> = {
+  dashboard: {
+    label: "Dashboard",
+    default: "dashboard",
+    subs: [],
+  },
   teams: {
     label: "Teams",
     default: "teams-teams",
