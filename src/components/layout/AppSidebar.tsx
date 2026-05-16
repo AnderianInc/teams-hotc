@@ -47,6 +47,7 @@ import {
   Heart,
   Network,
   Upload,
+  HelpCircle,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
@@ -199,6 +200,14 @@ export function AppSidebar() {
               <NavLink to="/profile" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
                 <User className="h-4 w-4" />
                 <span>My Profile</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to="/help" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <HelpCircle className="h-4 w-4" />
+                <span>Help & Docs</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>

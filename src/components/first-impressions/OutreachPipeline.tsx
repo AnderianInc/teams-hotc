@@ -16,6 +16,27 @@ const STAGES = [
 
 type Stage = typeof STAGES[number]["key"];
 
+const SOURCE_META: Record<string, { label: string; className: string }> = {
+  "source:prayer-request": { label: "Prayer", className: "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30" },
+  "source:visit-request": { label: "Visit", className: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30" },
+  "source:interest-meeting": { label: "Interest", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30" },
+};
+
+function SourceBadges({ tags }: { tags?: string[] | null }) {
+  if (!tags?.length) return null;
+  const sources = tags.filter((t) => SOURCE_META[t]);
+  if (!sources.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {sources.map((t) => (
+        <Badge key={t} variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${SOURCE_META[t].className}`}>
+          {SOURCE_META[t].label}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
 export default function OutreachPipeline() {
   const queryClient = useQueryClient();
 
@@ -26,7 +47,7 @@ export default function OutreachPipeline() {
       // profiles:assigned_to would need an FK to profiles.user_id; since assigned_to
       // references auth.users, we fetch assignee names via a separate profiles query
       const { data, error } = await (supabase.from as any)("follow_ups")
-        .select("*, attendees(first_name, last_name, first_visit_date, email, phone)")
+        .select("*, attendees(first_name, last_name, first_visit_date, email, phone, tags)")
         .eq("type", "outreach")
         .not("prospect_pipeline_stage", "is", null)
         .order("created_at", { ascending: false });
@@ -223,6 +244,7 @@ export default function OutreachPipeline() {
                       <p className="font-medium leading-tight">
                         {item.attendees?.first_name} {item.attendees?.last_name}
                       </p>
+                      <SourceBadges tags={item.attendees?.tags} />
                       {days !== null && (
                         <p className="text-xs text-muted-foreground">{days}d since first visit</p>
                       )}
