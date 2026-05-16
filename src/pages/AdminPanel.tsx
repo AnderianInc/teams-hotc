@@ -20,9 +20,10 @@ import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 
-// Top-level groups and their sub-tabs. Sub-tab values must be globally unique
-// so the sidebar can deep-link to any of them via ?tab=<sub>.
-const GROUPS = {
+type SubTab = { value: string; label: string };
+type Group = { label: string; default: string; subs: SubTab[] };
+
+const GROUPS: Record<string, Group> = {
   teams: {
     label: "Teams",
     default: "teams-teams",
@@ -56,13 +57,10 @@ const GROUPS = {
       { value: "set-import", label: "Import" },
     ],
   },
-} as const;
+};
 
-type GroupKey = keyof typeof GROUPS;
-
-// Resolve which top-level group a requested tab belongs to.
-function findGroup(tab: string): GroupKey {
-  for (const [key, g] of Object.entries(GROUPS) as [GroupKey, typeof GROUPS[GroupKey]][]) {
+function findGroup(tab: string): string {
+  for (const [key, g] of Object.entries(GROUPS)) {
     if (tab === key) return key;
     if (g.subs.some((s) => s.value === tab)) return key;
   }
@@ -75,6 +73,8 @@ export default function AdminPanel() {
   const activeGroup = findGroup(requestedTab);
   const groupDef = GROUPS[activeGroup];
   const activeSub = groupDef.subs.length
+    ? (groupDef.subs.find((s) => s.value === requestedTab)?.value ?? groupDef.default)
+    : groupDef.default;
     ? (groupDef.subs.find((s) => s.value === requestedTab)?.value ?? groupDef.default)
     : groupDef.default;
 
