@@ -386,6 +386,78 @@ export type Database = {
         }
         Relationships: []
       }
+      external_records: {
+        Row: {
+          attendee_id: string | null
+          created_at: string
+          event_date: string | null
+          external_id: string
+          id: string
+          match_reason: string | null
+          payload: Json
+          processed_at: string | null
+          received_at: string
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attendee_id?: string | null
+          created_at?: string
+          event_date?: string | null
+          external_id: string
+          id?: string
+          match_reason?: string | null
+          payload?: Json
+          processed_at?: string | null
+          received_at?: string
+          source: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attendee_id?: string | null
+          created_at?: string
+          event_date?: string | null
+          external_id?: string
+          id?: string
+          match_reason?: string | null
+          payload?: Json
+          processed_at?: string | null
+          received_at?: string
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      external_sync_state: {
+        Row: {
+          last_error: string | null
+          last_run_status: string | null
+          last_synced_at: string | null
+          records_imported: number
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          last_error?: string | null
+          last_run_status?: string | null
+          last_synced_at?: string | null
+          records_imported?: number
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          last_error?: string | null
+          last_run_status?: string | null
+          last_synced_at?: string | null
+          records_imported?: number
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           created_at: string
@@ -555,6 +627,33 @@ export type Database = {
           },
         ]
       }
+      help_feedback: {
+        Row: {
+          article_slug: string
+          comment: string | null
+          created_at: string
+          helpful: boolean
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          article_slug: string
+          comment?: string | null
+          created_at?: string
+          helpful: boolean
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          article_slug?: string
+          comment?: string | null
+          created_at?: string
+          helpful?: boolean
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -588,6 +687,93 @@ export type Database = {
           title?: string
           type?: string
           url?: string | null
+        }
+        Relationships: []
+      }
+      outreach_sequence_runs: {
+        Row: {
+          detail: string | null
+          external_record_id: string
+          id: string
+          sent_at: string
+          sequence_id: string
+          status: string
+        }
+        Insert: {
+          detail?: string | null
+          external_record_id: string
+          id?: string
+          sent_at?: string
+          sequence_id: string
+          status?: string
+        }
+        Update: {
+          detail?: string | null
+          external_record_id?: string
+          id?: string
+          sent_at?: string
+          sequence_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_sequence_runs_external_record_id_fkey"
+            columns: ["external_record_id"]
+            isOneToOne: false
+            referencedRelation: "external_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_sequence_runs_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_sequences: {
+        Row: {
+          active: boolean
+          anchor: string
+          audience: string
+          channel: string
+          created_at: string
+          description: string | null
+          id: string
+          offset_days: number
+          source: string
+          step_order: number
+          template_slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          anchor?: string
+          audience?: string
+          channel: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          offset_days?: number
+          source: string
+          step_order: number
+          template_slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          anchor?: string
+          audience?: string
+          channel?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          offset_days?: number
+          source?: string
+          step_order?: number
+          template_slug?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

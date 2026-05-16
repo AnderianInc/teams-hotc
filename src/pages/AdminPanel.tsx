@@ -18,6 +18,7 @@ import StaffRolesManager from "@/components/admin/StaffRolesManager";
 import TimezoneSettings from "@/components/admin/TimezoneSettings";
 import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
+import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 
 const ADMIN_TABS = new Set([
   "volunteers",
@@ -33,6 +34,7 @@ const ADMIN_TABS = new Set([
   "feedback",
   "requests",
   "import",
+  "sources",
   "settings",
 ]);
 
@@ -72,6 +74,7 @@ export default function AdminPanel() {
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
+          <TabsTrigger value="sources">External Sources</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="volunteers">
@@ -118,6 +121,9 @@ export default function AdminPanel() {
         </TabsContent>
         <TabsContent value="import">
           <BulkImport />
+        </TabsContent>
+        <TabsContent value="sources">
+          <ExternalSourcesPanel />
         </TabsContent>
         <TabsContent value="settings">
           <div className="space-y-6">
