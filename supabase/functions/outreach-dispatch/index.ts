@@ -199,6 +199,21 @@ Deno.serve(async (req) => {
         detail,
       });
 
+      // Auto-advance interest-meeting prospects to "invited" on first successful
+      // outbound to the requester.
+      if (
+        status === "sent" &&
+        seq.audience === "requester" &&
+        rec.source === "interest" &&
+        attendee?.id
+      ) {
+        try {
+          await supabase.rpc("advance_interest_pipeline", { _attendee_id: attendee.id });
+        } catch (e) {
+          console.error("advance_interest_pipeline failed", e);
+        }
+      }
+
       if (status === "sent") dispatched++;
       else skipped++;
     }
