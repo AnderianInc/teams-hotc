@@ -265,11 +265,13 @@ export default function PlannedOutreachPanel() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
               <TabsTrigger value="due">Due now ({dueNow.length})</TabsTrigger>
               <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
+              <TabsTrigger value="skipped">Skipped ({skippedRuns.length})</TabsTrigger>
+              <TabsTrigger value="failed">Failed ({failedRuns.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="pending">
