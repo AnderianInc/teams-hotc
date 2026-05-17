@@ -152,11 +152,12 @@ export default function PlannedOutreachPanel() {
 
   const now = Date.now();
   const pendingApproval = runs.filter((r) => r.status === "pending_approval");
+  const approvedScheduled = runs.filter((r) => r.status === "approved");
   const skippedRuns = runs.filter((r) => r.status === "skipped");
   const failedRuns = runs.filter((r) => r.status === "failed");
   const upcoming = planned.filter((p) => !p.ran && p.dueAt > now);
   const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now);
-  const completed = planned.filter((p) => p.ran && p.ran.status !== "pending_approval");
+  const completed = planned.filter((p) => p.ran && p.ran.status === "sent");
 
   const runDispatcher = useMutation({
     mutationFn: async () => {
@@ -181,7 +182,11 @@ export default function PlannedOutreachPanel() {
       return data;
     },
     onSuccess: (d: any, vars) => {
-      toast.success(vars.action === "approve" ? `Sent (${d?.status})` : "Rejected");
+      if (vars.action === "approve") {
+        toast.success(d?.status === "approved" ? "Approved — will send at scheduled time" : `Sent (${d?.status})`);
+      } else {
+        toast.success("Rejected");
+      }
       setReviewRunId(null);
       qc.invalidateQueries({ queryKey: ["outreach-runs"] });
     },
@@ -217,6 +222,7 @@ export default function PlannedOutreachPanel() {
     if (s === "sent") return <Badge>sent</Badge>;
     if (s === "failed") return <Badge variant="destructive">failed</Badge>;
     if (s === "pending_approval") return <Badge variant="secondary">needs approval</Badge>;
+    if (s === "approved") return <Badge variant="secondary">approved · scheduled</Badge>;
     return <Badge variant="outline">skipped</Badge>;
   };
 
