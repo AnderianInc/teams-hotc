@@ -208,7 +208,10 @@ export default function AdminDashboard() {
       </div>
 
       {data && data.pendingDeletion > 0 && (
-        <Card className="border-destructive/40">
+        <Card
+          className="border-destructive/40 cursor-pointer hover:bg-destructive/5"
+          onClick={() => navigate("/admin?tab=set-requests")}
+        >
           <CardHeader>
             <CardTitle className="text-base">Action needed</CardTitle>
           </CardHeader>
