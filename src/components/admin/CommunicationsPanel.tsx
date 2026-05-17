@@ -4,6 +4,7 @@ import EmailLog from "./EmailLog";
 import EmailTemplates from "./EmailTemplates";
 import SmsComposer from "./SmsComposer";
 import SmsLog from "./SmsLog";
+import SmsOptInManager from "./SmsOptInManager";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -24,11 +25,12 @@ export default function CommunicationsPanel() {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList>
+      <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="compose">Email</TabsTrigger>
         <TabsTrigger value="sms">Text (SMS)</TabsTrigger>
         <TabsTrigger value="log">Email Log</TabsTrigger>
         <TabsTrigger value="sms-log">SMS Log</TabsTrigger>
+        <TabsTrigger value="sms-opt-in">SMS Opt-in</TabsTrigger>
         <TabsTrigger value="templates">Templates</TabsTrigger>
       </TabsList>
       <TabsContent value="compose" className="space-y-6">
@@ -49,6 +51,9 @@ export default function CommunicationsPanel() {
       </TabsContent>
       <TabsContent value="sms-log">
         <SmsLog />
+      </TabsContent>
+      <TabsContent value="sms-opt-in">
+        <SmsOptInManager />
       </TabsContent>
       <TabsContent value="templates">
         <EmailTemplates onUseTemplate={handleUseTemplate} />
