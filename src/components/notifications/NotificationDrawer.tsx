@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useNotifications, AppNotification } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
+import { AdminTasksPanel } from "./AdminTasksPanel";
 
 interface Props {
   open: boolean;
