@@ -99,11 +99,20 @@ Deno.serve(async (req) => {
       const dueAt = new Date(anchorDate).getTime() + seq.offset_days * 86400000;
       if (Date.now() < dueAt) continue;
 
-      const tpl = renderTemplate(seq.template_slug, {
+      const baseTpl = renderTemplate(seq.template_slug, {
         first_name: attendee?.first_name || "",
         notes: (rec.payload as any)?.notes || (rec.payload as any)?.message || "",
         event_date: rec.event_date || "",
       });
+      const ctx = {
+        first_name: attendee?.first_name || "",
+        notes: (rec.payload as any)?.notes || (rec.payload as any)?.message || "",
+        event_date: rec.event_date || "",
+      };
+      const tpl = {
+        subject: seq.subject_override ? applyVars(seq.subject_override, ctx) : baseTpl.subject,
+        body: seq.body_override ? applyVars(seq.body_override, ctx) : baseTpl.body,
+      };
 
       // Resolve recipient + early-skip reasons
       let recipient: string | null = null;
