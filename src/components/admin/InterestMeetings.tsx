@@ -11,6 +11,12 @@ import { CalendarDays, Pencil } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { toast } from "sonner";
 
+// Parse YYYY-MM-DD as a local-time date to avoid UTC→local shifting it back a day
+function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
 type Record = {
   id: string;
   source: string;
