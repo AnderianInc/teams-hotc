@@ -27,14 +27,22 @@ function StatCard({
   value,
   hint,
   icon: Icon,
+  onClick,
 }: {
   label: string;
   value: number | string;
   hint?: string;
   icon: React.ElementType;
+  onClick?: () => void;
 }) {
   return (
-    <Card>
+    <Card
+      onClick={onClick}
+      className={onClick ? "cursor-pointer transition-colors hover:bg-muted/40 hover:border-primary/40" : ""}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
