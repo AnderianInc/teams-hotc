@@ -217,8 +217,12 @@ export default function PlannedOutreachPanel() {
   const renderPlannedRow = (p: typeof planned[number]) => (
     <TableRow
       key={`${p.recordId}-${p.seq.id}`}
-      className={p.ran ? "cursor-pointer hover:bg-muted/50" : ""}
-      onClick={() => p.ran && setReviewRunId(p.ran.id)}
+      className="cursor-pointer hover:bg-muted/50"
+      onClick={() =>
+        p.ran
+          ? setReviewRunId(p.ran.id)
+          : setPreviewPlanned({ recordId: p.recordId, seqId: p.seq.id, dueAt: p.dueAt })
+      }
     >
       <TableCell><Badge variant="outline">{SRC_LABEL[p.source]}</Badge></TableCell>
       <TableCell className="font-medium">{p.name}</TableCell>
