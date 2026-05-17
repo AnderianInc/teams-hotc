@@ -30,7 +30,13 @@ type Sequence = {
   description: string | null;
   active: boolean;
   requires_approval: boolean;
+  subject_override: string | null;
+  body_override: string | null;
 };
+
+function applyVars(text: string, ctx: Record<string, string>): string {
+  return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => ctx[k] ?? "");
+}
 
 type Run = {
   id: string;
