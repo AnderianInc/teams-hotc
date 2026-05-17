@@ -239,7 +239,13 @@ export default function PlannedOutreachPanel() {
         <span className="text-muted-foreground">({formatDistanceToNow(new Date(p.dueAt), { addSuffix: true })})</span>
       </TableCell>
       <TableCell>
-        {p.ran ? statusBadge(p.ran.status) : p.dueAt <= now ? <Badge variant="destructive">due</Badge> : <Badge variant="outline">scheduled</Badge>}
+        {p.ran
+          ? statusBadge(p.ran.status)
+          : p.dueAt <= now
+            ? (p.seq.requires_approval
+                ? <Badge variant="secondary" title="Run the dispatcher to queue for review">due · will need review</Badge>
+                : <Badge variant="destructive" title="Run the dispatcher to send">due · will auto-send</Badge>)
+            : <Badge variant="outline">scheduled</Badge>}
       </TableCell>
     </TableRow>
   );
