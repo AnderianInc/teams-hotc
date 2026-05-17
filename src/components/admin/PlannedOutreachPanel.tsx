@@ -151,6 +151,8 @@ export default function PlannedOutreachPanel() {
 
   const now = Date.now();
   const pendingApproval = runs.filter((r) => r.status === "pending_approval");
+  const skippedRuns = runs.filter((r) => r.status === "skipped");
+  const failedRuns = runs.filter((r) => r.status === "failed");
   const upcoming = planned.filter((p) => !p.ran && p.dueAt > now);
   const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now);
   const completed = planned.filter((p) => p.ran && p.ran.status !== "pending_approval");
