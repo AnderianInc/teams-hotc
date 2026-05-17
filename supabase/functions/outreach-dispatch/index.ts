@@ -73,6 +73,11 @@ async function sendRun(supabase: any, run: any, attendeeId: string | null) {
   return { status, detail };
 }
 
+async function insertRun(supabase: any, values: Record<string, unknown>) {
+  const { error } = await supabase.from("outreach_sequence_runs").insert(values);
+  if (error) throw new Error(`Could not save outreach run: ${error.message}`);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -159,7 +164,7 @@ Deno.serve(async (req) => {
       const scheduled_for = new Date(dueAt).toISOString();
 
       if (earlySkip) {
-        await supabase.from("outreach_sequence_runs").insert({
+        await insertRun(supabase, {
           external_record_id: rec.id,
           sequence_id: seq.id,
           status: "skipped",
@@ -175,7 +180,7 @@ Deno.serve(async (req) => {
       }
 
       if (seq.requires_approval) {
-        await supabase.from("outreach_sequence_runs").insert({
+        await insertRun(supabase, {
           external_record_id: rec.id,
           sequence_id: seq.id,
           status: "pending_approval",
@@ -196,7 +201,7 @@ Deno.serve(async (req) => {
         { channel: seq.channel, recipient, subject: tpl.subject, body: tpl.body },
         attendee?.id || null,
       );
-      await supabase.from("outreach_sequence_runs").insert({
+      await insertRun(supabase, {
         external_record_id: rec.id,
         sequence_id: seq.id,
         status,
