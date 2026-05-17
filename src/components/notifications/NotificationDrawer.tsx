@@ -79,6 +79,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
           </div>
         </SheetHeader>
         <Separator />
+        <AdminTasksPanel onNavigate={() => onOpenChange(false)} />
 
         <ScrollArea className="flex-1">
           {isLoading ? (
