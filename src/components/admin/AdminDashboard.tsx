@@ -131,6 +131,8 @@ function useDashboardStats(range: Range) {
 export default function AdminDashboard() {
   const [range, setRange] = useState<Range>("week");
   const { data, isLoading } = useDashboardStats(range);
+  const navigate = useNavigate();
+  const go = (path: string) => () => navigate(path);
 
   return (
     <div className="space-y-6">
@@ -155,45 +157,53 @@ export default function AdminDashboard() {
           value={isLoading ? "…" : data!.attendance}
           icon={CalendarCheck}
           hint="People marked present"
+          onClick={go("/admin?tab=dir-attendance")}
         />
         <StatCard
           label="New people"
           value={isLoading ? "…" : data!.newAttendees}
           icon={UserPlus}
           hint="Added to directory"
+          onClick={go("/admin?tab=dir-directory")}
         />
         <StatCard
           label="Emails sent"
           value={isLoading ? "…" : data!.emails}
           icon={Mail}
+          onClick={go("/admin?tab=communications")}
         />
         <StatCard
           label="SMS sent"
           value={isLoading ? "…" : data!.sms}
           icon={MessageSquare}
+          onClick={go("/admin?tab=communications")}
         />
         <StatCard
           label="Incoming outreach"
           value={isLoading ? "…" : data!.external}
           icon={Inbox}
           hint="Prayer / visit / interest"
+          onClick={go("/team/first-impressions")}
         />
         <StatCard
           label="Feedback received"
           value={isLoading ? "…" : data!.feedback}
           icon={Activity}
+          onClick={go("/admin?tab=set-feedback")}
         />
         <StatCard
           label="Pending follow-ups"
           value={isLoading ? "…" : data!.pendingFollowUps}
           icon={Users}
           hint="All-time open"
+          onClick={go("/team/first-impressions")}
         />
         <StatCard
           label="Awaiting approval"
           value={isLoading ? "…" : data!.pendingApproval}
           icon={Cake}
           hint="Outreach messages queued"
+          onClick={go("/admin?tab=dir-outreach")}
         />
       </div>
 
