@@ -151,6 +151,8 @@ export default function PlannedOutreachPanel() {
 
   const now = Date.now();
   const pendingApproval = runs.filter((r) => r.status === "pending_approval");
+  const skippedRuns = runs.filter((r) => r.status === "skipped");
+  const failedRuns = runs.filter((r) => r.status === "failed");
   const upcoming = planned.filter((p) => !p.ran && p.dueAt > now);
   const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now);
   const completed = planned.filter((p) => p.ran && p.ran.status !== "pending_approval");
@@ -162,7 +164,10 @@ export default function PlannedOutreachPanel() {
       return data;
     },
     onSuccess: (d: any) => {
-      toast.success(`Queued ${d?.queued ?? 0}, sent ${d?.dispatched ?? 0}, skipped ${d?.skipped ?? 0}`);
+      const q = d?.queued ?? 0;
+      toast.success(
+        `Sent ${d?.dispatched ?? 0} · ${q} waiting for review${q ? " (see 'Needs review' tab)" : ""} · ${d?.skipped ?? 0} skipped`,
+      );
       qc.invalidateQueries({ queryKey: ["outreach-runs"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -260,11 +265,13 @@ export default function PlannedOutreachPanel() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
               <TabsTrigger value="due">Due now ({dueNow.length})</TabsTrigger>
               <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
+              <TabsTrigger value="skipped">Skipped ({skippedRuns.length})</TabsTrigger>
+              <TabsTrigger value="failed">Failed ({failedRuns.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="pending">
@@ -328,6 +335,53 @@ export default function PlannedOutreachPanel() {
                       {list.slice(0, 200).map(renderPlannedRow)}
                       {list.length === 0 && (
                         <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+              );
+            })}
+
+            {(["skipped", "failed"] as const).map((key) => {
+              const list = key === "skipped" ? skippedRuns : failedRuns;
+              return (
+                <TabsContent key={key} value={key}>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {key === "skipped"
+                      ? "Steps the dispatcher reached but did not send — usually missing email, missing phone, or no SMS opt-in. Fix the underlying contact and re-run."
+                      : "Steps that errored while sending. Click a row to see the error detail."}
+                  </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Source</TableHead>
+                        <TableHead>Recipient</TableHead>
+                        <TableHead>Channel</TableHead>
+                        <TableHead>Step</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>When</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {list.map((r) => {
+                        const seq = seqById.get(r.sequence_id);
+                        const rec: any = recById.get(r.external_record_id);
+                        return (
+                          <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
+                            <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source || "—"}</Badge></TableCell>
+                            <TableCell className="font-medium">
+                              {rec?.payload?.name || "—"}
+                              <div className="text-xs text-muted-foreground">{r.recipient || "no recipient"}</div>
+                            </TableCell>
+                            <TableCell><Badge variant="secondary" className="text-xs">{r.channel || seq?.channel}</Badge></TableCell>
+                            <TableCell className="text-xs">{seq?.description || seq?.template_slug || "—"}</TableCell>
+                            <TableCell className="text-xs max-w-[320px] truncate">{r.detail || "—"}</TableCell>
+                            <TableCell className="text-xs">{formatDistanceToNow(new Date(r.sent_at), { addSuffix: true })}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {list.length === 0 && (
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
