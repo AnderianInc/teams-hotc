@@ -46,13 +46,13 @@ export function AdminTasksPanel({ onNavigate }: Props) {
 
   if (!isAdmin || !data) return null;
 
-  const rows: TaskRow[] = [
-    { key: "approvals", icon: ClipboardCheck, label: "Outreach awaiting approval", count: data.approvals, url: "/admin?tab=dir-outreach", tone: "warning" },
-    { key: "overdue", icon: AlertTriangle, label: "Overdue follow-ups", count: data.overdueFu, url: "/team/first-impressions", tone: "destructive" },
+  const rows: TaskRow[] = ([
+    { key: "approvals", icon: ClipboardCheck, label: "Outreach awaiting approval", count: data.approvals, url: "/admin?tab=dir-outreach", tone: "warning" as const },
+    { key: "overdue", icon: AlertTriangle, label: "Overdue follow-ups", count: data.overdueFu, url: "/team/first-impressions", tone: "destructive" as const },
     { key: "pending", icon: Clock, label: "Open follow-ups", count: data.pendingFu, url: "/team/first-impressions" },
-    { key: "externalPending", icon: Inbox, label: "Incoming needs review", count: data.externalPending, url: "/team/first-impressions", tone: "warning" },
-    { key: "deletions", icon: ShieldAlert, label: "Account deletion requests", count: data.deletions, url: "/admin?tab=set-requests", tone: "destructive" },
-  ].filter((r) => r.count > 0);
+    { key: "externalPending", icon: Inbox, label: "Incoming needs review", count: data.externalPending, url: "/team/first-impressions", tone: "warning" as const },
+    { key: "deletions", icon: ShieldAlert, label: "Account deletion requests", count: data.deletions, url: "/admin?tab=set-requests", tone: "destructive" as const },
+  ] as TaskRow[]).filter((r) => r.count > 0);
 
   if (rows.length === 0) return null;
 
