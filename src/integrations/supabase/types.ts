@@ -700,6 +700,7 @@ export type Database = {
           external_record_id: string
           id: string
           recipient: string | null
+          scheduled_for: string | null
           sent_at: string
           sequence_id: string
           status: string
@@ -714,6 +715,7 @@ export type Database = {
           external_record_id: string
           id?: string
           recipient?: string | null
+          scheduled_for?: string | null
           sent_at?: string
           sequence_id: string
           status?: string
@@ -728,6 +730,7 @@ export type Database = {
           external_record_id?: string
           id?: string
           recipient?: string | null
+          scheduled_for?: string | null
           sent_at?: string
           sequence_id?: string
           status?: string
