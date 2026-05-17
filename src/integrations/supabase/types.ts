@@ -755,6 +755,7 @@ export type Database = {
           active: boolean
           anchor: string
           audience: string
+          body_override: string | null
           channel: string
           created_at: string
           description: string | null
@@ -763,6 +764,7 @@ export type Database = {
           requires_approval: boolean
           source: string
           step_order: number
+          subject_override: string | null
           template_slug: string | null
           updated_at: string
         }
@@ -770,6 +772,7 @@ export type Database = {
           active?: boolean
           anchor?: string
           audience?: string
+          body_override?: string | null
           channel: string
           created_at?: string
           description?: string | null
@@ -778,6 +781,7 @@ export type Database = {
           requires_approval?: boolean
           source: string
           step_order: number
+          subject_override?: string | null
           template_slug?: string | null
           updated_at?: string
         }
@@ -785,6 +789,7 @@ export type Database = {
           active?: boolean
           anchor?: string
           audience?: string
+          body_override?: string | null
           channel?: string
           created_at?: string
           description?: string | null
@@ -793,6 +798,7 @@ export type Database = {
           requires_approval?: boolean
           source?: string
           step_order?: number
+          subject_override?: string | null
           template_slug?: string | null
           updated_at?: string
         }
