@@ -94,13 +94,13 @@ export default function InterestMeetings() {
 
       {grouped.map(([date, items]) => {
         const isUnscheduled = date === "unscheduled";
-        const past = !isUnscheduled && isPast(new Date(date));
+        const past = !isUnscheduled && isPast(parseLocalDate(date));
         return (
           <Card key={date}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <div>
                 <CardTitle className="text-base flex items-center gap-2">
-                  {isUnscheduled ? "Unscheduled" : format(new Date(date), "EEEE, MMM d, yyyy")}
+                  {isUnscheduled ? "Unscheduled" : format(parseLocalDate(date), "EEEE, MMM d, yyyy")}
                   {past && <Badge variant="secondary">past</Badge>}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">{items.length} attending</p>
