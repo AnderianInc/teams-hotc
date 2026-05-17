@@ -68,6 +68,24 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
 
   const userId = profileData?.user_id;
 
+  // Load existing SMS opt-in for attendee or profile
+  useEffect(() => {
+    if (!open || entry.source === "family") return;
+    (async () => {
+      if (entry.isVolunteerOnly) {
+        const { data } = await supabase.from("profiles").select("sms_opt_in").eq("user_id", entry.id).maybeSingle();
+        const v = !!data?.sms_opt_in;
+        setInitialSmsOptIn(v);
+        setForm((f) => ({ ...f, sms_opt_in: v }));
+      } else {
+        const { data } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
+        const v = !!data?.sms_opt_in;
+        setInitialSmsOptIn(v);
+        setForm((f) => ({ ...f, sms_opt_in: v }));
+      }
+    })();
+  }, [open, entry.id, entry.source, entry.isVolunteerOnly]);
+
   const update = (field: string, value: string | boolean) =>
     setForm((f) => ({ ...f, [field]: value }));
 
@@ -85,6 +103,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           .eq("id", entry.id);
         if (error) throw error;
       } else if (entry.isVolunteerOnly) {
+        const smsChanged = form.sms_opt_in !== initialSmsOptIn;
         const { error } = await supabase
           .from("profiles")
           .update({
@@ -92,10 +111,16 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             email: form.email || "",
             phone: form.phone || null,
             date_of_birth: form.date_of_birth || null,
+            sms_opt_in: form.sms_opt_in,
+            ...(smsChanged ? {
+              sms_opt_in_source: form.sms_opt_in ? "admin_override" : "admin_revoked",
+              sms_opt_in_at: new Date().toISOString(),
+            } : {}),
           })
           .eq("user_id", entry.id);
         if (error) throw error;
       } else {
+        const smsChanged = form.sms_opt_in !== initialSmsOptIn;
         const { error } = await supabase
           .from("attendees")
           .update({
@@ -105,6 +130,11 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             phone: form.phone || null,
             date_of_birth: form.date_of_birth || null,
             is_member: form.is_member,
+            sms_opt_in: form.sms_opt_in,
+            ...(smsChanged ? {
+              sms_opt_in_source: form.sms_opt_in ? "admin_override" : "admin_revoked",
+              sms_opt_in_at: new Date().toISOString(),
+            } : {}),
           })
           .eq("id", entry.id);
         if (error) throw error;
