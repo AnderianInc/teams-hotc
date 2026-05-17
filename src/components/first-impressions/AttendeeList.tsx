@@ -215,9 +215,15 @@ export default function AttendeeList() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={a.is_member ? "default" : "outline"}>
-                      {a.is_member ? "Member" : "Visitor"}
-                    </Badge>
+                    {a.is_member ? (
+                      <Badge variant="default">Member</Badge>
+                    ) : a.first_visit_date ? (
+                      <Badge variant="outline">Visitor</Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">
+                        Interested
+                      </Badge>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

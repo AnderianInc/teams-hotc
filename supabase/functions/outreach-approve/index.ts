@@ -89,8 +89,20 @@ Deno.serve(async (req) => {
     approved_at: new Date().toISOString(),
   }).eq("id", run_id);
 
-  if (!sendErr && rec?.source === "interest" && rec.attendee_id) {
-    try { await admin.rpc("advance_interest_pipeline", { _attendee_id: rec.attendee_id }); } catch (e) { console.error(e); }
+  if (!sendErr && rec?.attendee_id) {
+    // Mirror the send on the FI follow-up queue
+    try {
+      await admin
+        .from("follow_ups")
+        .update({ status: "contacted" })
+        .eq("attendee_id", rec.attendee_id)
+        .eq("type", "outreach")
+        .eq("status", "pending");
+    } catch (e) { console.error("follow_up status update failed", e); }
+
+    if (rec.source === "interest") {
+      try { await admin.rpc("advance_interest_pipeline", { _attendee_id: rec.attendee_id }); } catch (e) { console.error(e); }
+    }
   }
 
   return new Response(JSON.stringify({ ok: !sendErr, status: sendErr ? "failed" : "sent", error: sendErr }), {
