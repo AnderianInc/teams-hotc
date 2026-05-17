@@ -164,7 +164,10 @@ export default function PlannedOutreachPanel() {
       return data;
     },
     onSuccess: (d: any) => {
-      toast.success(`Queued ${d?.queued ?? 0}, sent ${d?.dispatched ?? 0}, skipped ${d?.skipped ?? 0}`);
+      const q = d?.queued ?? 0;
+      toast.success(
+        `Sent ${d?.dispatched ?? 0} · ${q} waiting for review${q ? " (see 'Needs review' tab)" : ""} · ${d?.skipped ?? 0} skipped`,
+      );
       qc.invalidateQueries({ queryKey: ["outreach-runs"] });
     },
     onError: (e: Error) => toast.error(e.message),
