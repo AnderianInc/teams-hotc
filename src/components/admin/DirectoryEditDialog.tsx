@@ -187,6 +187,21 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
               <Label>Member</Label>
             </div>
           )}
+          {entry.source !== "family" && (
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Switch
+                id="sms-opt-in"
+                checked={form.sms_opt_in}
+                onCheckedChange={(v) => update("sms_opt_in", v)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="sms-opt-in" className="cursor-pointer">SMS opt-in</Label>
+                <p className="text-xs text-muted-foreground">
+                  Only enable if the person has given verbal or written consent to receive text messages. Saving will record this change as an admin override with today's date.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Team Management Section */}
           {entry.source !== "family" && userId && (
