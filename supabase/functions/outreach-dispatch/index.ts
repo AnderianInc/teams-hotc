@@ -19,7 +19,13 @@ type Seq = {
   audience: "requester" | "fi_team";
   description: string | null;
   requires_approval: boolean;
+  subject_override: string | null;
+  body_override: string | null;
 };
+
+function applyVars(text: string, ctx: Record<string, string>): string {
+  return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => ctx[k] ?? "");
+}
 
 const FI_TEAM_EMAIL = "firstimpressions@hotc.life";
 
