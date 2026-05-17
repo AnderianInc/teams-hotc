@@ -77,6 +77,8 @@ export default function PlannedOutreachPanel() {
   const [open, setOpen] = useState(false);
   const [reviewRunId, setReviewRunId] = useState<string | null>(null);
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
+  const [editingSeq, setEditingSeq] = useState<Sequence | null>(null);
+  const [previewPlanned, setPreviewPlanned] = useState<{ recordId: string; seqId: string; dueAt: number } | null>(null);
 
   const { data: sequences = [] } = useQuery({
     queryKey: ["outreach-sequences-full"],
