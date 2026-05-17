@@ -1,0 +1,1 @@
+ALTER TABLE public.outreach_sequence_runs ADD COLUMN IF NOT EXISTS scheduled_for timestamptz;

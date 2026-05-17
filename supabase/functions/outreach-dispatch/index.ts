@@ -1,6 +1,7 @@
 // Runs hourly via pg_cron. For each due outreach_sequences step + external_record,
-// it renders the message. If the step requires approval, it queues a
-// `pending_approval` row in outreach_sequence_runs. Otherwise it sends immediately.
+// it renders the message. Approval-required steps are queued ahead of time
+// (regardless of due date) so they can be reviewed before they're due.
+// Approved-but-future rows are sent when the dispatcher next runs after dueAt.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -52,6 +53,26 @@ function renderTemplate(slug: string | null, ctx: Record<string, string>): { sub
   return map[slug || ""] || { subject: "HOTC update", body: `Hi ${name}` };
 }
 
+async function sendRun(supabase: any, run: any, attendeeId: string | null) {
+  let status: "sent" | "failed" = "sent";
+  let detail: string | null = null;
+  try {
+    if (run.channel === "email") {
+      await supabase.functions.invoke("send-email", {
+        body: { to: run.recipient, subject: run.subject, html: (run.body || "").replace(/\n/g, "<br/>"), related_attendee_id: attendeeId },
+      });
+    } else if (run.channel === "sms") {
+      await supabase.functions.invoke("send-sms", {
+        body: { to: run.recipient, body: run.body, related_attendee_id: attendeeId },
+      });
+    }
+  } catch (err) {
+    status = "failed";
+    detail = err instanceof Error ? err.message : String(err);
+  }
+  return { status, detail };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -75,6 +96,7 @@ Deno.serve(async (req) => {
   let dispatched = 0;
   let skipped = 0;
 
+  // === Pass 1: queue new rows / send non-approval steps that are due ===
   for (const rec of records || []) {
     const seqs = (sequences as Seq[]).filter((s) => s.source === rec.source);
 
@@ -97,7 +119,9 @@ Deno.serve(async (req) => {
       const anchorDate = seq.anchor === "event_date" ? rec.event_date : rec.received_at;
       if (!anchorDate) continue;
       const dueAt = new Date(anchorDate).getTime() + seq.offset_days * 86400000;
-      if (Date.now() < dueAt) continue;
+
+      // Non-approval steps only act once due
+      if (!seq.requires_approval && Date.now() < dueAt) continue;
 
       const baseTpl = renderTemplate(seq.template_slug, {
         first_name: attendee?.first_name || "",
@@ -114,7 +138,6 @@ Deno.serve(async (req) => {
         body: seq.body_override ? applyVars(seq.body_override, ctx) : baseTpl.body,
       };
 
-      // Resolve recipient + early-skip reasons
       let recipient: string | null = null;
       let earlySkip: string | null = null;
       if (seq.audience === "fi_team") {
@@ -133,7 +156,8 @@ Deno.serve(async (req) => {
         earlySkip = "no attendee linked";
       }
 
-      // Always queue a row so it shows up in review UI
+      const scheduled_for = new Date(dueAt).toISOString();
+
       if (earlySkip) {
         await supabase.from("outreach_sequence_runs").insert({
           external_record_id: rec.id,
@@ -144,6 +168,7 @@ Deno.serve(async (req) => {
           body: tpl.body,
           recipient,
           channel: seq.channel,
+          scheduled_for,
         });
         skipped++;
         continue;
@@ -159,29 +184,18 @@ Deno.serve(async (req) => {
           body: tpl.body,
           recipient,
           channel: seq.channel,
+          scheduled_for,
         });
         queued++;
         continue;
       }
 
-      // Send immediately (only if step explicitly opts out of approval)
-      let status: "sent" | "failed" = "sent";
-      let detail: string | null = null;
-      try {
-        if (seq.channel === "email") {
-          await supabase.functions.invoke("send-email", {
-            body: { to: recipient, subject: tpl.subject, html: tpl.body.replace(/\n/g, "<br/>"), related_attendee_id: attendee?.id },
-          });
-        } else if (seq.channel === "sms") {
-          await supabase.functions.invoke("send-sms", {
-            body: { to: recipient, body: tpl.body, related_attendee_id: attendee?.id },
-          });
-        }
-      } catch (err) {
-        status = "failed";
-        detail = err instanceof Error ? err.message : String(err);
-      }
-
+      // auto-send (no approval needed, due)
+      const { status, detail } = await sendRun(
+        supabase,
+        { channel: seq.channel, recipient, subject: tpl.subject, body: tpl.body },
+        attendee?.id || null,
+      );
       await supabase.from("outreach_sequence_runs").insert({
         external_record_id: rec.id,
         sequence_id: seq.id,
@@ -191,10 +205,10 @@ Deno.serve(async (req) => {
         body: tpl.body,
         recipient,
         channel: seq.channel,
+        scheduled_for,
       });
 
       if (status === "sent" && seq.audience === "requester" && attendee?.id) {
-        // Reflect the send on the FI follow-up queue
         try {
           await supabase
             .from("follow_ups")
@@ -203,13 +217,43 @@ Deno.serve(async (req) => {
             .eq("type", "outreach")
             .eq("status", "pending");
         } catch (e) { console.error("follow_up status update failed", e); }
-
         if (rec.source === "interest") {
           try { await supabase.rpc("advance_interest_pipeline", { _attendee_id: attendee.id }); } catch (e) { console.error(e); }
         }
       }
       dispatched++;
     }
+  }
+
+  // === Pass 2: send previously approved rows whose scheduled_for has arrived ===
+  const { data: approvedDue = [] } = await supabase
+    .from("outreach_sequence_runs")
+    .select("*, external_records!inner(source, attendee_id)")
+    .eq("status", "approved")
+    .lte("scheduled_for", new Date().toISOString());
+
+  for (const r of approvedDue as any[]) {
+    const attendeeId = r.external_records?.attendee_id || null;
+    const { status, detail } = await sendRun(supabase, r, attendeeId);
+    await supabase.from("outreach_sequence_runs").update({
+      status,
+      detail,
+      sent_at: new Date().toISOString(),
+    }).eq("id", r.id);
+    if (status === "sent" && attendeeId) {
+      try {
+        await supabase
+          .from("follow_ups")
+          .update({ status: "contacted" })
+          .eq("attendee_id", attendeeId)
+          .eq("type", "outreach")
+          .eq("status", "pending");
+      } catch (e) { console.error("follow_up status update failed", e); }
+      if (r.external_records?.source === "interest") {
+        try { await supabase.rpc("advance_interest_pipeline", { _attendee_id: attendeeId }); } catch (e) { console.error(e); }
+      }
+    }
+    if (status === "sent") dispatched++;
   }
 
   return new Response(JSON.stringify({ ok: true, queued, dispatched, skipped }), {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -40,8 +40,10 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     phone: entry.phone || "",
     date_of_birth: entry.date_of_birth || "",
     is_member: entry.is_member,
+    sms_opt_in: false,
   });
   const [saving, setSaving] = useState(false);
+  const [initialSmsOptIn, setInitialSmsOptIn] = useState<boolean>(false);
 
   // Find the user_id for this entry (needed for team management)
   const isVolunteerOnly = entry.isVolunteerOnly;
@@ -66,6 +68,24 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
 
   const userId = profileData?.user_id;
 
+  // Load existing SMS opt-in for attendee or profile
+  useEffect(() => {
+    if (!open || entry.source === "family") return;
+    (async () => {
+      if (entry.isVolunteerOnly) {
+        const { data } = await supabase.from("profiles").select("sms_opt_in").eq("user_id", entry.id).maybeSingle();
+        const v = !!data?.sms_opt_in;
+        setInitialSmsOptIn(v);
+        setForm((f) => ({ ...f, sms_opt_in: v }));
+      } else {
+        const { data } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
+        const v = !!data?.sms_opt_in;
+        setInitialSmsOptIn(v);
+        setForm((f) => ({ ...f, sms_opt_in: v }));
+      }
+    })();
+  }, [open, entry.id, entry.source, entry.isVolunteerOnly]);
+
   const update = (field: string, value: string | boolean) =>
     setForm((f) => ({ ...f, [field]: value }));
 
@@ -83,6 +103,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           .eq("id", entry.id);
         if (error) throw error;
       } else if (entry.isVolunteerOnly) {
+        const smsChanged = form.sms_opt_in !== initialSmsOptIn;
         const { error } = await supabase
           .from("profiles")
           .update({
@@ -90,10 +111,16 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             email: form.email || "",
             phone: form.phone || null,
             date_of_birth: form.date_of_birth || null,
+            sms_opt_in: form.sms_opt_in,
+            ...(smsChanged ? {
+              sms_opt_in_source: form.sms_opt_in ? "admin_override" : "admin_revoked",
+              sms_opt_in_at: new Date().toISOString(),
+            } : {}),
           })
           .eq("user_id", entry.id);
         if (error) throw error;
       } else {
+        const smsChanged = form.sms_opt_in !== initialSmsOptIn;
         const { error } = await supabase
           .from("attendees")
           .update({
@@ -103,6 +130,11 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             phone: form.phone || null,
             date_of_birth: form.date_of_birth || null,
             is_member: form.is_member,
+            sms_opt_in: form.sms_opt_in,
+            ...(smsChanged ? {
+              sms_opt_in_source: form.sms_opt_in ? "admin_override" : "admin_revoked",
+              sms_opt_in_at: new Date().toISOString(),
+            } : {}),
           })
           .eq("id", entry.id);
         if (error) throw error;
@@ -153,6 +185,21 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             <div className="flex items-center gap-3">
               <Switch checked={form.is_member} onCheckedChange={(v) => update("is_member", v)} />
               <Label>Member</Label>
+            </div>
+          )}
+          {entry.source !== "family" && (
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Switch
+                id="sms-opt-in"
+                checked={form.sms_opt_in}
+                onCheckedChange={(v) => update("sms_opt_in", v)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="sms-opt-in" className="cursor-pointer">SMS opt-in</Label>
+                <p className="text-xs text-muted-foreground">
+                  Only enable if the person has given verbal or written consent to receive text messages. Saving will record this change as an admin override with today's date.
+                </p>
+              </div>
             </div>
           )}
 

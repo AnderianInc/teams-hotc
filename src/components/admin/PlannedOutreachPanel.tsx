@@ -42,9 +42,10 @@ type Run = {
   id: string;
   external_record_id: string;
   sequence_id: string;
-  status: "sent" | "skipped" | "failed" | "pending_approval";
+  status: "sent" | "skipped" | "failed" | "pending_approval" | "approved";
   detail: string | null;
   sent_at: string;
+  scheduled_for: string | null;
   subject: string | null;
   body: string | null;
   recipient: string | null;
@@ -151,11 +152,12 @@ export default function PlannedOutreachPanel() {
 
   const now = Date.now();
   const pendingApproval = runs.filter((r) => r.status === "pending_approval");
+  const approvedScheduled = runs.filter((r) => r.status === "approved");
   const skippedRuns = runs.filter((r) => r.status === "skipped");
   const failedRuns = runs.filter((r) => r.status === "failed");
   const upcoming = planned.filter((p) => !p.ran && p.dueAt > now);
   const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now);
-  const completed = planned.filter((p) => p.ran && p.ran.status !== "pending_approval");
+  const completed = planned.filter((p) => p.ran && p.ran.status === "sent");
 
   const runDispatcher = useMutation({
     mutationFn: async () => {
@@ -180,7 +182,11 @@ export default function PlannedOutreachPanel() {
       return data;
     },
     onSuccess: (d: any, vars) => {
-      toast.success(vars.action === "approve" ? `Sent (${d?.status})` : "Rejected");
+      if (vars.action === "approve") {
+        toast.success(d?.status === "approved" ? "Approved — will send at scheduled time" : `Sent (${d?.status})`);
+      } else {
+        toast.success("Rejected");
+      }
       setReviewRunId(null);
       qc.invalidateQueries({ queryKey: ["outreach-runs"] });
     },
@@ -216,6 +222,7 @@ export default function PlannedOutreachPanel() {
     if (s === "sent") return <Badge>sent</Badge>;
     if (s === "failed") return <Badge variant="destructive">failed</Badge>;
     if (s === "pending_approval") return <Badge variant="secondary">needs approval</Badge>;
+    if (s === "approved") return <Badge variant="secondary">approved · scheduled</Badge>;
     return <Badge variant="outline">skipped</Badge>;
   };
 
@@ -273,14 +280,18 @@ export default function PlannedOutreachPanel() {
           <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
+              <TabsTrigger value="upcoming">Upcoming ({upcoming.length + approvedScheduled.length})</TabsTrigger>
               <TabsTrigger value="due">Due now ({dueNow.length})</TabsTrigger>
-              <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
               <TabsTrigger value="skipped">Skipped ({skippedRuns.length})</TabsTrigger>
               <TabsTrigger value="failed">Failed ({failedRuns.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="pending">
+              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs">
+                These items have been pre-queued for your review <strong>before</strong> their scheduled send time.
+                Approve to schedule the send; the dispatcher will deliver at the scheduled time (or immediately if already past).
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -288,7 +299,7 @@ export default function PlannedOutreachPanel() {
                     <TableHead>Recipient</TableHead>
                     <TableHead>Channel</TableHead>
                     <TableHead>Subject / preview</TableHead>
-                    <TableHead>Queued</TableHead>
+                    <TableHead>Scheduled send</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -296,6 +307,7 @@ export default function PlannedOutreachPanel() {
                   {pendingApproval.map((r) => {
                     const seq = seqById.get(r.sequence_id);
                     const rec = recById.get(r.external_record_id);
+                    const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
                     return (
                       <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
                         <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source}</Badge></TableCell>
@@ -307,7 +319,14 @@ export default function PlannedOutreachPanel() {
                         <TableCell className="text-xs max-w-[420px] truncate">
                           <span className="font-medium">{r.subject}</span> — {r.body?.slice(0, 100)}
                         </TableCell>
-                        <TableCell className="text-xs">{formatDistanceToNow(new Date(r.sent_at), { addSuffix: true })}</TableCell>
+                        <TableCell className="text-xs">
+                          {sched ? (
+                            <>
+                              {format(sched, "MMM d, h:mm a")}
+                              <div className="text-muted-foreground">{formatDistanceToNow(sched, { addSuffix: true })}</div>
+                            </>
+                          ) : "—"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setReviewRunId(r.id); }}>Review</Button>
                         </TableCell>
@@ -327,8 +346,13 @@ export default function PlannedOutreachPanel() {
                 <TabsContent key={key} value={key}>
                   {key === "due" && list.length > 0 && (
                     <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs">
-                      These items are <strong>scheduled but not yet processed</strong>. Click <em>Run dispatcher now</em> above — steps marked
-                      "will need review" then appear under <strong>Needs review</strong>; "will auto-send" steps send immediately.
+                      These items are <strong>past their scheduled time</strong> and have not yet been queued.
+                      Click <em>Run dispatcher now</em> to queue approval-required steps for review and auto-send the rest.
+                    </div>
+                  )}
+                  {key === "upcoming" && approvedScheduled.length > 0 && (
+                    <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs">
+                      <strong>{approvedScheduled.length}</strong> approved message{approvedScheduled.length === 1 ? " is" : "s are"} scheduled and will send automatically at the planned time.
                     </div>
                   )}
                   <Table>
