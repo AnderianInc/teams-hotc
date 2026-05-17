@@ -239,7 +239,13 @@ export default function PlannedOutreachPanel() {
         <span className="text-muted-foreground">({formatDistanceToNow(new Date(p.dueAt), { addSuffix: true })})</span>
       </TableCell>
       <TableCell>
-        {p.ran ? statusBadge(p.ran.status) : p.dueAt <= now ? <Badge variant="destructive">due</Badge> : <Badge variant="outline">scheduled</Badge>}
+        {p.ran
+          ? statusBadge(p.ran.status)
+          : p.dueAt <= now
+            ? (p.seq.requires_approval
+                ? <Badge variant="secondary" title="Run the dispatcher to queue for review">due · will need review</Badge>
+                : <Badge variant="destructive" title="Run the dispatcher to send">due · will auto-send</Badge>)
+            : <Badge variant="outline">scheduled</Badge>}
       </TableCell>
     </TableRow>
   );
@@ -319,6 +325,12 @@ export default function PlannedOutreachPanel() {
               const list = key === "due" ? dueNow : key === "upcoming" ? upcoming : completed;
               return (
                 <TabsContent key={key} value={key}>
+                  {key === "due" && list.length > 0 && (
+                    <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs">
+                      These items are <strong>scheduled but not yet processed</strong>. Click <em>Run dispatcher now</em> above — steps marked
+                      "will need review" then appear under <strong>Needs review</strong>; "will auto-send" steps send immediately.
+                    </div>
+                  )}
                   <Table>
                     <TableHeader>
                       <TableRow>
