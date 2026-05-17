@@ -341,6 +341,53 @@ export default function PlannedOutreachPanel() {
                 </TabsContent>
               );
             })}
+
+            {(["skipped", "failed"] as const).map((key) => {
+              const list = key === "skipped" ? skippedRuns : failedRuns;
+              return (
+                <TabsContent key={key} value={key}>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {key === "skipped"
+                      ? "Steps the dispatcher reached but did not send — usually missing email, missing phone, or no SMS opt-in. Fix the underlying contact and re-run."
+                      : "Steps that errored while sending. Click a row to see the error detail."}
+                  </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Source</TableHead>
+                        <TableHead>Recipient</TableHead>
+                        <TableHead>Channel</TableHead>
+                        <TableHead>Step</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>When</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {list.map((r) => {
+                        const seq = seqById.get(r.sequence_id);
+                        const rec: any = recById.get(r.external_record_id);
+                        return (
+                          <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
+                            <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source || "—"}</Badge></TableCell>
+                            <TableCell className="font-medium">
+                              {rec?.payload?.name || "—"}
+                              <div className="text-xs text-muted-foreground">{r.recipient || "no recipient"}</div>
+                            </TableCell>
+                            <TableCell><Badge variant="secondary" className="text-xs">{r.channel || seq?.channel}</Badge></TableCell>
+                            <TableCell className="text-xs">{seq?.description || seq?.template_slug || "—"}</TableCell>
+                            <TableCell className="text-xs max-w-[320px] truncate">{r.detail || "—"}</TableCell>
+                            <TableCell className="text-xs">{formatDistanceToNow(new Date(r.sent_at), { addSuffix: true })}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {list.length === 0 && (
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+              );
+            })}
           </Tabs>
         </CardContent>
       </Card>
