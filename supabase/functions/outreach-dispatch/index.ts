@@ -193,8 +193,20 @@ Deno.serve(async (req) => {
         channel: seq.channel,
       });
 
-      if (status === "sent" && seq.audience === "requester" && rec.source === "interest" && attendee?.id) {
-        try { await supabase.rpc("advance_interest_pipeline", { _attendee_id: attendee.id }); } catch (e) { console.error(e); }
+      if (status === "sent" && seq.audience === "requester" && attendee?.id) {
+        // Reflect the send on the FI follow-up queue
+        try {
+          await supabase
+            .from("follow_ups")
+            .update({ status: "contacted" })
+            .eq("attendee_id", attendee.id)
+            .eq("type", "outreach")
+            .eq("status", "pending");
+        } catch (e) { console.error("follow_up status update failed", e); }
+
+        if (rec.source === "interest") {
+          try { await supabase.rpc("advance_interest_pipeline", { _attendee_id: attendee.id }); } catch (e) { console.error(e); }
+        }
       }
       dispatched++;
     }
