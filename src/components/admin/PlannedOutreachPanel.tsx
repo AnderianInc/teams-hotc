@@ -42,9 +42,10 @@ type Run = {
   id: string;
   external_record_id: string;
   sequence_id: string;
-  status: "sent" | "skipped" | "failed" | "pending_approval";
+  status: "sent" | "skipped" | "failed" | "pending_approval" | "approved";
   detail: string | null;
   sent_at: string;
+  scheduled_for: string | null;
   subject: string | null;
   body: string | null;
   recipient: string | null;
