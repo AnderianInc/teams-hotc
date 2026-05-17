@@ -65,6 +65,20 @@ Deno.serve(async (req) => {
     .eq("id", run.external_record_id)
     .maybeSingle();
 
+  // If scheduled for the future, mark approved and let dispatcher send at due time
+  const scheduledMs = run.scheduled_for ? new Date(run.scheduled_for).getTime() : 0;
+  if (scheduledMs && scheduledMs > Date.now()) {
+    await admin.from("outreach_sequence_runs").update({
+      status: "approved",
+      detail: null,
+      approved_by: userId,
+      approved_at: new Date().toISOString(),
+    }).eq("id", run_id);
+    return new Response(JSON.stringify({ ok: true, status: "approved", scheduled_for: run.scheduled_for }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   let sendErr: string | null = null;
   try {
     if (run.channel === "email") {
