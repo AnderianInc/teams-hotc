@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Mail, MessageSquare, UserPlus, CalendarCheck, Inbox, Activity, Cake } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 type Range = "week" | "month" | "quarter" | "year";
 
