@@ -471,7 +471,172 @@ export default function PlannedOutreachPanel() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit step */}
+      <Dialog open={!!editingSeq} onOpenChange={(o) => !o && setEditingSeq(null)}>
+        {editingSeq && (
+          <EditStepDialog
+            seq={editingSeq}
+            onDone={() => { setEditingSeq(null); qc.invalidateQueries({ queryKey: ["outreach-sequences-full"] }); }}
+          />
+        )}
+      </Dialog>
+
+      {/* Planned (not yet run) preview */}
+      <Dialog open={!!previewPlanned} onOpenChange={(o) => !o && setPreviewPlanned(null)}>
+        <DialogContent className="max-w-2xl">
+          {previewPlanned && (() => {
+            const seq = seqById.get(previewPlanned.seqId);
+            const rec: any = recById.get(previewPlanned.recordId);
+            if (!seq || !rec) return null;
+            const ctx = {
+              first_name: (rec.payload?.name || "").split(" ")[0] || "",
+              notes: rec.payload?.notes || rec.payload?.message || "",
+              event_date: rec.event_date || "",
+            };
+            const baseTpl = seq.template_slug ? TEMPLATES[seq.template_slug] : null;
+            const subject = seq.subject_override ? applyVars(seq.subject_override, ctx) : applyVars(baseTpl?.subject || "", ctx);
+            const body = seq.body_override ? applyVars(seq.body_override, ctx) : applyVars(baseTpl?.body || "", ctx);
+            const dueLabel = format(new Date(previewPlanned.dueAt), "MMM d, yyyy h:mm a");
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{subject || "Outreach preview"}</DialogTitle>
+                  <DialogDescription>
+                    {SRC_LABEL[seq.source]} · {seq.channel} · to {rec.payload?.name || "—"} · scheduled {dueLabel}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="text-xs text-muted-foreground">
+                    Step: {seq.description || seq.template_slug} · {seq.requires_approval ? "Requires review" : "Auto-sends"}
+                  </div>
+                  <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{body}</pre>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setPreviewPlanned(null); setEditingSeq(seq); }}>
+                    <Pencil className="h-4 w-4 mr-1" /> Edit step
+                  </Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function EditStepDialog({ seq, onDone }: { seq: Sequence; onDone: () => void }) {
+  const [channel, setChannel] = useState(seq.channel);
+  const [audience, setAudience] = useState(seq.audience);
+  const [anchor, setAnchor] = useState(seq.anchor);
+  const [offset, setOffset] = useState(seq.offset_days);
+  const [stepOrder, setStepOrder] = useState(seq.step_order);
+  const [description, setDescription] = useState(seq.description || "");
+  const [templateSlug, setTemplateSlug] = useState(seq.template_slug || "");
+  const [requiresApproval, setRequiresApproval] = useState(seq.requires_approval);
+  const [active, setActive] = useState(seq.active);
+  const [subjectOverride, setSubjectOverride] = useState(seq.subject_override || "");
+  const [bodyOverride, setBodyOverride] = useState(seq.body_override || "");
+
+  const defaultTpl = templateSlug ? TEMPLATES[templateSlug] : null;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("outreach_sequences").update({
+        channel, audience, anchor, offset_days: offset, step_order: stepOrder,
+        description: description || null, template_slug: templateSlug || null,
+        requires_approval: requiresApproval, active,
+        subject_override: subjectOverride.trim() || null,
+        body_override: bodyOverride.trim() || null,
+      }).eq("id", seq.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Step updated"); onDone(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Edit step · {SRC_LABEL[seq.source]} #{seq.step_order}</DialogTitle>
+        <DialogDescription>Customize timing, channel, and exact message wording.</DialogDescription>
+      </DialogHeader>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>Step order</Label>
+          <Input type="number" value={stepOrder} onChange={(e) => setStepOrder(parseInt(e.target.value, 10) || 1)} />
+        </div>
+        <div><Label>Channel</Label>
+          <Select value={channel} onValueChange={(v: any) => setChannel(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="sms">SMS</SelectItem>
+              <SelectItem value="task">Task</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Audience</Label>
+          <Select value={audience} onValueChange={(v: any) => setAudience(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="requester">Requester</SelectItem>
+              <SelectItem value="fi_team">FI team</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Anchor</Label>
+          <Select value={anchor} onValueChange={(v: any) => setAnchor(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="received">Received date</SelectItem>
+              <SelectItem value="event_date">Event date</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Offset (days; negative = before)</Label>
+          <Input type="number" value={offset} onChange={(e) => setOffset(parseInt(e.target.value, 10) || 0)} />
+        </div>
+        <div><Label>Template slug</Label>
+          <Input value={templateSlug} onChange={(e) => setTemplateSlug(e.target.value)} placeholder="interest-ack-email" />
+        </div>
+        <div className="col-span-2"><Label>Description</Label>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="col-span-2">
+          <Label>Subject override {defaultTpl && <span className="text-xs text-muted-foreground font-normal">(default: {defaultTpl.subject})</span>}</Label>
+          <Input value={subjectOverride} onChange={(e) => setSubjectOverride(e.target.value)} placeholder="Leave blank to use default template" />
+        </div>
+        <div className="col-span-2">
+          <Label>Body override</Label>
+          <Textarea
+            value={bodyOverride}
+            onChange={(e) => setBodyOverride(e.target.value)}
+            placeholder={defaultTpl?.body || "Leave blank to use default template"}
+            rows={8}
+            className="font-mono text-xs"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Placeholders: <code>{"{{first_name}}"}</code>, <code>{"{{event_date}}"}</code>, <code>{"{{notes}}"}</code>
+          </p>
+        </div>
+        <div className="col-span-2 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Switch checked={requiresApproval} onCheckedChange={setRequiresApproval} id="edit-ra" />
+            <Label htmlFor="edit-ra">Require review before sending</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={active} onCheckedChange={setActive} id="edit-active" />
+            <Label htmlFor="edit-active">Active</Label>
+          </div>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>Save changes</Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 
