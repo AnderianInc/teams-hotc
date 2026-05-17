@@ -390,7 +390,10 @@ export default function PlannedOutreachPanel() {
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right whitespace-nowrap">
+                    <Button size="sm" variant="ghost" onClick={() => setEditingSeq(s)}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => { if (confirm("Remove this step?")) removeSeq.mutate(s.id); }}>
                       <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
