@@ -40,8 +40,10 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     phone: entry.phone || "",
     date_of_birth: entry.date_of_birth || "",
     is_member: entry.is_member,
+    sms_opt_in: false,
   });
   const [saving, setSaving] = useState(false);
+  const [initialSmsOptIn, setInitialSmsOptIn] = useState<boolean>(false);
 
   // Find the user_id for this entry (needed for team management)
   const isVolunteerOnly = entry.isVolunteerOnly;
