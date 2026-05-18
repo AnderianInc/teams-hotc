@@ -443,6 +443,64 @@ export default function PlannedOutreachPanel() {
           </Button>
         </CardHeader>
         <CardContent>
+          <div className="space-y-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search name, recipient, subject, reason…"
+                  value={filters.search}
+                  onChange={(e) => filters.setSearch(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+              <FilterChips
+                ariaLabel="Source"
+                options={SOURCE_OPTIONS}
+                value={sourceChip}
+                onChange={(v) => filters.setChip("source", v)}
+              />
+              <FilterPopover
+                sections={[
+                  { key: "channel", label: "Channel", options: CHANNEL_OPTIONS },
+                  { key: "audience", label: "Audience", options: AUDIENCE_OPTIONS },
+                  {
+                    key: "category",
+                    label: "Category",
+                    options: [
+                      { value: "__none__", label: "Uncategorized" },
+                      ...allCategories.map((c) => ({ value: c, label: c })),
+                    ],
+                  },
+                  { key: "tag", label: "Tags", options: allTags.map((t) => ({ value: t, label: t })) },
+                ]}
+                facets={filters.facets}
+                onToggle={filters.toggleFacet}
+                dateRange={filters.dateRange}
+                onDateRangeChange={filters.setDateRange}
+                dateRangeLabel="Scheduled / sent date"
+                activeCount={filters.activeCount - (filters.search.trim() ? 1 : 0)}
+                onClearAll={filters.clearAll}
+              />
+            </div>
+            <ActiveFilterBar
+              search={filters.search || undefined}
+              onClearSearch={() => filters.setSearch("")}
+              chips={sourceChip !== "all" ? [{ key: "source", label: `Source: ${SRC_LABEL[sourceChip] || sourceChip}`, onRemove: () => filters.setChip("source", "all") }] : []}
+              facets={[
+                ...(channels.map((v) => ({ key: `channel:${v}`, label: `Channel: ${v}`, onRemove: () => filters.toggleFacet("channel", v) }))),
+                ...(audiences.map((v) => ({ key: `audience:${v}`, label: `Audience: ${v}`, onRemove: () => filters.toggleFacet("audience", v) }))),
+                ...(cats.map((v) => ({ key: `cat:${v}`, label: `Category: ${v === "__none__" ? "Uncategorized" : v}`, onRemove: () => filters.toggleFacet("category", v) }))),
+                ...(tagFacet.map((v) => ({ key: `tag:${v}`, label: `Tag: ${v}`, onRemove: () => filters.toggleFacet("tag", v) }))),
+              ]}
+              dateRange={filters.dateRange}
+              onClearDateRange={() => filters.setDateRange(null)}
+              total={totalCount}
+              shown={shownCount}
+              activeCount={filters.activeCount}
+              onClearAll={filters.clearAll}
+            />
+          </div>
           <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
