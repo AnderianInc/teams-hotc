@@ -71,16 +71,33 @@ export default function FollowUpList() {
         .maybeSingle();
       if (!fu?.attendee_id) return;
       const stage = fu.prospect_pipeline_stage;
+      let nextStage: string | null = null;
       if (newStatus === "contacted" && (stage === "interested" || !stage)) {
-        await (supabase.from as any)("follow_ups")
-          .update({ prospect_pipeline_stage: "invited" })
-          .eq("attendee_id", fu.attendee_id)
-          .eq("type", "outreach");
+        nextStage = "invited";
       } else if (newStatus === "connected") {
+        nextStage = "connected";
+      }
+      if (nextStage) {
         await (supabase.from as any)("follow_ups")
-          .update({ prospect_pipeline_stage: "connected" })
+          .update({ prospect_pipeline_stage: nextStage })
           .eq("attendee_id", fu.attendee_id)
           .eq("type", "outreach");
+
+        // Mirror the stage onto the attendee's tags so visitor/member status badges
+        // reflect the pipeline progression (Invited / Connected / Member).
+        const { data: att } = await supabase
+          .from("attendees")
+          .select("tags")
+          .eq("id", fu.attendee_id)
+          .maybeSingle();
+        const cleaned = (att?.tags ?? []).filter((t: string) => !t.startsWith("stage:"));
+        const nextTags = Array.from(new Set([...cleaned, `stage:${nextStage}`]));
+        await supabase
+          .from("attendees")
+          .update({ tags: nextTags })
+          .eq("id", fu.attendee_id);
+        queryClient.invalidateQueries({ queryKey: ["attendees"] });
+        queryClient.invalidateQueries({ queryKey: ["fi-attendees"] });
       }
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
     } catch (err) {
