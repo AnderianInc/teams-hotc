@@ -743,6 +743,16 @@ export default function PlannedOutreachPanel() {
                   {activeRun.detail && (
                     <div className="rounded border bg-muted/30 px-3 py-2 text-xs"><strong>Note:</strong> {activeRun.detail}</div>
                   )}
+                  {rec && (
+                    <CategorizeRecord
+                      recordId={rec.id}
+                      category={rec.category}
+                      tags={rec.tags || []}
+                      knownCategories={allCategories}
+                      knownTags={allTags}
+                      onSave={(category, tags) => setCategory.mutate({ id: rec.id, category, tags })}
+                    />
+                  )}
                   {activeRun.status === "pending_approval" ? (
                     <div className="space-y-2">
                       <div>
