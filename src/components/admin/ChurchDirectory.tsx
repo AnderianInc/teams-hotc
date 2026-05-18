@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,11 @@ import DirectoryEditDialog from "./DirectoryEditDialog";
 import DirectoryRelationships from "./DirectoryRelationships";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { FilterChips } from "@/components/filters/FilterChips";
+import { FilterPopover, type FacetSection } from "@/components/filters/FilterPopover";
+import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
+import { useTableFilters } from "@/hooks/useTableFilters";
+import { formatPhoneDisplay } from "@/lib/phone";
 
 export interface DirectoryEntry {
   id: string;
