@@ -337,7 +337,7 @@ export default function ChurchDirectory() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">
                       No members found
                     </TableCell>
                   </TableRow>
