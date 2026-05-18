@@ -108,6 +108,7 @@ export default function FollowUpList() {
       if (data?.error) throw new Error(data.error);
       // Mark the follow-up as contacted
       await (supabase.from as any)("follow_ups").update({ status: "contacted" }).eq("id", smsTarget.followUpId);
+      await syncPipelineStage(smsTarget.followUpId, "contacted");
       toast.success("Text sent!");
       setSmsTarget(null);
       setSmsBody("");
@@ -135,7 +136,7 @@ export default function FollowUpList() {
   const [assignedTo, setAssignedTo] = useState("");
 
   const { data: followUps, isLoading } = useQuery({
-    queryKey: ["follow-ups", typeFilter, assigneeFilter],
+    queryKey: ["follow-ups", typeFilter, assigneeFilter, showCompleted],
     queryFn: async () => {
       // profiles:assigned_to would fail because follow_ups.assigned_to FKs to auth.users,
       // not profiles; we resolve assignee names via the volunteers query instead
@@ -147,6 +148,8 @@ export default function FollowUpList() {
 
       if (typeFilter !== "all") q = q.eq("type", typeFilter);
       if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
+      // Hide completed/connected from the active queue unless explicitly shown
+      if (!showCompleted) q = q.not("status", "in", "(connected,closed)");
 
       const { data, error } = await q;
       if (error) throw error;
