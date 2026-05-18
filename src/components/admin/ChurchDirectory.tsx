@@ -144,7 +144,7 @@ export default function ChurchDirectory() {
     });
 
     // Build attendee entries
-    const result: DirectoryEntry[] = attendees.map((a) => {
+    const result: DirectoryEntry[] = attendees.map((a: any) => {
       const profile = profilesByAttendeeId.get(a.id);
       return {
         ...a,
@@ -154,6 +154,7 @@ export default function ChurchDirectory() {
         source: "attendee" as const,
         isStaff: !!profile?.is_staff,
         staffTitle: profile?.staff_title || (profile?.staff_role_id ? staffRoleMap.get(profile.staff_role_id) : null) || null,
+        smsOptIn: !!(a.sms_opt_in || profile?.sms_opt_in),
       };
     });
 
