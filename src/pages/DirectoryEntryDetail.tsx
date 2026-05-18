@@ -256,7 +256,7 @@ export default function DirectoryEntryDetail() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 <InfoRow icon={Mail} label="Email" value={entry.email} />
-                <InfoRow icon={Phone} label="Phone" value={entry.phone} />
+                <InfoRow icon={Phone} label="Phone" value={formatPhoneDisplay(entry.phone, entry.phone || null)} />
                 <InfoRow icon={MapPin} label="Address" value={entry.address} className="sm:col-span-2" />
               </div>
             )}
