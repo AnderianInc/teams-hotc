@@ -72,20 +72,45 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
 
   const userId = profileData?.user_id;
 
-  // Load existing SMS opt-in for attendee or profile
+  // Load existing SMS opt-in + staff fields for attendee or profile
   useEffect(() => {
     if (!open || entry.source === "family") return;
     (async () => {
+      // Load staff roles catalog (always needed when not family)
+      const { data: roles } = await supabase
+        .from("staff_roles" as any)
+        .select("id, name")
+        .order("sort_order", { ascending: true });
+      setStaffRoles((roles || []) as any);
+
       if (entry.isVolunteerOnly) {
-        const { data } = await supabase.from("profiles").select("sms_opt_in").eq("user_id", entry.id).maybeSingle();
+        const { data } = await supabase.from("profiles")
+          .select("sms_opt_in, is_staff, staff_title, staff_role_id")
+          .eq("user_id", entry.id).maybeSingle();
         const v = !!data?.sms_opt_in;
         setInitialSmsOptIn(v);
-        setForm((f) => ({ ...f, sms_opt_in: v }));
+        setForm((f) => ({
+          ...f, sms_opt_in: v,
+          is_staff: !!data?.is_staff,
+          staff_title: data?.staff_title || "",
+          staff_role_id: data?.staff_role_id || "",
+        }));
       } else {
-        const { data } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
-        const v = !!data?.sms_opt_in;
+        const { data: att } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
+        const v = !!att?.sms_opt_in;
         setInitialSmsOptIn(v);
-        setForm((f) => ({ ...f, sms_opt_in: v }));
+        // Attempt to load linked profile (if any) for staff fields
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("is_staff, staff_title, staff_role_id")
+          .eq("attendee_id", entry.id)
+          .maybeSingle();
+        setForm((f) => ({
+          ...f, sms_opt_in: v,
+          is_staff: !!prof?.is_staff,
+          staff_title: prof?.staff_title || "",
+          staff_role_id: prof?.staff_role_id || "",
+        }));
       }
     })();
   }, [open, entry.id, entry.source, entry.isVolunteerOnly]);
