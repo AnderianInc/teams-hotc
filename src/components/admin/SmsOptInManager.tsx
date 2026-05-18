@@ -145,8 +145,8 @@ export default function SmsOptInManager() {
       return data;
     },
     onSuccess: (d: any) => {
-      const fixed = d?.normalized ?? 0;
-      const issues = d?.issues ?? 0;
+      const fixed = (d?.attendees_updated ?? 0) + (d?.profiles_updated ?? 0);
+      const issues = d?.issues_logged ?? 0;
       toast.success(`Phone cleanup complete — ${fixed} normalized, ${issues} flagged`);
       qc.invalidateQueries({ queryKey: ["sms-opt-in-rows"] });
     },
