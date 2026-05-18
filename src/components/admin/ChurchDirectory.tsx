@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,11 @@ import DirectoryEditDialog from "./DirectoryEditDialog";
 import DirectoryRelationships from "./DirectoryRelationships";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { FilterChips } from "@/components/filters/FilterChips";
+import { FilterPopover, type FacetSection } from "@/components/filters/FilterPopover";
+import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
+import { useTableFilters } from "@/hooks/useTableFilters";
+import { formatPhoneDisplay } from "@/lib/phone";
 
 export interface DirectoryEntry {
   id: string;
@@ -96,7 +101,7 @@ export default function ChurchDirectory() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
-  const [search, setSearch] = useState("");
+  const filters = useTableFilters({ initialChips: { type: "all" } });
   const [loading, setLoading] = useState(true);
 
   const fetchDirectory = useCallback(async () => {
@@ -217,19 +222,45 @@ export default function ChurchDirectory() {
 
   useEffect(() => { fetchDirectory(); }, [fetchDirectory]);
 
+  const typeChip = filters.chips.type || "all";
+  const selectedTeams = filters.facets.teams || [];
+  const selectedSmsOpt = filters.facets.sms || [];
+
+  const teamOptions: FacetSection["options"] = useMemo(() => {
+    const set = new Set<string>();
+    entries.forEach((e) => e.teamNames.forEach((t) => set.add(t)));
+    return Array.from(set).sort().map((t) => ({ value: t, label: t }));
+  }, [entries]);
+
   const filtered = entries.filter((e) => {
-    const q = search.toLowerCase();
-    if (!q) return true;
-    const fields = [e.first_name, e.last_name, e.email, e.phone, ...e.teamNames];
-    if (fields.some((f) => f?.toLowerCase().includes(q))) return true;
-    if (e.familyChildren?.some((c) => `${c.first_name} ${c.last_name}`.toLowerCase().includes(q))) return true;
-    return false;
+    const q = filters.search.toLowerCase();
+    if (q) {
+      const fields = [e.first_name, e.last_name, e.email, e.phone, ...e.teamNames];
+      const hit = fields.some((f) => f?.toLowerCase().includes(q))
+        || e.familyChildren?.some((c) => `${c.first_name} ${c.last_name}`.toLowerCase().includes(q));
+      if (!hit) return false;
+    }
+    if (typeChip === "members" && !e.is_member) return false;
+    if (typeChip === "visitors" && (e.is_member || e.isVolunteer || e.isStaff)) return false;
+    if (typeChip === "volunteers" && !e.isVolunteer) return false;
+    if (typeChip === "staff" && !e.isStaff) return false;
+    if (selectedTeams.length > 0 && !e.teamNames.some((t) => selectedTeams.includes(t))) return false;
+    if (selectedSmsOpt.length > 0) {
+      // facet not currently used for entries (SMS opt-in not loaded here), skip silently
+    }
+    return true;
   });
 
   const formatBirthday = (dob: string | null) => {
     if (!dob) return "—";
     try { return format(parseISO(dob), "MMM d"); } catch { return "—"; }
   };
+
+  const popoverSections: FacetSection[] = [
+    { key: "teams", label: "Team", options: teamOptions },
+    { key: "hasEmail", label: "Has email", options: [{ value: "yes", label: "Has email" }, { value: "no", label: "No email" }] },
+    { key: "hasPhone", label: "Has phone", options: [{ value: "yes", label: "Has phone" }, { value: "no", label: "No phone" }] },
+  ];
 
   return (
     <Card>
@@ -240,13 +271,41 @@ export default function ChurchDirectory() {
           </CardTitle>
           <Badge variant="secondary">{entries.length} people</Badge>
         </div>
-        <div className="relative mt-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, phone, or team..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+        <div className="mt-2 space-y-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, phone, or team..."
+                value={filters.search}
+                onChange={(e) => filters.setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <FilterPopover
+              sections={popoverSections}
+              facets={filters.facets}
+              onToggle={filters.toggleFacet}
+              activeCount={filters.activeCount}
+              onClearAll={filters.clearAll}
+            />
+          </div>
+          <FilterChips
+            options={[
+              { value: "all", label: "All" },
+              { value: "members", label: "Members" },
+              { value: "visitors", label: "Visitors" },
+              { value: "volunteers", label: "Volunteers" },
+              { value: "staff", label: "Staff" },
+            ]}
+            value={typeChip}
+            onChange={(v) => filters.setChip("type", v)}
+          />
+          <ActiveFilterBar
+            total={entries.length}
+            shown={filtered.length}
+            activeCount={filters.activeCount}
+            onClearAll={filters.clearAll}
           />
         </div>
       </CardHeader>
@@ -299,7 +358,7 @@ export default function ChurchDirectory() {
                         )}
                       </TableCell>
                       <TableCell>{entry.email || "—"}</TableCell>
-                      <TableCell>{entry.phone || "—"}</TableCell>
+                      <TableCell>{formatPhoneDisplay(entry.phone, "—")}</TableCell>
                       <TableCell>{formatBirthday(entry.date_of_birth)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">

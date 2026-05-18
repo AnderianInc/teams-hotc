@@ -18,6 +18,33 @@ serve(async (req) => {
     const { to, subject, html, text, logged_by, to_name, related_attendee_id } = await req.json();
     if (!to || !subject) throw new Error("Missing 'to' or 'subject'");
 
+    // Do-not-contact enforcement
+    try {
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const toEmail = Array.isArray(to) ? to[0] : to;
+      let blocked = false;
+      if (related_attendee_id) {
+        const { data: a } = await sb.from("attendees").select("do_not_contact").eq("id", related_attendee_id).maybeSingle();
+        if (a?.do_not_contact) blocked = true;
+      }
+      if (!blocked && toEmail) {
+        const { data: a2 } = await sb.from("attendees").select("do_not_contact").eq("email", toEmail).limit(1);
+        if (a2?.some((r: any) => r.do_not_contact)) blocked = true;
+        if (!blocked) {
+          const { data: p } = await sb.from("profiles").select("do_not_contact").eq("email", toEmail).limit(1);
+          if (p?.some((r: any) => r.do_not_contact)) blocked = true;
+        }
+      }
+      if (blocked) {
+        return new Response(JSON.stringify({ error: "Contact has do-not-contact set", code: "DO_NOT_CONTACT" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch (e) {
+      console.error("DNC check failed", e);
+    }
+
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
