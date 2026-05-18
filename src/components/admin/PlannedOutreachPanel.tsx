@@ -535,7 +535,7 @@ export default function PlannedOutreachPanel() {
                 </TableHeader>
                 <TableBody>
                   {(() => {
-                    // Group pending review by recipient name (fallback to recipient address)
+                    // Group pending review by recipient name (preserve schedule order)
                     const groups = new Map<string, { name: string; rows: typeof pendingApproval }>();
                     for (const r of pendingApproval) {
                       const rec = recById.get(r.external_record_id);
@@ -544,40 +544,52 @@ export default function PlannedOutreachPanel() {
                       if (!groups.has(key)) groups.set(key, { name, rows: [] });
                       groups.get(key)!.rows.push(r);
                     }
-                    const groupArr = Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
-                    return groupArr.flatMap((g) => [
-                      <TableRow key={`group-${g.name}`} className="bg-muted/40 hover:bg-muted/40">
-                        <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {g.name} <span className="ml-2 font-normal normal-case">({g.rows.length} message{g.rows.length === 1 ? "" : "s"})</span>
-                        </TableCell>
-                      </TableRow>,
-                      ...g.rows.map((r) => {
-                        const seq = seqById.get(r.sequence_id);
-                        const rec = recById.get(r.external_record_id);
-                        const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
-                        return (
-                          <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
-                            <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source}</Badge></TableCell>
-                            <TableCell className="pl-6 text-xs text-muted-foreground">{r.recipient}</TableCell>
-                            <TableCell><Badge variant="secondary" className="text-xs">{r.channel}</Badge></TableCell>
-                            <TableCell className="text-xs max-w-[420px] truncate">
-                              <span className="font-medium">{r.subject}</span> — {r.body?.slice(0, 100)}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {sched ? (
-                                <>
-                                  {formatInChurchTz(sched, "MMM d, h:mm a", churchTz)}
-                                  <div className="text-muted-foreground">{formatDistanceToNow(sched, { addSuffix: true })}</div>
-                                </>
-                              ) : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setReviewRunId(r.id); }}>Review</Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      }),
-                    ]);
+                    const groupArr = Array.from(groups.entries());
+                    return groupArr.flatMap(([key, g]) => {
+                      const collapsed = collapsedGroups.has(key);
+                      return [
+                        <TableRow
+                          key={`group-${key}`}
+                          className="bg-muted/40 hover:bg-muted/60 cursor-pointer"
+                          onClick={() => toggleGroup(key)}
+                        >
+                          <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <span className="inline-flex items-center gap-1.5">
+                              {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                              {g.name}
+                              <span className="ml-1 font-normal normal-case text-muted-foreground/80">
+                                ({g.rows.length} message{g.rows.length === 1 ? "" : "s"})
+                              </span>
+                            </span>
+                          </TableCell>
+                        </TableRow>,
+                        ...(collapsed ? [] : g.rows.map((r) => {
+                          const seq = seqById.get(r.sequence_id);
+                          const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
+                          return (
+                            <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
+                              <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source}</Badge></TableCell>
+                              <TableCell className="pl-6 text-xs text-muted-foreground">{r.recipient}</TableCell>
+                              <TableCell><Badge variant="secondary" className="text-xs">{r.channel}</Badge></TableCell>
+                              <TableCell className="text-xs max-w-[420px] truncate">
+                                <span className="font-medium">{r.subject}</span> — {r.body?.slice(0, 100)}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {sched ? (
+                                  <>
+                                    {formatInChurchTz(sched, "MMM d, h:mm a", churchTz)}
+                                    <div className="text-muted-foreground">{formatDistanceToNow(sched, { addSuffix: true })}</div>
+                                  </>
+                                ) : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setReviewRunId(r.id); }}>Review</Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })),
+                      ];
+                    });
                   })()}
                   {pendingApproval.length === 0 && (
                     <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nothing waiting</TableCell></TableRow>
