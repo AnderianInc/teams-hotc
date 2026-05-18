@@ -398,6 +398,7 @@ export type Database = {
       external_records: {
         Row: {
           attendee_id: string | null
+          category: string | null
           created_at: string
           event_date: string | null
           external_id: string
@@ -408,10 +409,12 @@ export type Database = {
           received_at: string
           source: string
           status: string
+          tags: string[]
           updated_at: string
         }
         Insert: {
           attendee_id?: string | null
+          category?: string | null
           created_at?: string
           event_date?: string | null
           external_id: string
@@ -422,10 +425,12 @@ export type Database = {
           received_at?: string
           source: string
           status?: string
+          tags?: string[]
           updated_at?: string
         }
         Update: {
           attendee_id?: string | null
+          category?: string | null
           created_at?: string
           event_date?: string | null
           external_id?: string
@@ -436,6 +441,7 @@ export type Database = {
           received_at?: string
           source?: string
           status?: string
+          tags?: string[]
           updated_at?: string
         }
         Relationships: []
