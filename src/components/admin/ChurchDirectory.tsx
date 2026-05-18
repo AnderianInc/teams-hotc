@@ -398,6 +398,15 @@ export default function ChurchDirectory() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        {entry.source === "family" ? (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        ) : entry.smsOptIn ? (
+                          <Badge variant="outline" className="text-success border-success/40 bg-success/10 text-xs">Opted in</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-xs">Not opted in</Badge>
+                        )}
+                      </TableCell>
                       {isAdmin && (
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <DirectoryActionMenu entry={entry} onRefresh={fetchDirectory} />
