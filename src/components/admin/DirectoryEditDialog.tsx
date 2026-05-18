@@ -141,6 +141,9 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             phone: form.phone || null,
             date_of_birth: form.date_of_birth || null,
             sms_opt_in: form.sms_opt_in,
+            is_staff: form.is_staff,
+            staff_title: form.staff_title || null,
+            staff_role_id: form.staff_role_id || null,
             ...(smsChanged ? {
               sms_opt_in_source: form.sms_opt_in ? "admin_override" : "admin_revoked",
               sms_opt_in_at: new Date().toISOString(),
@@ -167,6 +170,17 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           })
           .eq("id", entry.id);
         if (error) throw error;
+        // If this attendee has a linked profile, update staff fields there too
+        if (userId) {
+          await supabase
+            .from("profiles")
+            .update({
+              is_staff: form.is_staff,
+              staff_title: form.staff_title || null,
+              staff_role_id: form.staff_role_id || null,
+            })
+            .eq("user_id", userId);
+        }
       }
       toast.success("Entry updated");
       onUpdated();
