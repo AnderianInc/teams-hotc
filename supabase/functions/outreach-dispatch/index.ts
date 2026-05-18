@@ -114,6 +114,14 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  // Load church timezone for date-anchored scheduling
+  const { data: tzRow } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "church_timezone")
+    .maybeSingle();
+  const churchTz = ((tzRow?.value as any)?.tz as string) || DEFAULT_TZ;
+
   const { data: sequences = [] } = await supabase
     .from("outreach_sequences")
     .select("*")
