@@ -106,10 +106,19 @@ export default function OutreachPipeline() {
         .eq("id", id);
       if (error) throw error;
 
-      // Sync attendee membership flag with pipeline stage
+      // Read current tags, strip any old stage:* tag, add the new one
+      const { data: att } = await supabase
+        .from("attendees")
+        .select("tags")
+        .eq("id", attendeeId)
+        .maybeSingle();
+      const cleaned = (att?.tags ?? []).filter((t: string) => !t.startsWith("stage:"));
+      const nextTags = Array.from(new Set([...cleaned, `stage:${stage}`]));
+
+      // Sync attendee membership flag + visible stage tag with pipeline stage
       const { error: memberError } = await supabase
         .from("attendees")
-        .update({ is_member: stage === "member" })
+        .update({ is_member: stage === "member", tags: nextTags })
         .eq("id", attendeeId);
       if (memberError) throw memberError;
     },
