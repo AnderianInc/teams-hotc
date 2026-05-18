@@ -611,7 +611,7 @@ export default function FollowUpList() {
                         <DropdownMenuContent align="end">
                           {fu.attendees?.email && (
                             <DropdownMenuItem onClick={() => {
-                              setEmailTarget({ email: fu.attendees.email, name: `${fu.attendees.first_name} ${fu.attendees.last_name}`, attendeeId: fu.attendee_id });
+                              setEmailTarget({ email: fu.attendees.email, name: `${fu.attendees.first_name} ${fu.attendees.last_name}`, attendeeId: fu.attendee_id, followUpId: fu.id });
                               setEmailOpen(true);
                             }}>
                               <Mail className="h-4 w-4 mr-2" /> Send Email
