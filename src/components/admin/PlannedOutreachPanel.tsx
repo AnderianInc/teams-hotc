@@ -159,10 +159,10 @@ export default function PlannedOutreachPanel() {
 
   const setCategory = useMutation({
     mutationFn: async ({ id, category, tags }: { id: string; category?: string | null; tags?: string[] }) => {
-      const patch: Record<string, unknown> = {};
+      const patch: { category?: string | null; tags?: string[] } = {};
       if (category !== undefined) patch.category = category;
       if (tags !== undefined) patch.tags = tags;
-      const { error } = await supabase.from("external_records").update(patch).eq("id", id);
+      const { error } = await supabase.from("external_records").update(patch as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
