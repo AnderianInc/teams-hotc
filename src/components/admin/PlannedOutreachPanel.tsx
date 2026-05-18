@@ -349,7 +349,7 @@ export default function PlannedOutreachPanel() {
                         <TableCell className="text-xs">
                           {sched ? (
                             <>
-                              {format(sched, "MMM d, h:mm a")}
+                              {formatInChurchTz(sched, "MMM d, h:mm a", churchTz)}
                               <div className="text-muted-foreground">{formatDistanceToNow(sched, { addSuffix: true })}</div>
                             </>
                           ) : "—"}
