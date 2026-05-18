@@ -52,12 +52,41 @@ export default function FollowUpList() {
   const [addOpen, setAddOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [emailTarget, setEmailTarget] = useState<{ email: string; name: string; attendeeId: string } | null>(null);
+  const [emailTarget, setEmailTarget] = useState<{ email: string; name: string; attendeeId: string; followUpId: string } | null>(null);
   const [smsTarget, setSmsTarget] = useState<{ phone: string; name: string; attendeeId: string; followUpId: string } | null>(null);
   const [smsBody, setSmsBody] = useState("");
   const [smsSending, setSmsSending] = useState(false);
   const [smsOverride, setSmsOverride] = useState(false);
   const [smsConsentNote, setSmsConsentNote] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  // Sync the outreach pipeline stage when a follow-up status changes.
+  // - status "contacted"  → advance "interested" stage to "invited"
+  // - status "connected"  → set stage to "connected"
+  const syncPipelineStage = async (followUpId: string, newStatus: string) => {
+    try {
+      const { data: fu } = await (supabase.from as any)("follow_ups")
+        .select("attendee_id, prospect_pipeline_stage")
+        .eq("id", followUpId)
+        .maybeSingle();
+      if (!fu?.attendee_id) return;
+      const stage = fu.prospect_pipeline_stage;
+      if (newStatus === "contacted" && (stage === "interested" || !stage)) {
+        await (supabase.from as any)("follow_ups")
+          .update({ prospect_pipeline_stage: "invited" })
+          .eq("attendee_id", fu.attendee_id)
+          .eq("type", "outreach");
+      } else if (newStatus === "connected") {
+        await (supabase.from as any)("follow_ups")
+          .update({ prospect_pipeline_stage: "connected" })
+          .eq("attendee_id", fu.attendee_id)
+          .eq("type", "outreach");
+      }
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+    } catch (err) {
+      console.error("pipeline sync failed", err);
+    }
+  };
 
   const sendSms = async () => {
     if (!smsTarget || !smsBody.trim()) return;
@@ -79,6 +108,7 @@ export default function FollowUpList() {
       if (data?.error) throw new Error(data.error);
       // Mark the follow-up as contacted
       await (supabase.from as any)("follow_ups").update({ status: "contacted" }).eq("id", smsTarget.followUpId);
+      await syncPipelineStage(smsTarget.followUpId, "contacted");
       toast.success("Text sent!");
       setSmsTarget(null);
       setSmsBody("");
@@ -106,7 +136,7 @@ export default function FollowUpList() {
   const [assignedTo, setAssignedTo] = useState("");
 
   const { data: followUps, isLoading } = useQuery({
-    queryKey: ["follow-ups", typeFilter, assigneeFilter],
+    queryKey: ["follow-ups", typeFilter, assigneeFilter, showCompleted],
     queryFn: async () => {
       // profiles:assigned_to would fail because follow_ups.assigned_to FKs to auth.users,
       // not profiles; we resolve assignee names via the volunteers query instead
@@ -118,6 +148,8 @@ export default function FollowUpList() {
 
       if (typeFilter !== "all") q = q.eq("type", typeFilter);
       if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
+      // Hide completed/connected from the active queue unless explicitly shown
+      if (!showCompleted) q = q.not("status", "in", "(connected,closed)");
 
       const { data, error } = await q;
       if (error) throw error;
@@ -241,9 +273,11 @@ export default function FollowUpList() {
       if (status === "connected" || status === "closed") updates.completed_at = new Date().toISOString();
       const { error } = await (supabase.from as any)("follow_ups").update(updates).eq("id", id);
       if (error) throw error;
+      await syncPipelineStage(id, status);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
       toast.success("Status updated");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -477,6 +511,15 @@ export default function FollowUpList() {
               ))}
             </SelectContent>
           </Select>
+          <label className="flex items-center gap-2 text-xs cursor-pointer ml-1">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 accent-primary"
+              checked={showCompleted}
+              onChange={(e) => setShowCompleted(e.target.checked)}
+            />
+            Show completed
+          </label>
         </div>
 
         {isLoading ? (
@@ -577,7 +620,7 @@ export default function FollowUpList() {
                         <DropdownMenuContent align="end">
                           {fu.attendees?.email && (
                             <DropdownMenuItem onClick={() => {
-                              setEmailTarget({ email: fu.attendees.email, name: `${fu.attendees.first_name} ${fu.attendees.last_name}`, attendeeId: fu.attendee_id });
+                              setEmailTarget({ email: fu.attendees.email, name: `${fu.attendees.first_name} ${fu.attendees.last_name}`, attendeeId: fu.attendee_id, followUpId: fu.id });
                               setEmailOpen(true);
                             }}>
                               <Mail className="h-4 w-4 mr-2" /> Send Email
@@ -690,7 +733,17 @@ export default function FollowUpList() {
                 defaultToName={emailTarget.name}
                 defaultSubject="Follow-Up from House of Transformation Church"
                 relatedAttendeeId={emailTarget.attendeeId}
-                onSent={() => setEmailOpen(false)}
+                onSent={async () => {
+                  const fuId = emailTarget.followUpId;
+                  setEmailOpen(false);
+                  try {
+                    await (supabase.from as any)("follow_ups").update({ status: "contacted" }).eq("id", fuId);
+                    await syncPipelineStage(fuId, "contacted");
+                    queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+                  } catch (err) {
+                    console.error("mark contacted failed", err);
+                  }
+                }}
               />
             )}
           </DialogContent>
