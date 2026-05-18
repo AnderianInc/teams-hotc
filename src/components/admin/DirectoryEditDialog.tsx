@@ -41,9 +41,13 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     date_of_birth: entry.date_of_birth || "",
     is_member: entry.is_member,
     sms_opt_in: false,
+    is_staff: false,
+    staff_title: "",
+    staff_role_id: "" as string,
   });
   const [saving, setSaving] = useState(false);
   const [initialSmsOptIn, setInitialSmsOptIn] = useState<boolean>(false);
+  const [staffRoles, setStaffRoles] = useState<{ id: string; name: string }[]>([]);
 
   // Find the user_id for this entry (needed for team management)
   const isVolunteerOnly = entry.isVolunteerOnly;
