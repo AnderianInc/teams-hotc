@@ -3,6 +3,34 @@
 // (regardless of due date) so they can be reviewed before they're due.
 // Approved-but-future rows are sent when the dispatcher next runs after dueAt.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { fromZonedTime } from "https://esm.sh/date-fns-tz@3.2.0";
+
+const DEFAULT_TZ = "America/Los_Angeles";
+const SEND_HOUR = 9; // 9 AM church-local for date-anchored sends
+
+// Compute the absolute scheduled-send moment for a step.
+//  - "event_date" anchor: YYYY-MM-DD interpreted as 9 AM church-local on that day + offset_days
+//  - "received" anchor: full timestamp + offset_days (24h math, unchanged)
+function computeScheduledFor(
+  anchorKind: "received" | "event_date",
+  anchorValue: string,
+  offsetDays: number,
+  tz: string,
+): string {
+  if (anchorKind === "event_date") {
+    const [y, m, d] = anchorValue.split("-").map(Number);
+    if (!y || !m || !d) return new Date(anchorValue).toISOString();
+    const base = new Date(Date.UTC(y, m - 1, d));
+    base.setUTCDate(base.getUTCDate() + offsetDays);
+    const yy = base.getUTCFullYear();
+    const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(base.getUTCDate()).padStart(2, "0");
+    const hh = String(SEND_HOUR).padStart(2, "0");
+    // "YYYY-MM-DD HH:00:00" interpreted in church tz → real UTC instant
+    return fromZonedTime(`${yy}-${mm}-${dd} ${hh}:00:00`, tz).toISOString();
+  }
+  return new Date(new Date(anchorValue).getTime() + offsetDays * 86400000).toISOString();
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
