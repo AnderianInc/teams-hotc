@@ -858,6 +858,14 @@ export default function PlannedOutreachPanel() {
                   <div className="text-xs text-muted-foreground">
                     Step: {seq.description || seq.template_slug} · {seq.requires_approval ? "Requires review" : "Auto-sends"}
                   </div>
+                  <CategorizeRecord
+                    recordId={previewPlanned.recordId}
+                    category={rec.category}
+                    tags={rec.tags || []}
+                    knownCategories={allCategories}
+                    knownTags={allTags}
+                    onSave={(category, tags) => setCategory.mutate({ id: previewPlanned.recordId, category, tags })}
+                  />
                   <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
                     <pre className="whitespace-pre-wrap font-sans text-sm">{body}</pre>
                   </div>
