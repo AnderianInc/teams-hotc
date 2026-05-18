@@ -269,7 +269,7 @@ export default function PlannedOutreachPanel() {
       <TableCell><Badge variant="secondary" className="text-xs">{p.seq.channel}</Badge></TableCell>
       <TableCell className="text-xs text-muted-foreground">{p.seq.audience}</TableCell>
       <TableCell className="text-xs">
-        {format(new Date(p.dueAt), "MMM d, h:mm a")}{" "}
+        {formatInChurchTz(p.dueAt, "MMM d, h:mm a", churchTz)}{" "}
         <span className="text-muted-foreground">({formatDistanceToNow(new Date(p.dueAt), { addSuffix: true })})</span>
       </TableCell>
       <TableCell>
