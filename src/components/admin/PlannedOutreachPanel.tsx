@@ -99,8 +99,11 @@ const TEMPLATES: Record<string, { subject: string; body: string }> = {
 
 export default function PlannedOutreachPanel() {
   const qc = useQueryClient();
+  const { timezone: churchTz } = useChurchTimezone();
   const [open, setOpen] = useState(false);
   const [reviewRunId, setReviewRunId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [editingSeq, setEditingSeq] = useState<Sequence | null>(null);
   const [previewPlanned, setPreviewPlanned] = useState<{ recordId: string; seqId: string; dueAt: number } | null>(null);
