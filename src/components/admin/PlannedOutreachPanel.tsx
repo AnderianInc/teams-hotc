@@ -614,7 +614,7 @@ export default function PlannedOutreachPanel() {
             const baseTpl = seq.template_slug ? TEMPLATES[seq.template_slug] : null;
             const subject = seq.subject_override ? applyVars(seq.subject_override, ctx) : applyVars(baseTpl?.subject || "", ctx);
             const body = seq.body_override ? applyVars(seq.body_override, ctx) : applyVars(baseTpl?.body || "", ctx);
-            const dueLabel = format(new Date(previewPlanned.dueAt), "MMM d, yyyy h:mm a");
+            const dueLabel = formatInChurchTz(previewPlanned.dueAt, "MMM d, yyyy h:mm a", churchTz);
             return (
               <>
                 <DialogHeader>
