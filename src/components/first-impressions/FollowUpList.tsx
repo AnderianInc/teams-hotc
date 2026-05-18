@@ -136,7 +136,7 @@ export default function FollowUpList() {
   const [assignedTo, setAssignedTo] = useState("");
 
   const { data: followUps, isLoading } = useQuery({
-    queryKey: ["follow-ups", typeFilter, assigneeFilter, showCompleted],
+    queryKey: ["follow-ups", typeFilter, assigneeFilter],
     queryFn: async () => {
       // profiles:assigned_to would fail because follow_ups.assigned_to FKs to auth.users,
       // not profiles; we resolve assignee names via the volunteers query instead
@@ -148,8 +148,8 @@ export default function FollowUpList() {
 
       if (typeFilter !== "all") q = q.eq("type", typeFilter);
       if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
-      // Hide completed/connected from the active queue unless explicitly shown
-      if (!showCompleted) q = q.not("status", "in", "(connected,closed)");
+      // Once contacted or connected, the person leaves the active queue.
+      q = q.not("status", "in", "(contacted,connected,closed)");
 
       const { data, error } = await q;
       if (error) throw error;
