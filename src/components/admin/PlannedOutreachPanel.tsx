@@ -163,7 +163,7 @@ export default function PlannedOutreachPanel() {
       for (const seq of seqs) {
         const anchor = seq.anchor === "event_date" ? rec.event_date : rec.received_at;
         if (!anchor) continue;
-        const dueAt = new Date(anchor).getTime() + seq.offset_days * 86400000;
+        const dueAt = computeScheduledFor(seq.anchor, anchor, seq.offset_days, churchTz);
         rows.push({
           recordId: rec.id,
           source: rec.source,
