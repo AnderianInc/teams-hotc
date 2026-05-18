@@ -249,7 +249,7 @@ export default function SmsOptInManager() {
                       <Checkbox checked={selected.has(r.key)} onCheckedChange={() => toggleOne(r.key)} />
                     </TableCell>
                     <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-sm">{r.phone || "—"}</TableCell>
+                    <TableCell className="text-sm">{formatPhoneDisplay(r.phone, r.phone || "—")}</TableCell>
                     <TableCell>
                       {r.sms_opt_in ? <Badge>Opted in</Badge> : <Badge variant="outline">Not opted in</Badge>}
                     </TableCell>
