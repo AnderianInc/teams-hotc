@@ -669,6 +669,36 @@ export type Database = {
         }
         Relationships: []
       }
+      interest_meetings: {
+        Row: {
+          created_at: string
+          id: string
+          location: string | null
+          meeting_date: string
+          notes: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          meeting_date: string
+          notes?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          meeting_date?: string
+          notes?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
