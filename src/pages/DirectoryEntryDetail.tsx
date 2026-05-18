@@ -14,8 +14,11 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, Save, Loader2, User, Phone, Mail, MapPin, Calendar, Heart, Users, Plus, X, Cake, Tag,
+  ArrowLeft, Save, Loader2, User, Phone, Mail, MapPin, Calendar, Heart, Users, Plus, X, Cake, Tag, MessageSquare,
 } from "lucide-react";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { formatPhoneDisplay } from "@/lib/phone";
+import { CommsTimeline } from "@/components/comms/CommsTimeline";
 
 // ─── Types ───────────────────────────────────────────────
 interface AttendeeData {
