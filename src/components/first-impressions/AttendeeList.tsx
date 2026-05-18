@@ -18,6 +18,7 @@ type DerivedStatus = "interested" | "invited" | "visitor" | "connected" | "membe
 export default function AttendeeList() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "",
