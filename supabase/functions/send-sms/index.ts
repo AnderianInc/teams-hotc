@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizePhone as canonicalizePhone } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,9 @@ const corsHeaders = {
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
 
 function normalizePhone(raw: string): string {
+  const res = canonicalizePhone(raw);
+  if (res.valid && res.e164) return res.e164;
+  // Fall back to legacy behavior so we still attempt rather than silently fail upstream
   let phone = String(raw).trim();
   if (!phone.startsWith("+")) {
     const digits = phone.replace(/\D/g, "");
