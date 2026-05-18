@@ -128,8 +128,9 @@ export default function PlannedOutreachPanel() {
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [editingSeq, setEditingSeq] = useState<Sequence | null>(null);
   const [previewPlanned, setPreviewPlanned] = useState<{ recordId: string; seqId: string; dueAt: number } | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const toggleGroup = (key: string) => setCollapsedGroups((prev) => {
+  // Groups are collapsed by default — track which ones the user has explicitly expanded
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) => setExpandedGroups((prev) => {
     const next = new Set(prev);
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
@@ -546,7 +547,7 @@ export default function PlannedOutreachPanel() {
                     }
                     const groupArr = Array.from(groups.entries());
                     return groupArr.flatMap(([key, g]) => {
-                      const collapsed = collapsedGroups.has(key);
+                      const collapsed = !expandedGroups.has(key);
                       return [
                         <TableRow
                           key={`group-${key}`}

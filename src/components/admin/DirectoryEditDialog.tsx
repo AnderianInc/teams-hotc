@@ -41,9 +41,13 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     date_of_birth: entry.date_of_birth || "",
     is_member: entry.is_member,
     sms_opt_in: false,
+    is_staff: false,
+    staff_title: "",
+    staff_role_id: "" as string,
   });
   const [saving, setSaving] = useState(false);
   const [initialSmsOptIn, setInitialSmsOptIn] = useState<boolean>(false);
+  const [staffRoles, setStaffRoles] = useState<{ id: string; name: string }[]>([]);
 
   // Find the user_id for this entry (needed for team management)
   const isVolunteerOnly = entry.isVolunteerOnly;
@@ -68,20 +72,45 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
 
   const userId = profileData?.user_id;
 
-  // Load existing SMS opt-in for attendee or profile
+  // Load existing SMS opt-in + staff fields for attendee or profile
   useEffect(() => {
     if (!open || entry.source === "family") return;
     (async () => {
+      // Load staff roles catalog (always needed when not family)
+      const { data: roles } = await supabase
+        .from("staff_roles" as any)
+        .select("id, name")
+        .order("sort_order", { ascending: true });
+      setStaffRoles((roles || []) as any);
+
       if (entry.isVolunteerOnly) {
-        const { data } = await supabase.from("profiles").select("sms_opt_in").eq("user_id", entry.id).maybeSingle();
+        const { data } = await supabase.from("profiles")
+          .select("sms_opt_in, is_staff, staff_title, staff_role_id")
+          .eq("user_id", entry.id).maybeSingle();
         const v = !!data?.sms_opt_in;
         setInitialSmsOptIn(v);
-        setForm((f) => ({ ...f, sms_opt_in: v }));
+        setForm((f) => ({
+          ...f, sms_opt_in: v,
+          is_staff: !!data?.is_staff,
+          staff_title: data?.staff_title || "",
+          staff_role_id: data?.staff_role_id || "",
+        }));
       } else {
-        const { data } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
-        const v = !!data?.sms_opt_in;
+        const { data: att } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
+        const v = !!att?.sms_opt_in;
         setInitialSmsOptIn(v);
-        setForm((f) => ({ ...f, sms_opt_in: v }));
+        // Attempt to load linked profile (if any) for staff fields
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("is_staff, staff_title, staff_role_id")
+          .eq("attendee_id", entry.id)
+          .maybeSingle();
+        setForm((f) => ({
+          ...f, sms_opt_in: v,
+          is_staff: !!prof?.is_staff,
+          staff_title: prof?.staff_title || "",
+          staff_role_id: prof?.staff_role_id || "",
+        }));
       }
     })();
   }, [open, entry.id, entry.source, entry.isVolunteerOnly]);
@@ -112,6 +141,9 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             phone: form.phone || null,
             date_of_birth: form.date_of_birth || null,
             sms_opt_in: form.sms_opt_in,
+            is_staff: form.is_staff,
+            staff_title: form.staff_title || null,
+            staff_role_id: form.staff_role_id || null,
             ...(smsChanged ? {
               sms_opt_in_source: form.sms_opt_in ? "admin_override" : "admin_revoked",
               sms_opt_in_at: new Date().toISOString(),
@@ -138,6 +170,17 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           })
           .eq("id", entry.id);
         if (error) throw error;
+        // If this attendee has a linked profile, update staff fields there too
+        if (userId) {
+          await supabase
+            .from("profiles")
+            .update({
+              is_staff: form.is_staff,
+              staff_title: form.staff_title || null,
+              staff_role_id: form.staff_role_id || null,
+            })
+            .eq("user_id", userId);
+        }
       }
       toast.success("Entry updated");
       onUpdated();
@@ -200,6 +243,46 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
                   Only enable if the person has given verbal or written consent to receive text messages. Saving will record this change as an admin override with today's date.
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Staff Section */}
+          {entry.source !== "family" && userId && (
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="is-staff"
+                  checked={form.is_staff}
+                  onCheckedChange={(v) => update("is_staff", v)}
+                />
+                <Label htmlFor="is-staff" className="cursor-pointer">Mark as Staff</Label>
+              </div>
+              {form.is_staff && (
+                <>
+                  <div className="space-y-1">
+                    <Label>Staff Role</Label>
+                    <select
+                      className="w-full h-9 rounded-md border bg-background px-2 text-sm"
+                      value={form.staff_role_id}
+                      onChange={(e) => update("staff_role_id", e.target.value)}
+                    >
+                      <option value="">— Select role —</option>
+                      {staffRoles.map((r) => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">Manage roles under Admin → Staff Roles.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Custom Title (optional)</Label>
+                    <Input
+                      value={form.staff_title}
+                      onChange={(e) => update("staff_title", e.target.value)}
+                      placeholder="Overrides role name on profile"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
