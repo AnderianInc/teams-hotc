@@ -330,6 +330,7 @@ export default function ChurchDirectory() {
                   <TableHead>Birthday</TableHead>
                   <TableHead>Team(s)</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>SMS</TableHead>
                   {isAdmin && <TableHead className="w-12"></TableHead>}
                 </TableRow>
               </TableHeader>
