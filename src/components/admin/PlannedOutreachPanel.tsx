@@ -193,7 +193,7 @@ export default function PlannedOutreachPanel() {
   }, [runs]);
 
   const planned = useMemo(() => {
-    const rows: Array<{ recordId: string; source: string; name: string; seq: Sequence; dueAt: number; ran?: Run }> = [];
+    const rows: Array<{ recordId: string; source: string; name: string; seq: Sequence; dueAt: number; ran?: Run; category?: string | null; tags?: string[] }> = [];
     for (const rec of records as any[]) {
       const seqs = sequences.filter((s) => s.source === rec.source && s.active);
       for (const seq of seqs) {
@@ -207,20 +207,89 @@ export default function PlannedOutreachPanel() {
           seq,
           dueAt,
           ran: runByKey.get(`${rec.id}:${seq.id}`),
+          category: rec.category ?? null,
+          tags: rec.tags ?? [],
         });
       }
     }
     return rows.sort((a, b) => a.dueAt - b.dueAt);
   }, [records, sequences, runByKey, churchTz]);
 
+  // -------- Filters --------
+  const filters = useTableFilters({ initialChips: { source: "all" } });
+  const recById0 = useMemo(() => new Map((records as any[]).map((r) => [r.id, r])), [records]);
+
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    (records as any[]).forEach((r) => { if (r.category) set.add(r.category); });
+    return Array.from(set).sort();
+  }, [records]);
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    (records as any[]).forEach((r) => (r.tags || []).forEach((t: string) => set.add(t)));
+    return Array.from(set).sort();
+  }, [records]);
+
+  const sourceChip = filters.chips.source ?? "all";
+  const channels = filters.facets.channel ?? [];
+  const audiences = filters.facets.audience ?? [];
+  const cats = filters.facets.category ?? [];
+  const tagFacet = filters.facets.tag ?? [];
+  const term = filters.search.trim().toLowerCase();
+  const dr = filters.dateRange;
+  const fromTs = dr?.from ? new Date(dr.from + "T00:00:00").getTime() : null;
+  const toTs = dr?.to ? new Date(dr.to + "T23:59:59").getTime() : null;
+
+  const matchPlanned = (p: typeof planned[number]) => {
+    if (sourceChip !== "all" && p.source !== sourceChip) return false;
+    if (channels.length && !channels.includes(p.seq.channel)) return false;
+    if (audiences.length && !audiences.includes(p.seq.audience)) return false;
+    if (cats.length) {
+      const c = p.category || "__none__";
+      if (!cats.includes(c)) return false;
+    }
+    if (tagFacet.length && !tagFacet.some((t) => (p.tags || []).includes(t))) return false;
+    if (fromTs && p.dueAt < fromTs) return false;
+    if (toTs && p.dueAt > toTs) return false;
+    if (term) {
+      const hay = `${p.name} ${p.seq.description || ""} ${p.seq.template_slug || ""}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  };
+
+  const matchRun = (r: Run) => {
+    const seq = sequences.find((s) => s.id === r.sequence_id);
+    const rec: any = recById0.get(r.external_record_id);
+    if (sourceChip !== "all" && (seq?.source || rec?.source) !== sourceChip) return false;
+    if (channels.length && !channels.includes(r.channel || seq?.channel || "")) return false;
+    if (audiences.length && !audiences.includes(seq?.audience || "")) return false;
+    if (cats.length) {
+      const c = rec?.category || "__none__";
+      if (!cats.includes(c)) return false;
+    }
+    if (tagFacet.length && !tagFacet.some((t) => (rec?.tags || []).includes(t))) return false;
+    const when = r.scheduled_for ? new Date(r.scheduled_for).getTime() : new Date(r.sent_at).getTime();
+    if (fromTs && when < fromTs) return false;
+    if (toTs && when > toTs) return false;
+    if (term) {
+      const hay = `${rec?.payload?.name || ""} ${r.recipient || ""} ${r.subject || ""} ${r.detail || ""}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  };
+
   const now = Date.now();
-  const pendingApproval = runs.filter((r) => r.status === "pending_approval");
-  const approvedScheduled = runs.filter((r) => r.status === "approved");
-  const skippedRuns = runs.filter((r) => r.status === "skipped");
-  const failedRuns = runs.filter((r) => r.status === "failed");
-  const upcoming = planned.filter((p) => !p.ran && p.dueAt > now);
-  const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now);
-  const completed = planned.filter((p) => p.ran && p.ran.status === "sent");
+  const pendingApproval = runs.filter((r) => r.status === "pending_approval" && matchRun(r));
+  const approvedScheduled = runs.filter((r) => r.status === "approved" && matchRun(r));
+  const skippedRuns = runs.filter((r) => r.status === "skipped" && matchRun(r));
+  const failedRuns = runs.filter((r) => r.status === "failed" && matchRun(r));
+  const upcoming = planned.filter((p) => !p.ran && p.dueAt > now && matchPlanned(p));
+  const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now && matchPlanned(p));
+  const completed = planned.filter((p) => p.ran && p.ran.status === "sent" && matchPlanned(p));
+
+  const totalCount = planned.length + runs.filter((r) => ["pending_approval", "approved", "skipped", "failed"].includes(r.status)).length;
+  const shownCount = pendingApproval.length + approvedScheduled.length + skippedRuns.length + failedRuns.length + upcoming.length + dueNow.length + completed.length;
 
   const runDispatcher = useMutation({
     mutationFn: async () => {
