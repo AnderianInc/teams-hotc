@@ -148,13 +148,28 @@ export default function PlannedOutreachPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("external_records")
-        .select("id, source, attendee_id, received_at, event_date, payload, status")
+        .select("id, source, attendee_id, received_at, event_date, payload, status, category, tags")
         .in("status", ["created", "merged"])
         .order("received_at", { ascending: false })
         .limit(500);
       if (error) throw error;
       return data || [];
     },
+  });
+
+  const setCategory = useMutation({
+    mutationFn: async ({ id, category, tags }: { id: string; category?: string | null; tags?: string[] }) => {
+      const patch: Record<string, unknown> = {};
+      if (category !== undefined) patch.category = category;
+      if (tags !== undefined) patch.tags = tags;
+      const { error } = await supabase.from("external_records").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Category saved");
+      qc.invalidateQueries({ queryKey: ["external-records-active"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const { data: runs = [] } = useQuery({
