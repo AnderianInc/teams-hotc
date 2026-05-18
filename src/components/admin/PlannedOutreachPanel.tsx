@@ -11,12 +11,33 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil } from "lucide-react";
+import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil, Tag } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
 import { useChurchTimezone, formatInChurchTz } from "@/lib/timezone";
+import { useTableFilters } from "@/hooks/useTableFilters";
+import { FilterChips } from "@/components/filters/FilterChips";
+import { FilterPopover } from "@/components/filters/FilterPopover";
+import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
+import { Search } from "lucide-react";
+
+const SOURCE_OPTIONS = [
+  { value: "all", label: "All sources" },
+  { value: "prayer", label: "Prayer" },
+  { value: "visit", label: "Visit" },
+  { value: "interest", label: "Interest" },
+];
+const CHANNEL_OPTIONS = [
+  { value: "email", label: "Email" },
+  { value: "sms", label: "SMS" },
+  { value: "task", label: "Task" },
+];
+const AUDIENCE_OPTIONS = [
+  { value: "requester", label: "Requester" },
+  { value: "fi_team", label: "FI team" },
+];
 
 const SEND_HOUR = 9;
 
