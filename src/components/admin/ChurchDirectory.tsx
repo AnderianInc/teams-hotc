@@ -177,6 +177,7 @@ export default function ChurchDirectory() {
         source: "attendee",
         isStaff: !!p.is_staff,
         staffTitle: p.staff_title || (p.staff_role_id ? staffRoleMap.get(p.staff_role_id) : null) || null,
+        smsOptIn: !!p.sms_opt_in,
       });
     });
 
