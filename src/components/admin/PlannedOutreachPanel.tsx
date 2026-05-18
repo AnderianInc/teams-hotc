@@ -245,6 +245,30 @@ export default function PlannedOutreachPanel() {
   const recById = useMemo(() => new Map((records as any[]).map((r) => [r.id, r])), [records]);
   const activeRun = reviewRunId ? runs.find((r) => r.id === reviewRunId) : null;
 
+  useEffect(() => {
+    if (activeRun) {
+      setEditSubject(activeRun.subject || "");
+      setEditBody(activeRun.body || "");
+    }
+  }, [activeRun?.id]);
+
+  const saveRunEdits = useMutation({
+    mutationFn: async ({ run_id, subject, body }: { run_id: string; subject: string; body: string }) => {
+      const { error } = await supabase
+        .from("outreach_sequence_runs")
+        .update({ subject, body })
+        .eq("id", run_id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Message updated");
+      qc.invalidateQueries({ queryKey: ["outreach-runs"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const isEdited = !!activeRun && (editSubject !== (activeRun.subject || "") || editBody !== (activeRun.body || ""));
+
   const statusBadge = (s: Run["status"]) => {
     if (s === "sent") return <Badge>sent</Badge>;
     if (s === "failed") return <Badge variant="destructive">failed</Badge>;
