@@ -1091,3 +1091,95 @@ function NewStepDialog({ existingSteps, onDone }: { existingSteps: Sequence[]; o
     </DialogContent>
   );
 }
+
+function CategorizeRecord({
+  recordId,
+  category,
+  tags,
+  knownCategories,
+  knownTags,
+  onSave,
+}: {
+  recordId: string;
+  category: string | null | undefined;
+  tags: string[];
+  knownCategories: string[];
+  knownTags: string[];
+  onSave: (category: string | null, tags: string[]) => void;
+}) {
+  const [cat, setCat] = useState(category || "");
+  const [localTags, setLocalTags] = useState<string[]>(tags || []);
+  const [tagInput, setTagInput] = useState("");
+
+  useEffect(() => { setCat(category || ""); setLocalTags(tags || []); }, [recordId]);
+
+  const addTag = (v: string) => {
+    const t = v.trim();
+    if (!t) return;
+    if (localTags.includes(t)) return;
+    setLocalTags([...localTags, t]);
+    setTagInput("");
+  };
+
+  const dirty = (cat || "") !== (category || "") ||
+    localTags.length !== (tags || []).length ||
+    localTags.some((t, i) => t !== (tags || [])[i]);
+
+  return (
+    <div className="rounded border bg-muted/20 p-3 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Tag className="h-3.5 w-3.5" /> Categorize this record
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">Category</Label>
+          <Input
+            list={`cats-${recordId}`}
+            value={cat}
+            onChange={(e) => setCat(e.target.value)}
+            placeholder="e.g. Urgent, Crisis, Follow-up"
+            className="h-8"
+          />
+          <datalist id={`cats-${recordId}`}>
+            {knownCategories.map((c) => <option key={c} value={c} />)}
+          </datalist>
+        </div>
+        <div>
+          <Label className="text-xs">Add tag</Label>
+          <Input
+            list={`tags-${recordId}`}
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tagInput); } }}
+            placeholder="Type and press Enter"
+            className="h-8"
+          />
+          <datalist id={`tags-${recordId}`}>
+            {knownTags.map((t) => <option key={t} value={t} />)}
+          </datalist>
+        </div>
+      </div>
+      {localTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {localTags.map((t) => (
+            <Badge key={t} variant="secondary" className="gap-1 pl-2 pr-1">
+              {t}
+              <button
+                type="button"
+                onClick={() => setLocalTags(localTags.filter((x) => x !== t))}
+                className="ml-1 rounded hover:bg-muted-foreground/20 p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      <div className="flex justify-end">
+        <Button size="sm" disabled={!dirty} onClick={() => onSave(cat.trim() || null, localTags)}>
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
