@@ -248,8 +248,11 @@ export default function ChurchDirectory() {
     if (typeChip === "volunteers" && !e.isVolunteer) return false;
     if (typeChip === "staff" && !e.isStaff) return false;
     if (selectedTeams.length > 0 && !e.teamNames.some((t) => selectedTeams.includes(t))) return false;
-    if (selectedSmsOpt.length > 0) {
-      // facet not currently used for entries (SMS opt-in not loaded here), skip silently
+    if (selectedSmsOpt.length > 0 && e.source !== "family") {
+      const wantIn = selectedSmsOpt.includes("yes");
+      const wantOut = selectedSmsOpt.includes("no");
+      if (wantIn && !wantOut && !e.smsOptIn) return false;
+      if (wantOut && !wantIn && e.smsOptIn) return false;
     }
     return true;
   });
@@ -261,6 +264,7 @@ export default function ChurchDirectory() {
 
   const popoverSections: FacetSection[] = [
     { key: "teams", label: "Team", options: teamOptions },
+    { key: "sms", label: "SMS opt-in", options: [{ value: "yes", label: "Opted in" }, { value: "no", label: "Not opted in" }] },
     { key: "hasEmail", label: "Has email", options: [{ value: "yes", label: "Has email" }, { value: "no", label: "No email" }] },
     { key: "hasPhone", label: "Has phone", options: [{ value: "yes", label: "Has phone" }, { value: "no", label: "No phone" }] },
   ];
