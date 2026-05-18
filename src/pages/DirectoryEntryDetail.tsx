@@ -246,7 +246,7 @@ export default function DirectoryEntryDetail() {
                 </div>
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1"><Phone className="h-3 w-3" /> Phone</Label>
-                  <Input type="tel" value={form.phone || ""} onChange={(e) => update("phone", e.target.value)} />
+                  <PhoneInput value={form.phone || ""} onChange={(v) => update("phone", v || null)} />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
                   <Label className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Address</Label>
