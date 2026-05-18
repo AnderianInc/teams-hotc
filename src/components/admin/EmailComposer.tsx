@@ -36,10 +36,36 @@ export default function EmailComposer({
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [duplicateHit, setDuplicateHit] = useState<DuplicateHit | null>(null);
+  const [acknowledgedDup, setAcknowledgedDup] = useState(false);
+
+  useEffect(() => {
+    setAcknowledgedDup(false);
+    if (!to.trim() || !subject.trim()) {
+      setDuplicateHit(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const hit = await findRecentDuplicate({
+        channel: "email",
+        toEmail: to.trim(),
+        subject: subject.trim(),
+        withinDays: 7,
+      });
+      if (!cancelled) setDuplicateHit(hit);
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [to, subject]);
 
   const handleSend = async () => {
     if (!to || !subject) {
       toast.error("Recipient email and subject are required");
+      return;
+    }
+    if (duplicateHit && !acknowledgedDup) {
+      toast.warning("This contact already received an email with this subject recently — confirm below to send anyway");
+      setAcknowledgedDup(true);
       return;
     }
     setSending(true);
