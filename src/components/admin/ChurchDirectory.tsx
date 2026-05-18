@@ -101,7 +101,7 @@ export default function ChurchDirectory() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
-  const [search, setSearch] = useState("");
+  const filters = useTableFilters({ initialChips: { type: "all" } });
   const [loading, setLoading] = useState(true);
 
   const fetchDirectory = useCallback(async () => {
