@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Zap } from "lucide-react";
+import { MessageSquare, Send, Loader2, Zap, AlertTriangle } from "lucide-react";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { findRecentDuplicate, type DuplicateHit } from "@/lib/duplicateGuard";
+import { formatDistanceToNow } from "date-fns";
+import { normalizePhone } from "@/lib/phone";
 
 interface SmsComposerProps {
   defaultTo?: string;
