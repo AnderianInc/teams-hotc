@@ -126,6 +126,7 @@ export default function OutreachPipeline() {
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
       queryClient.invalidateQueries({ queryKey: ["attendees"] });
       queryClient.invalidateQueries({ queryKey: ["fi-attendees"] });
+      queryClient.invalidateQueries({ queryKey: ["attendee-pipeline-stages"] });
       if (stage === "member") {
         toast.success("Moved to Member — visitor record updated");
       } else {

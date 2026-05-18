@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { UserPlus, Search, Phone, Mail, MapPin } from "lucide-react";
+import { FilterChips } from "@/components/filters/FilterChips";
+
+type DerivedStatus = "interested" | "invited" | "visitor" | "connected" | "member";
 
 export default function AttendeeList() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "", address: "", notes: "", tags: "",
@@ -36,6 +40,59 @@ export default function AttendeeList() {
       return data;
     },
   });
+
+  // Pipeline stages keyed by attendee_id — source of truth for visitor status
+  const { data: pipelineStages } = useQuery({
+    queryKey: ["attendee-pipeline-stages"],
+    staleTime: 15_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from as any)("follow_ups")
+        .select("attendee_id, prospect_pipeline_stage, updated_at")
+        .eq("type", "outreach")
+        .not("prospect_pipeline_stage", "is", null)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      const map = new Map<string, string>();
+      (data ?? []).forEach((r: any) => {
+        if (r.attendee_id && !map.has(r.attendee_id)) map.set(r.attendee_id, r.prospect_pipeline_stage);
+      });
+      return map;
+    },
+  });
+
+  const deriveStatus = (a: any): DerivedStatus => {
+    if (a.is_member) return "member";
+    const stage = pipelineStages?.get(a.id) as string | undefined;
+    if (stage === "member") return "member";
+    if (stage === "connected") return "connected";
+    if (stage === "invited") return "invited";
+    if (stage === "visited") return "visitor";
+    if (stage === "interested") return "interested";
+    // Fall back to tag-based detection (legacy)
+    const stageTag = (a.tags || []).find((t: string) => t.startsWith("stage:"));
+    const tagStage = stageTag ? stageTag.split(":")[1] : null;
+    if (tagStage === "connected") return "connected";
+    if (tagStage === "invited") return "invited";
+    if (tagStage === "interested") return "interested";
+    if (a.first_visit_date) return "visitor";
+    return "interested";
+  };
+
+  const filteredAttendees = useMemo(() => {
+    if (!attendees) return [];
+    if (statusFilter === "all") return attendees;
+    return attendees.filter((a) => deriveStatus(a) === statusFilter);
+  }, [attendees, statusFilter, pipelineStages]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: attendees?.length ?? 0, interested: 0, invited: 0, visitor: 0, connected: 0, member: 0 };
+    (attendees ?? []).forEach((a) => {
+      const s = deriveStatus(a);
+      counts[s] = (counts[s] ?? 0) + 1;
+    });
+    return counts;
+  }, [attendees, pipelineStages]);
+
 
   const addAttendee = useMutation({
     mutationFn: async () => {
@@ -181,6 +238,20 @@ export default function AttendeeList() {
           </Dialog>
         </div>
 
+        <FilterChips
+          ariaLabel="Filter by status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "All", count: statusCounts.all },
+            { value: "interested", label: "Interested", count: statusCounts.interested },
+            { value: "invited", label: "Invited", count: statusCounts.invited },
+            { value: "visitor", label: "Visitor", count: statusCounts.visitor },
+            { value: "connected", label: "Connected", count: statusCounts.connected },
+            { value: "member", label: "Member", count: statusCounts.member },
+          ]}
+        />
+
         {isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         ) : (
@@ -195,7 +266,9 @@ export default function AttendeeList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {attendees?.map((a) => (
+              {filteredAttendees.map((a) => {
+                const status = deriveStatus(a);
+                return (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium">{a.first_name} {a.last_name}</TableCell>
                   <TableCell>
@@ -209,35 +282,32 @@ export default function AttendeeList() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {(a.tags || []).map((tag: string) => (
+                      {(a.tags || []).filter((t: string) => !t.startsWith("stage:")).map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                       ))}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {(() => {
-                      const stageTag = (a.tags || []).find((t: string) => t.startsWith("stage:"));
-                      const stage = stageTag ? stageTag.split(":")[1] : null;
-                      if (a.is_member || stage === "member") return <Badge variant="default">Member</Badge>;
-                      if (stage === "connected") return <Badge className="bg-success/15 text-success border-success/30" variant="outline">Connected</Badge>;
-                      if (stage === "invited") return <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30" variant="outline">Invited</Badge>;
-                      if (stage === "visited" || a.first_visit_date) return <Badge variant="outline">Visitor</Badge>;
-                      if (stage === "interested") return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>;
-                      return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>;
-                    })()}
+                    {status === "member" && <Badge variant="default">Member</Badge>}
+                    {status === "connected" && <Badge className="bg-success/15 text-success border-success/30" variant="outline">Connected</Badge>}
+                    {status === "invited" && <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30" variant="outline">Invited</Badge>}
+                    {status === "visitor" && <Badge variant="outline">Visitor</Badge>}
+                    {status === "interested" && <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>}
                   </TableCell>
                 </TableRow>
-              ))}
-              {(!attendees || attendees.length === 0) && (
+                );
+              })}
+              {filteredAttendees.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No visitors registered yet.
+                    No visitors match these filters.
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         )}
+
       </CardContent>
     </Card>
   );

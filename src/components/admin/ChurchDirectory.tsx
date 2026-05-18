@@ -36,6 +36,7 @@ export interface DirectoryEntry {
   familyChildren?: { id: string; first_name: string; last_name: string }[];
   isStaff?: boolean;
   staffTitle?: string | null;
+  smsOptIn?: boolean;
 }
 
 function DirectoryActionMenu({ entry, onRefresh }: { entry: DirectoryEntry; onRefresh: () => void }) {
@@ -109,8 +110,8 @@ export default function ChurchDirectory() {
 
     // Fetch attendees, profiles, team members, AND families+children in parallel
     const [attendeesRes, profilesRes, teamMembersRes, familiesRes, childrenRes, staffRolesRes] = await Promise.all([
-      supabase.from("attendees").select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth").order("last_name"),
-      supabase.from("profiles").select("attendee_id, user_id, full_name, email, is_staff, staff_role_id, staff_title"),
+      supabase.from("attendees").select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth, sms_opt_in").order("last_name"),
+      supabase.from("profiles").select("attendee_id, user_id, full_name, email, is_staff, staff_role_id, staff_title, sms_opt_in"),
       supabase.from("team_members").select("user_id, teams:teams(name)"),
       supabase.from("families").select("id, family_name, parent1_name, parent1_phone"),
       supabase.from("children").select("id, first_name, last_name, family_id, date_of_birth"),
@@ -143,7 +144,7 @@ export default function ChurchDirectory() {
     });
 
     // Build attendee entries
-    const result: DirectoryEntry[] = attendees.map((a) => {
+    const result: DirectoryEntry[] = attendees.map((a: any) => {
       const profile = profilesByAttendeeId.get(a.id);
       return {
         ...a,
@@ -153,6 +154,7 @@ export default function ChurchDirectory() {
         source: "attendee" as const,
         isStaff: !!profile?.is_staff,
         staffTitle: profile?.staff_title || (profile?.staff_role_id ? staffRoleMap.get(profile.staff_role_id) : null) || null,
+        smsOptIn: !!(a.sms_opt_in || profile?.sms_opt_in),
       };
     });
 
@@ -175,6 +177,7 @@ export default function ChurchDirectory() {
         source: "attendee",
         isStaff: !!p.is_staff,
         staffTitle: p.staff_title || (p.staff_role_id ? staffRoleMap.get(p.staff_role_id) : null) || null,
+        smsOptIn: !!p.sms_opt_in,
       });
     });
 
@@ -245,8 +248,11 @@ export default function ChurchDirectory() {
     if (typeChip === "volunteers" && !e.isVolunteer) return false;
     if (typeChip === "staff" && !e.isStaff) return false;
     if (selectedTeams.length > 0 && !e.teamNames.some((t) => selectedTeams.includes(t))) return false;
-    if (selectedSmsOpt.length > 0) {
-      // facet not currently used for entries (SMS opt-in not loaded here), skip silently
+    if (selectedSmsOpt.length > 0 && e.source !== "family") {
+      const wantIn = selectedSmsOpt.includes("yes");
+      const wantOut = selectedSmsOpt.includes("no");
+      if (wantIn && !wantOut && !e.smsOptIn) return false;
+      if (wantOut && !wantIn && e.smsOptIn) return false;
     }
     return true;
   });
@@ -258,6 +264,7 @@ export default function ChurchDirectory() {
 
   const popoverSections: FacetSection[] = [
     { key: "teams", label: "Team", options: teamOptions },
+    { key: "sms", label: "SMS opt-in", options: [{ value: "yes", label: "Opted in" }, { value: "no", label: "Not opted in" }] },
     { key: "hasEmail", label: "Has email", options: [{ value: "yes", label: "Has email" }, { value: "no", label: "No email" }] },
     { key: "hasPhone", label: "Has phone", options: [{ value: "yes", label: "Has phone" }, { value: "no", label: "No phone" }] },
   ];
@@ -323,13 +330,14 @@ export default function ChurchDirectory() {
                   <TableHead>Birthday</TableHead>
                   <TableHead>Team(s)</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>SMS</TableHead>
                   {isAdmin && <TableHead className="w-12"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">
                       No members found
                     </TableCell>
                   </TableRow>
@@ -389,6 +397,15 @@ export default function ChurchDirectory() {
                             </>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {entry.source === "family" ? (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        ) : entry.smsOptIn ? (
+                          <Badge variant="outline" className="text-success border-success/40 bg-success/10 text-xs">Opted in</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-xs">Not opted in</Badge>
+                        )}
                       </TableCell>
                       {isAdmin && (
                         <TableCell onClick={(e) => e.stopPropagation()}>
