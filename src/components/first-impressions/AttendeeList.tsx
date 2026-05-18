@@ -238,6 +238,20 @@ export default function AttendeeList() {
           </Dialog>
         </div>
 
+        <FilterChips
+          ariaLabel="Filter by status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "All", count: statusCounts.all },
+            { value: "interested", label: "Interested", count: statusCounts.interested },
+            { value: "invited", label: "Invited", count: statusCounts.invited },
+            { value: "visitor", label: "Visitor", count: statusCounts.visitor },
+            { value: "connected", label: "Connected", count: statusCounts.connected },
+            { value: "member", label: "Member", count: statusCounts.member },
+          ]}
+        />
+
         {isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         ) : (
@@ -252,7 +266,9 @@ export default function AttendeeList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {attendees?.map((a) => (
+              {filteredAttendees.map((a) => {
+                const status = deriveStatus(a);
+                return (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium">{a.first_name} {a.last_name}</TableCell>
                   <TableCell>
@@ -266,35 +282,32 @@ export default function AttendeeList() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {(a.tags || []).map((tag: string) => (
+                      {(a.tags || []).filter((t: string) => !t.startsWith("stage:")).map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                       ))}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {(() => {
-                      const stageTag = (a.tags || []).find((t: string) => t.startsWith("stage:"));
-                      const stage = stageTag ? stageTag.split(":")[1] : null;
-                      if (a.is_member || stage === "member") return <Badge variant="default">Member</Badge>;
-                      if (stage === "connected") return <Badge className="bg-success/15 text-success border-success/30" variant="outline">Connected</Badge>;
-                      if (stage === "invited") return <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30" variant="outline">Invited</Badge>;
-                      if (stage === "visited" || a.first_visit_date) return <Badge variant="outline">Visitor</Badge>;
-                      if (stage === "interested") return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>;
-                      return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>;
-                    })()}
+                    {status === "member" && <Badge variant="default">Member</Badge>}
+                    {status === "connected" && <Badge className="bg-success/15 text-success border-success/30" variant="outline">Connected</Badge>}
+                    {status === "invited" && <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30" variant="outline">Invited</Badge>}
+                    {status === "visitor" && <Badge variant="outline">Visitor</Badge>}
+                    {status === "interested" && <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>}
                   </TableCell>
                 </TableRow>
-              ))}
-              {(!attendees || attendees.length === 0) && (
+                );
+              })}
+              {filteredAttendees.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No visitors registered yet.
+                    No visitors match these filters.
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         )}
+
       </CardContent>
     </Card>
   );
