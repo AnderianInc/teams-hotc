@@ -511,6 +511,15 @@ export default function FollowUpList() {
               ))}
             </SelectContent>
           </Select>
+          <label className="flex items-center gap-2 text-xs cursor-pointer ml-1">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 accent-primary"
+              checked={showCompleted}
+              onChange={(e) => setShowCompleted(e.target.checked)}
+            />
+            Show completed
+          </label>
         </div>
 
         {isLoading ? (
