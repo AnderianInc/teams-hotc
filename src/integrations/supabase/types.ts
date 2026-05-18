@@ -154,6 +154,8 @@ export type Database = {
           address: string | null
           created_at: string
           date_of_birth: string | null
+          do_not_contact: boolean
+          do_not_contact_reason: string | null
           email: string | null
           first_name: string
           first_visit_date: string | null
@@ -163,6 +165,7 @@ export type Database = {
           last_name: string
           notes: string | null
           phone: string | null
+          phone_raw: string | null
           prayer_requests: string | null
           sms_opt_in: boolean
           sms_opt_in_at: string | null
@@ -175,6 +178,8 @@ export type Database = {
           address?: string | null
           created_at?: string
           date_of_birth?: string | null
+          do_not_contact?: boolean
+          do_not_contact_reason?: string | null
           email?: string | null
           first_name: string
           first_visit_date?: string | null
@@ -184,6 +189,7 @@ export type Database = {
           last_name: string
           notes?: string | null
           phone?: string | null
+          phone_raw?: string | null
           prayer_requests?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
@@ -196,6 +202,8 @@ export type Database = {
           address?: string | null
           created_at?: string
           date_of_birth?: string | null
+          do_not_contact?: boolean
+          do_not_contact_reason?: string | null
           email?: string | null
           first_name?: string
           first_visit_date?: string | null
@@ -205,6 +213,7 @@ export type Database = {
           last_name?: string
           notes?: string | null
           phone?: string | null
+          phone_raw?: string | null
           prayer_requests?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
@@ -807,6 +816,33 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_normalization_issues: {
+        Row: {
+          created_at: string
+          id: string
+          original: string | null
+          reason: string | null
+          row_id: string
+          source_table: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original?: string | null
+          reason?: string | null
+          row_id: string
+          source_table: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original?: string | null
+          reason?: string | null
+          row_id?: string
+          source_table?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -815,6 +851,8 @@ export type Database = {
           bio: string | null
           created_at: string
           date_of_birth: string | null
+          do_not_contact: boolean
+          do_not_contact_reason: string | null
           email: string
           full_name: string
           id: string
@@ -822,6 +860,7 @@ export type Database = {
           org_sort_order: number
           org_team_id: string | null
           phone: string | null
+          phone_raw: string | null
           reports_to_user_id: string | null
           sms_opt_in: boolean
           sms_opt_in_at: string | null
@@ -839,6 +878,8 @@ export type Database = {
           bio?: string | null
           created_at?: string
           date_of_birth?: string | null
+          do_not_contact?: boolean
+          do_not_contact_reason?: string | null
           email?: string
           full_name?: string
           id?: string
@@ -846,6 +887,7 @@ export type Database = {
           org_sort_order?: number
           org_team_id?: string | null
           phone?: string | null
+          phone_raw?: string | null
           reports_to_user_id?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
@@ -863,6 +905,8 @@ export type Database = {
           bio?: string | null
           created_at?: string
           date_of_birth?: string | null
+          do_not_contact?: boolean
+          do_not_contact_reason?: string | null
           email?: string
           full_name?: string
           id?: string
@@ -870,6 +914,7 @@ export type Database = {
           org_sort_order?: number
           org_team_id?: string | null
           phone?: string | null
+          phone_raw?: string | null
           reports_to_user_id?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
