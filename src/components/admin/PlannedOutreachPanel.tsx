@@ -547,7 +547,7 @@ export default function PlannedOutreachPanel() {
                     }
                     const groupArr = Array.from(groups.entries());
                     return groupArr.flatMap(([key, g]) => {
-                      const collapsed = collapsedGroups.has(key);
+                      const collapsed = !expandedGroups.has(key);
                       return [
                         <TableRow
                           key={`group-${key}`}
