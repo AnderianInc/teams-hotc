@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
         earlySkip = "no attendee linked";
       }
 
-      const scheduled_for = new Date(dueAt).toISOString();
+      // scheduled_for computed above
 
       if (earlySkip) {
         await insertRun(supabase, {
