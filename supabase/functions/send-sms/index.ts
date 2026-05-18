@@ -36,10 +36,40 @@ serve(async (req) => {
     if (!to || !body) throw new Error("Missing 'to' or 'body'");
 
     const phone = normalizePhone(to);
+    if (!/^\+\d{8,15}$/.test(phone)) {
+      return new Response(
+        JSON.stringify({ error: "Phone number is not valid E.164", code: "INVALID_PHONE" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Consent enforcement: refuse to send unless we have a recorded opt-in for this number,
     // OR the caller explicitly overrides (e.g., the volunteer recorded verbal consent and provides a note).
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // Do-not-contact enforcement
+    {
+      let blocked = false;
+      if (related_attendee_id) {
+        const { data: a } = await supabase.from("attendees").select("do_not_contact").eq("id", related_attendee_id).maybeSingle();
+        if (a?.do_not_contact) blocked = true;
+      }
+      if (!blocked) {
+        const { data: a2 } = await supabase.from("attendees").select("do_not_contact").eq("phone", phone).limit(1);
+        if (a2?.some((r: any) => r.do_not_contact)) blocked = true;
+        if (!blocked) {
+          const { data: p } = await supabase.from("profiles").select("do_not_contact").eq("phone", phone).limit(1);
+          if (p?.some((r: any) => r.do_not_contact)) blocked = true;
+        }
+      }
+      if (blocked) {
+        return new Response(JSON.stringify({ error: "Contact has do-not-contact set", code: "DO_NOT_CONTACT" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
 
     let consentSource: string | null = null;
     if (related_attendee_id) {
