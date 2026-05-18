@@ -36,6 +36,7 @@ export interface DirectoryEntry {
   familyChildren?: { id: string; first_name: string; last_name: string }[];
   isStaff?: boolean;
   staffTitle?: string | null;
+  smsOptIn?: boolean;
 }
 
 function DirectoryActionMenu({ entry, onRefresh }: { entry: DirectoryEntry; onRefresh: () => void }) {
