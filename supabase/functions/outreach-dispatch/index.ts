@@ -4,6 +4,8 @@
 // Approved-but-future rows are sent when the dispatcher next runs after dueAt.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { fromZonedTime } from "https://esm.sh/date-fns-tz@3.2.0";
+import { normalizePhone } from "../_shared/phone.ts";
+import { isDoNotContact, findRecentDuplicate } from "../_shared/duplicateGuard.ts";
 
 const DEFAULT_TZ = "America/Los_Angeles";
 const SEND_HOUR = 9; // 9 AM church-local for date-anchored sends
