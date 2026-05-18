@@ -15,6 +15,30 @@ import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
+import { useChurchTimezone, formatInChurchTz } from "@/lib/timezone";
+
+const SEND_HOUR = 9;
+
+function computeScheduledFor(
+  anchorKind: "received" | "event_date",
+  anchorValue: string,
+  offsetDays: number,
+  tz: string,
+): number {
+  if (anchorKind === "event_date") {
+    const [y, m, d] = anchorValue.split("-").map(Number);
+    if (!y || !m || !d) return new Date(anchorValue).getTime();
+    const base = new Date(Date.UTC(y, m - 1, d));
+    base.setUTCDate(base.getUTCDate() + offsetDays);
+    const yy = base.getUTCFullYear();
+    const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(base.getUTCDate()).padStart(2, "0");
+    const hh = String(SEND_HOUR).padStart(2, "0");
+    return fromZonedTime(`${yy}-${mm}-${dd} ${hh}:00:00`, tz).getTime();
+  }
+  return new Date(anchorValue).getTime() + offsetDays * 86400000;
+}
 
 const SRC_LABEL: Record<string, string> = { prayer: "Prayer", visit: "Visit", interest: "Interest" };
 
