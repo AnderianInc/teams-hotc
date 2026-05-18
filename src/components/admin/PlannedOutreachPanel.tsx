@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,30 @@ import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
+import { useChurchTimezone, formatInChurchTz } from "@/lib/timezone";
+
+const SEND_HOUR = 9;
+
+function computeScheduledFor(
+  anchorKind: "received" | "event_date",
+  anchorValue: string,
+  offsetDays: number,
+  tz: string,
+): number {
+  if (anchorKind === "event_date") {
+    const [y, m, d] = anchorValue.split("-").map(Number);
+    if (!y || !m || !d) return new Date(anchorValue).getTime();
+    const base = new Date(Date.UTC(y, m - 1, d));
+    base.setUTCDate(base.getUTCDate() + offsetDays);
+    const yy = base.getUTCFullYear();
+    const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(base.getUTCDate()).padStart(2, "0");
+    const hh = String(SEND_HOUR).padStart(2, "0");
+    return fromZonedTime(`${yy}-${mm}-${dd} ${hh}:00:00`, tz).getTime();
+  }
+  return new Date(anchorValue).getTime() + offsetDays * 86400000;
+}
 
 const SRC_LABEL: Record<string, string> = { prayer: "Prayer", visit: "Visit", interest: "Interest" };
 
@@ -75,8 +99,11 @@ const TEMPLATES: Record<string, { subject: string; body: string }> = {
 
 export default function PlannedOutreachPanel() {
   const qc = useQueryClient();
+  const { timezone: churchTz } = useChurchTimezone();
   const [open, setOpen] = useState(false);
   const [reviewRunId, setReviewRunId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [editingSeq, setEditingSeq] = useState<Sequence | null>(null);
   const [previewPlanned, setPreviewPlanned] = useState<{ recordId: string; seqId: string; dueAt: number } | null>(null);
@@ -136,7 +163,7 @@ export default function PlannedOutreachPanel() {
       for (const seq of seqs) {
         const anchor = seq.anchor === "event_date" ? rec.event_date : rec.received_at;
         if (!anchor) continue;
-        const dueAt = new Date(anchor).getTime() + seq.offset_days * 86400000;
+        const dueAt = computeScheduledFor(seq.anchor, anchor, seq.offset_days, churchTz);
         rows.push({
           recordId: rec.id,
           source: rec.source,
@@ -148,7 +175,7 @@ export default function PlannedOutreachPanel() {
       }
     }
     return rows.sort((a, b) => a.dueAt - b.dueAt);
-  }, [records, sequences, runByKey]);
+  }, [records, sequences, runByKey, churchTz]);
 
   const now = Date.now();
   const pendingApproval = runs.filter((r) => r.status === "pending_approval");
@@ -218,6 +245,30 @@ export default function PlannedOutreachPanel() {
   const recById = useMemo(() => new Map((records as any[]).map((r) => [r.id, r])), [records]);
   const activeRun = reviewRunId ? runs.find((r) => r.id === reviewRunId) : null;
 
+  useEffect(() => {
+    if (activeRun) {
+      setEditSubject(activeRun.subject || "");
+      setEditBody(activeRun.body || "");
+    }
+  }, [activeRun?.id]);
+
+  const saveRunEdits = useMutation({
+    mutationFn: async ({ run_id, subject, body }: { run_id: string; subject: string; body: string }) => {
+      const { error } = await supabase
+        .from("outreach_sequence_runs")
+        .update({ subject, body })
+        .eq("id", run_id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Message updated");
+      qc.invalidateQueries({ queryKey: ["outreach-runs"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const isEdited = !!activeRun && (editSubject !== (activeRun.subject || "") || editBody !== (activeRun.body || ""));
+
   const statusBadge = (s: Run["status"]) => {
     if (s === "sent") return <Badge>sent</Badge>;
     if (s === "failed") return <Badge variant="destructive">failed</Badge>;
@@ -242,7 +293,7 @@ export default function PlannedOutreachPanel() {
       <TableCell><Badge variant="secondary" className="text-xs">{p.seq.channel}</Badge></TableCell>
       <TableCell className="text-xs text-muted-foreground">{p.seq.audience}</TableCell>
       <TableCell className="text-xs">
-        {format(new Date(p.dueAt), "MMM d, h:mm a")}{" "}
+        {formatInChurchTz(p.dueAt, "MMM d, h:mm a", churchTz)}{" "}
         <span className="text-muted-foreground">({formatDistanceToNow(new Date(p.dueAt), { addSuffix: true })})</span>
       </TableCell>
       <TableCell>
@@ -322,7 +373,7 @@ export default function PlannedOutreachPanel() {
                         <TableCell className="text-xs">
                           {sched ? (
                             <>
-                              {format(sched, "MMM d, h:mm a")}
+                              {formatInChurchTz(sched, "MMM d, h:mm a", churchTz)}
                               <div className="text-muted-foreground">{formatDistanceToNow(sched, { addSuffix: true })}</div>
                             </>
                           ) : "—"}
@@ -519,9 +570,28 @@ export default function PlannedOutreachPanel() {
                   {activeRun.detail && (
                     <div className="rounded border bg-muted/30 px-3 py-2 text-xs"><strong>Note:</strong> {activeRun.detail}</div>
                   )}
-                  <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
-                    <pre className="whitespace-pre-wrap font-sans text-sm">{activeRun.body}</pre>
-                  </div>
+                  {activeRun.status === "pending_approval" ? (
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-xs">Subject</Label>
+                        <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Message body</Label>
+                        <Textarea
+                          value={editBody}
+                          onChange={(e) => setEditBody(e.target.value)}
+                          rows={10}
+                          className="font-sans text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Edits apply only to this one message. The template stays unchanged.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
+                      <pre className="whitespace-pre-wrap font-sans text-sm">{activeRun.body}</pre>
+                    </div>
+                  )}
                   {activeRun.approved_at && (
                     <div className="text-xs text-muted-foreground">
                       Actioned {format(new Date(activeRun.approved_at), "MMM d, h:mm a")}
@@ -533,8 +603,23 @@ export default function PlannedOutreachPanel() {
                     <Button variant="outline" onClick={() => decide.mutate({ run_id: activeRun.id, action: "reject", reason: "Reviewer rejected" })} disabled={decide.isPending}>
                       <X className="h-4 w-4 mr-1" /> Reject
                     </Button>
-                    <Button onClick={() => decide.mutate({ run_id: activeRun.id, action: "approve" })} disabled={decide.isPending}>
-                      <Check className="h-4 w-4 mr-1" /> Approve & send
+                    <Button
+                      variant="outline"
+                      onClick={() => saveRunEdits.mutate({ run_id: activeRun.id, subject: editSubject, body: editBody })}
+                      disabled={saveRunEdits.isPending || !isEdited}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" /> Save edits
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        if (isEdited) {
+                          await saveRunEdits.mutateAsync({ run_id: activeRun.id, subject: editSubject, body: editBody });
+                        }
+                        decide.mutate({ run_id: activeRun.id, action: "approve" });
+                      }}
+                      disabled={decide.isPending || saveRunEdits.isPending}
+                    >
+                      <Check className="h-4 w-4 mr-1" /> {isEdited ? "Save & approve" : "Approve & send"}
                     </Button>
                   </DialogFooter>
                 )}
@@ -587,7 +672,7 @@ export default function PlannedOutreachPanel() {
             const baseTpl = seq.template_slug ? TEMPLATES[seq.template_slug] : null;
             const subject = seq.subject_override ? applyVars(seq.subject_override, ctx) : applyVars(baseTpl?.subject || "", ctx);
             const body = seq.body_override ? applyVars(seq.body_override, ctx) : applyVars(baseTpl?.body || "", ctx);
-            const dueLabel = format(new Date(previewPlanned.dueAt), "MMM d, yyyy h:mm a");
+            const dueLabel = formatInChurchTz(previewPlanned.dueAt, "MMM d, yyyy h:mm a", churchTz);
             return (
               <>
                 <DialogHeader>
