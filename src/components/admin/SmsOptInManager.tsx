@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { MessageSquare, Search } from "lucide-react";
+import { MessageSquare, Search, Wand2, Loader2 } from "lucide-react";
+import { formatPhoneDisplay } from "@/lib/phone";
 
 type Row = {
   key: string;
