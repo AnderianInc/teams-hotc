@@ -215,15 +215,16 @@ export default function AttendeeList() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {a.is_member ? (
-                      <Badge variant="default">Member</Badge>
-                    ) : a.first_visit_date ? (
-                      <Badge variant="outline">Visitor</Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">
-                        Interested
-                      </Badge>
-                    )}
+                    {(() => {
+                      const stageTag = (a.tags || []).find((t: string) => t.startsWith("stage:"));
+                      const stage = stageTag ? stageTag.split(":")[1] : null;
+                      if (a.is_member || stage === "member") return <Badge variant="default">Member</Badge>;
+                      if (stage === "connected") return <Badge className="bg-success/15 text-success border-success/30" variant="outline">Connected</Badge>;
+                      if (stage === "invited") return <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30" variant="outline">Invited</Badge>;
+                      if (stage === "visited" || a.first_visit_date) return <Badge variant="outline">Visitor</Badge>;
+                      if (stage === "interested") return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>;
+                      return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">Interested</Badge>;
+                    })()}
                   </TableCell>
                 </TableRow>
               ))}
