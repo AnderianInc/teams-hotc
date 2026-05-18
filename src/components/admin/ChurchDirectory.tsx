@@ -358,7 +358,7 @@ export default function ChurchDirectory() {
                         )}
                       </TableCell>
                       <TableCell>{entry.email || "—"}</TableCell>
-                      <TableCell>{entry.phone || "—"}</TableCell>
+                      <TableCell>{formatPhoneDisplay(entry.phone, "—")}</TableCell>
                       <TableCell>{formatBirthday(entry.date_of_birth)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
