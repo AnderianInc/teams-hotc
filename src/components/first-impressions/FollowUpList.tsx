@@ -58,7 +58,7 @@ export default function FollowUpList() {
   const [smsSending, setSmsSending] = useState(false);
   const [smsOverride, setSmsOverride] = useState(false);
   const [smsConsentNote, setSmsConsentNote] = useState("");
-  const [showCompleted, setShowCompleted] = useState(false);
+  
 
   // Sync the outreach pipeline stage when a follow-up status changes.
   // - status "contacted"  → advance "interested" stage to "invited"
@@ -71,16 +71,33 @@ export default function FollowUpList() {
         .maybeSingle();
       if (!fu?.attendee_id) return;
       const stage = fu.prospect_pipeline_stage;
+      let nextStage: string | null = null;
       if (newStatus === "contacted" && (stage === "interested" || !stage)) {
-        await (supabase.from as any)("follow_ups")
-          .update({ prospect_pipeline_stage: "invited" })
-          .eq("attendee_id", fu.attendee_id)
-          .eq("type", "outreach");
+        nextStage = "invited";
       } else if (newStatus === "connected") {
+        nextStage = "connected";
+      }
+      if (nextStage) {
         await (supabase.from as any)("follow_ups")
-          .update({ prospect_pipeline_stage: "connected" })
+          .update({ prospect_pipeline_stage: nextStage })
           .eq("attendee_id", fu.attendee_id)
           .eq("type", "outreach");
+
+        // Mirror the stage onto the attendee's tags so visitor/member status badges
+        // reflect the pipeline progression (Invited / Connected / Member).
+        const { data: att } = await supabase
+          .from("attendees")
+          .select("tags")
+          .eq("id", fu.attendee_id)
+          .maybeSingle();
+        const cleaned = (att?.tags ?? []).filter((t: string) => !t.startsWith("stage:"));
+        const nextTags = Array.from(new Set([...cleaned, `stage:${nextStage}`]));
+        await supabase
+          .from("attendees")
+          .update({ tags: nextTags })
+          .eq("id", fu.attendee_id);
+        queryClient.invalidateQueries({ queryKey: ["attendees"] });
+        queryClient.invalidateQueries({ queryKey: ["fi-attendees"] });
       }
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
     } catch (err) {
@@ -136,7 +153,7 @@ export default function FollowUpList() {
   const [assignedTo, setAssignedTo] = useState("");
 
   const { data: followUps, isLoading } = useQuery({
-    queryKey: ["follow-ups", typeFilter, assigneeFilter, showCompleted],
+    queryKey: ["follow-ups", typeFilter, assigneeFilter],
     queryFn: async () => {
       // profiles:assigned_to would fail because follow_ups.assigned_to FKs to auth.users,
       // not profiles; we resolve assignee names via the volunteers query instead
@@ -148,8 +165,8 @@ export default function FollowUpList() {
 
       if (typeFilter !== "all") q = q.eq("type", typeFilter);
       if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
-      // Hide completed/connected from the active queue unless explicitly shown
-      if (!showCompleted) q = q.not("status", "in", "(connected,closed)");
+      // Once contacted or connected, the person leaves the active queue.
+      q = q.not("status", "in", "(contacted,connected,closed)");
 
       const { data, error } = await q;
       if (error) throw error;
@@ -511,15 +528,6 @@ export default function FollowUpList() {
               ))}
             </SelectContent>
           </Select>
-          <label className="flex items-center gap-2 text-xs cursor-pointer ml-1">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 accent-primary"
-              checked={showCompleted}
-              onChange={(e) => setShowCompleted(e.target.checked)}
-            />
-            Show completed
-          </label>
         </div>
 
         {isLoading ? (
