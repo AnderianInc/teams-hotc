@@ -159,7 +159,8 @@ Deno.serve(async (req) => {
       if (ranIds.has(seq.id)) continue;
       const anchorDate = seq.anchor === "event_date" ? rec.event_date : rec.received_at;
       if (!anchorDate) continue;
-      const dueAt = new Date(anchorDate).getTime() + seq.offset_days * 86400000;
+      const scheduled_for = computeScheduledFor(seq.anchor, anchorDate, seq.offset_days, churchTz);
+      const dueAt = new Date(scheduled_for).getTime();
 
       // Non-approval steps only act once due
       if (!seq.requires_approval && Date.now() < dueAt) continue;
