@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { UserPlus, Search, Phone, Mail, MapPin } from "lucide-react";
+import { FilterChips } from "@/components/filters/FilterChips";
+
+type DerivedStatus = "interested" | "invited" | "visitor" | "connected" | "member";
 
 export default function AttendeeList() {
   const queryClient = useQueryClient();
