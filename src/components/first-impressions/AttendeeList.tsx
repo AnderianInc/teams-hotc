@@ -41,6 +41,59 @@ export default function AttendeeList() {
     },
   });
 
+  // Pipeline stages keyed by attendee_id — source of truth for visitor status
+  const { data: pipelineStages } = useQuery({
+    queryKey: ["attendee-pipeline-stages"],
+    staleTime: 15_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from as any)("follow_ups")
+        .select("attendee_id, prospect_pipeline_stage, updated_at")
+        .eq("type", "outreach")
+        .not("prospect_pipeline_stage", "is", null)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      const map = new Map<string, string>();
+      (data ?? []).forEach((r: any) => {
+        if (r.attendee_id && !map.has(r.attendee_id)) map.set(r.attendee_id, r.prospect_pipeline_stage);
+      });
+      return map;
+    },
+  });
+
+  const deriveStatus = (a: any): DerivedStatus => {
+    if (a.is_member) return "member";
+    const stage = pipelineStages?.get(a.id) as string | undefined;
+    if (stage === "member") return "member";
+    if (stage === "connected") return "connected";
+    if (stage === "invited") return "invited";
+    if (stage === "visited") return "visitor";
+    if (stage === "interested") return "interested";
+    // Fall back to tag-based detection (legacy)
+    const stageTag = (a.tags || []).find((t: string) => t.startsWith("stage:"));
+    const tagStage = stageTag ? stageTag.split(":")[1] : null;
+    if (tagStage === "connected") return "connected";
+    if (tagStage === "invited") return "invited";
+    if (tagStage === "interested") return "interested";
+    if (a.first_visit_date) return "visitor";
+    return "interested";
+  };
+
+  const filteredAttendees = useMemo(() => {
+    if (!attendees) return [];
+    if (statusFilter === "all") return attendees;
+    return attendees.filter((a) => deriveStatus(a) === statusFilter);
+  }, [attendees, statusFilter, pipelineStages]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: attendees?.length ?? 0, interested: 0, invited: 0, visitor: 0, connected: 0, member: 0 };
+    (attendees ?? []).forEach((a) => {
+      const s = deriveStatus(a);
+      counts[s] = (counts[s] ?? 0) + 1;
+    });
+    return counts;
+  }, [attendees, pipelineStages]);
+
+
   const addAttendee = useMutation({
     mutationFn: async () => {
       const tags = form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
