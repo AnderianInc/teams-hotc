@@ -142,11 +142,10 @@ export default function SmsComposer({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <Label>To (phone number)</Label>
-            <Input
-              type="tel"
-              placeholder="5551234567"
+            <PhoneInput
+              placeholder="(555) 123-4567"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(v) => setTo(v)}
             />
           </div>
           <div className="space-y-1">
