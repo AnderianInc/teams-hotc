@@ -100,6 +100,7 @@ export default function FollowUpList() {
         queryClient.invalidateQueries({ queryKey: ["fi-attendees"] });
       }
       queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["attendee-pipeline-stages"] });
     } catch (err) {
       console.error("pipeline sync failed", err);
     }
