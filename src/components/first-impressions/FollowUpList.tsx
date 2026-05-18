@@ -52,12 +52,41 @@ export default function FollowUpList() {
   const [addOpen, setAddOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [emailTarget, setEmailTarget] = useState<{ email: string; name: string; attendeeId: string } | null>(null);
+  const [emailTarget, setEmailTarget] = useState<{ email: string; name: string; attendeeId: string; followUpId: string } | null>(null);
   const [smsTarget, setSmsTarget] = useState<{ phone: string; name: string; attendeeId: string; followUpId: string } | null>(null);
   const [smsBody, setSmsBody] = useState("");
   const [smsSending, setSmsSending] = useState(false);
   const [smsOverride, setSmsOverride] = useState(false);
   const [smsConsentNote, setSmsConsentNote] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  // Sync the outreach pipeline stage when a follow-up status changes.
+  // - status "contacted"  → advance "interested" stage to "invited"
+  // - status "connected"  → set stage to "connected"
+  const syncPipelineStage = async (followUpId: string, newStatus: string) => {
+    try {
+      const { data: fu } = await (supabase.from as any)("follow_ups")
+        .select("attendee_id, prospect_pipeline_stage")
+        .eq("id", followUpId)
+        .maybeSingle();
+      if (!fu?.attendee_id) return;
+      const stage = fu.prospect_pipeline_stage;
+      if (newStatus === "contacted" && (stage === "interested" || !stage)) {
+        await (supabase.from as any)("follow_ups")
+          .update({ prospect_pipeline_stage: "invited" })
+          .eq("attendee_id", fu.attendee_id)
+          .eq("type", "outreach");
+      } else if (newStatus === "connected") {
+        await (supabase.from as any)("follow_ups")
+          .update({ prospect_pipeline_stage: "connected" })
+          .eq("attendee_id", fu.attendee_id)
+          .eq("type", "outreach");
+      }
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
+    } catch (err) {
+      console.error("pipeline sync failed", err);
+    }
+  };
 
   const sendSms = async () => {
     if (!smsTarget || !smsBody.trim()) return;
