@@ -58,7 +58,7 @@ export default function FollowUpList() {
   const [smsSending, setSmsSending] = useState(false);
   const [smsOverride, setSmsOverride] = useState(false);
   const [smsConsentNote, setSmsConsentNote] = useState("");
-  const [showCompleted, setShowCompleted] = useState(false);
+  
 
   // Sync the outreach pipeline stage when a follow-up status changes.
   // - status "contacted"  → advance "interested" stage to "invited"
