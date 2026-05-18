@@ -11,12 +11,33 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil } from "lucide-react";
+import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil, Tag } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
 import { useChurchTimezone, formatInChurchTz } from "@/lib/timezone";
+import { useTableFilters } from "@/hooks/useTableFilters";
+import { FilterChips } from "@/components/filters/FilterChips";
+import { FilterPopover } from "@/components/filters/FilterPopover";
+import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
+import { Search } from "lucide-react";
+
+const SOURCE_OPTIONS = [
+  { value: "all", label: "All sources" },
+  { value: "prayer", label: "Prayer" },
+  { value: "visit", label: "Visit" },
+  { value: "interest", label: "Interest" },
+];
+const CHANNEL_OPTIONS = [
+  { value: "email", label: "Email" },
+  { value: "sms", label: "SMS" },
+  { value: "task", label: "Task" },
+];
+const AUDIENCE_OPTIONS = [
+  { value: "requester", label: "Requester" },
+  { value: "fi_team", label: "FI team" },
+];
 
 const SEND_HOUR = 9;
 
@@ -127,13 +148,28 @@ export default function PlannedOutreachPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("external_records")
-        .select("id, source, attendee_id, received_at, event_date, payload, status")
+        .select("id, source, attendee_id, received_at, event_date, payload, status, category, tags")
         .in("status", ["created", "merged"])
         .order("received_at", { ascending: false })
         .limit(500);
       if (error) throw error;
       return data || [];
     },
+  });
+
+  const setCategory = useMutation({
+    mutationFn: async ({ id, category, tags }: { id: string; category?: string | null; tags?: string[] }) => {
+      const patch: { category?: string | null; tags?: string[] } = {};
+      if (category !== undefined) patch.category = category;
+      if (tags !== undefined) patch.tags = tags;
+      const { error } = await supabase.from("external_records").update(patch as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Category saved");
+      qc.invalidateQueries({ queryKey: ["external-records-active"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const { data: runs = [] } = useQuery({
@@ -157,7 +193,7 @@ export default function PlannedOutreachPanel() {
   }, [runs]);
 
   const planned = useMemo(() => {
-    const rows: Array<{ recordId: string; source: string; name: string; seq: Sequence; dueAt: number; ran?: Run }> = [];
+    const rows: Array<{ recordId: string; source: string; name: string; seq: Sequence; dueAt: number; ran?: Run; category?: string | null; tags?: string[] }> = [];
     for (const rec of records as any[]) {
       const seqs = sequences.filter((s) => s.source === rec.source && s.active);
       for (const seq of seqs) {
@@ -171,20 +207,89 @@ export default function PlannedOutreachPanel() {
           seq,
           dueAt,
           ran: runByKey.get(`${rec.id}:${seq.id}`),
+          category: rec.category ?? null,
+          tags: rec.tags ?? [],
         });
       }
     }
     return rows.sort((a, b) => a.dueAt - b.dueAt);
   }, [records, sequences, runByKey, churchTz]);
 
+  // -------- Filters --------
+  const filters = useTableFilters({ initialChips: { source: "all" } });
+  const recById0 = useMemo(() => new Map((records as any[]).map((r) => [r.id, r])), [records]);
+
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    (records as any[]).forEach((r) => { if (r.category) set.add(r.category); });
+    return Array.from(set).sort();
+  }, [records]);
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    (records as any[]).forEach((r) => (r.tags || []).forEach((t: string) => set.add(t)));
+    return Array.from(set).sort();
+  }, [records]);
+
+  const sourceChip = filters.chips.source ?? "all";
+  const channels = filters.facets.channel ?? [];
+  const audiences = filters.facets.audience ?? [];
+  const cats = filters.facets.category ?? [];
+  const tagFacet = filters.facets.tag ?? [];
+  const term = filters.search.trim().toLowerCase();
+  const dr = filters.dateRange;
+  const fromTs = dr?.from ? new Date(dr.from + "T00:00:00").getTime() : null;
+  const toTs = dr?.to ? new Date(dr.to + "T23:59:59").getTime() : null;
+
+  const matchPlanned = (p: typeof planned[number]) => {
+    if (sourceChip !== "all" && p.source !== sourceChip) return false;
+    if (channels.length && !channels.includes(p.seq.channel)) return false;
+    if (audiences.length && !audiences.includes(p.seq.audience)) return false;
+    if (cats.length) {
+      const c = p.category || "__none__";
+      if (!cats.includes(c)) return false;
+    }
+    if (tagFacet.length && !tagFacet.some((t) => (p.tags || []).includes(t))) return false;
+    if (fromTs && p.dueAt < fromTs) return false;
+    if (toTs && p.dueAt > toTs) return false;
+    if (term) {
+      const hay = `${p.name} ${p.seq.description || ""} ${p.seq.template_slug || ""}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  };
+
+  const matchRun = (r: Run) => {
+    const seq = sequences.find((s) => s.id === r.sequence_id);
+    const rec: any = recById0.get(r.external_record_id);
+    if (sourceChip !== "all" && (seq?.source || rec?.source) !== sourceChip) return false;
+    if (channels.length && !channels.includes(r.channel || seq?.channel || "")) return false;
+    if (audiences.length && !audiences.includes(seq?.audience || "")) return false;
+    if (cats.length) {
+      const c = rec?.category || "__none__";
+      if (!cats.includes(c)) return false;
+    }
+    if (tagFacet.length && !tagFacet.some((t) => (rec?.tags || []).includes(t))) return false;
+    const when = r.scheduled_for ? new Date(r.scheduled_for).getTime() : new Date(r.sent_at).getTime();
+    if (fromTs && when < fromTs) return false;
+    if (toTs && when > toTs) return false;
+    if (term) {
+      const hay = `${rec?.payload?.name || ""} ${r.recipient || ""} ${r.subject || ""} ${r.detail || ""}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  };
+
   const now = Date.now();
-  const pendingApproval = runs.filter((r) => r.status === "pending_approval");
-  const approvedScheduled = runs.filter((r) => r.status === "approved");
-  const skippedRuns = runs.filter((r) => r.status === "skipped");
-  const failedRuns = runs.filter((r) => r.status === "failed");
-  const upcoming = planned.filter((p) => !p.ran && p.dueAt > now);
-  const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now);
-  const completed = planned.filter((p) => p.ran && p.ran.status === "sent");
+  const pendingApproval = runs.filter((r) => r.status === "pending_approval" && matchRun(r));
+  const approvedScheduled = runs.filter((r) => r.status === "approved" && matchRun(r));
+  const skippedRuns = runs.filter((r) => r.status === "skipped" && matchRun(r));
+  const failedRuns = runs.filter((r) => r.status === "failed" && matchRun(r));
+  const upcoming = planned.filter((p) => !p.ran && p.dueAt > now && matchPlanned(p));
+  const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now && matchPlanned(p));
+  const completed = planned.filter((p) => p.ran && p.ran.status === "sent" && matchPlanned(p));
+
+  const totalCount = planned.length + runs.filter((r) => ["pending_approval", "approved", "skipped", "failed"].includes(r.status)).length;
+  const shownCount = pendingApproval.length + approvedScheduled.length + skippedRuns.length + failedRuns.length + upcoming.length + dueNow.length + completed.length;
 
   const runDispatcher = useMutation({
     mutationFn: async () => {
@@ -288,7 +393,17 @@ export default function PlannedOutreachPanel() {
       }
     >
       <TableCell><Badge variant="outline">{SRC_LABEL[p.source]}</Badge></TableCell>
-      <TableCell className="font-medium">{p.name}</TableCell>
+      <TableCell className="font-medium">
+        {p.name}
+        {(p.category || (p.tags && p.tags.length > 0)) && (
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {p.category && <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{p.category}</Badge>}
+            {(p.tags || []).map((t) => (
+              <Badge key={t} variant="outline" className="text-[10px] h-4 px-1.5">{t}</Badge>
+            ))}
+          </div>
+        )}
+      </TableCell>
       <TableCell className="text-xs">{p.seq.description || p.seq.template_slug}</TableCell>
       <TableCell><Badge variant="secondary" className="text-xs">{p.seq.channel}</Badge></TableCell>
       <TableCell className="text-xs text-muted-foreground">{p.seq.audience}</TableCell>
@@ -328,6 +443,64 @@ export default function PlannedOutreachPanel() {
           </Button>
         </CardHeader>
         <CardContent>
+          <div className="space-y-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search name, recipient, subject, reason…"
+                  value={filters.search}
+                  onChange={(e) => filters.setSearch(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+              <FilterChips
+                ariaLabel="Source"
+                options={SOURCE_OPTIONS}
+                value={sourceChip}
+                onChange={(v) => filters.setChip("source", v)}
+              />
+              <FilterPopover
+                sections={[
+                  { key: "channel", label: "Channel", options: CHANNEL_OPTIONS },
+                  { key: "audience", label: "Audience", options: AUDIENCE_OPTIONS },
+                  {
+                    key: "category",
+                    label: "Category",
+                    options: [
+                      { value: "__none__", label: "Uncategorized" },
+                      ...allCategories.map((c) => ({ value: c, label: c })),
+                    ],
+                  },
+                  { key: "tag", label: "Tags", options: allTags.map((t) => ({ value: t, label: t })) },
+                ]}
+                facets={filters.facets}
+                onToggle={filters.toggleFacet}
+                dateRange={filters.dateRange}
+                onDateRangeChange={filters.setDateRange}
+                dateRangeLabel="Scheduled / sent date"
+                activeCount={filters.activeCount - (filters.search.trim() ? 1 : 0)}
+                onClearAll={filters.clearAll}
+              />
+            </div>
+            <ActiveFilterBar
+              search={filters.search || undefined}
+              onClearSearch={() => filters.setSearch("")}
+              chips={sourceChip !== "all" ? [{ key: "source", label: `Source: ${SRC_LABEL[sourceChip] || sourceChip}`, onRemove: () => filters.setChip("source", "all") }] : []}
+              facets={[
+                ...(channels.map((v) => ({ key: `channel:${v}`, label: `Channel: ${v}`, onRemove: () => filters.toggleFacet("channel", v) }))),
+                ...(audiences.map((v) => ({ key: `audience:${v}`, label: `Audience: ${v}`, onRemove: () => filters.toggleFacet("audience", v) }))),
+                ...(cats.map((v) => ({ key: `cat:${v}`, label: `Category: ${v === "__none__" ? "Uncategorized" : v}`, onRemove: () => filters.toggleFacet("category", v) }))),
+                ...(tagFacet.map((v) => ({ key: `tag:${v}`, label: `Tag: ${v}`, onRemove: () => filters.toggleFacet("tag", v) }))),
+              ]}
+              dateRange={filters.dateRange}
+              onClearDateRange={() => filters.setDateRange(null)}
+              total={totalCount}
+              shown={shownCount}
+              activeCount={filters.activeCount}
+              onClearAll={filters.clearAll}
+            />
+          </div>
           <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
@@ -570,6 +743,16 @@ export default function PlannedOutreachPanel() {
                   {activeRun.detail && (
                     <div className="rounded border bg-muted/30 px-3 py-2 text-xs"><strong>Note:</strong> {activeRun.detail}</div>
                   )}
+                  {rec && (
+                    <CategorizeRecord
+                      recordId={rec.id}
+                      category={rec.category}
+                      tags={rec.tags || []}
+                      knownCategories={allCategories}
+                      knownTags={allTags}
+                      onSave={(category, tags) => setCategory.mutate({ id: rec.id, category, tags })}
+                    />
+                  )}
                   {activeRun.status === "pending_approval" ? (
                     <div className="space-y-2">
                       <div>
@@ -685,6 +868,14 @@ export default function PlannedOutreachPanel() {
                   <div className="text-xs text-muted-foreground">
                     Step: {seq.description || seq.template_slug} · {seq.requires_approval ? "Requires review" : "Auto-sends"}
                   </div>
+                  <CategorizeRecord
+                    recordId={previewPlanned.recordId}
+                    category={rec.category}
+                    tags={rec.tags || []}
+                    knownCategories={allCategories}
+                    knownTags={allTags}
+                    onSave={(category, tags) => setCategory.mutate({ id: previewPlanned.recordId, category, tags })}
+                  />
                   <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
                     <pre className="whitespace-pre-wrap font-sans text-sm">{body}</pre>
                   </div>
@@ -898,5 +1089,97 @@ function NewStepDialog({ existingSteps, onDone }: { existingSteps: Sequence[]; o
       </div>
       <DialogFooter><Button onClick={() => create.mutate()} disabled={create.isPending}>Create step</Button></DialogFooter>
     </DialogContent>
+  );
+}
+
+function CategorizeRecord({
+  recordId,
+  category,
+  tags,
+  knownCategories,
+  knownTags,
+  onSave,
+}: {
+  recordId: string;
+  category: string | null | undefined;
+  tags: string[];
+  knownCategories: string[];
+  knownTags: string[];
+  onSave: (category: string | null, tags: string[]) => void;
+}) {
+  const [cat, setCat] = useState(category || "");
+  const [localTags, setLocalTags] = useState<string[]>(tags || []);
+  const [tagInput, setTagInput] = useState("");
+
+  useEffect(() => { setCat(category || ""); setLocalTags(tags || []); }, [recordId]);
+
+  const addTag = (v: string) => {
+    const t = v.trim();
+    if (!t) return;
+    if (localTags.includes(t)) return;
+    setLocalTags([...localTags, t]);
+    setTagInput("");
+  };
+
+  const dirty = (cat || "") !== (category || "") ||
+    localTags.length !== (tags || []).length ||
+    localTags.some((t, i) => t !== (tags || [])[i]);
+
+  return (
+    <div className="rounded border bg-muted/20 p-3 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Tag className="h-3.5 w-3.5" /> Categorize this record
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">Category</Label>
+          <Input
+            list={`cats-${recordId}`}
+            value={cat}
+            onChange={(e) => setCat(e.target.value)}
+            placeholder="e.g. Urgent, Crisis, Follow-up"
+            className="h-8"
+          />
+          <datalist id={`cats-${recordId}`}>
+            {knownCategories.map((c) => <option key={c} value={c} />)}
+          </datalist>
+        </div>
+        <div>
+          <Label className="text-xs">Add tag</Label>
+          <Input
+            list={`tags-${recordId}`}
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tagInput); } }}
+            placeholder="Type and press Enter"
+            className="h-8"
+          />
+          <datalist id={`tags-${recordId}`}>
+            {knownTags.map((t) => <option key={t} value={t} />)}
+          </datalist>
+        </div>
+      </div>
+      {localTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {localTags.map((t) => (
+            <Badge key={t} variant="secondary" className="gap-1 pl-2 pr-1">
+              {t}
+              <button
+                type="button"
+                onClick={() => setLocalTags(localTags.filter((x) => x !== t))}
+                className="ml-1 rounded hover:bg-muted-foreground/20 p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      <div className="flex justify-end">
+        <Button size="sm" disabled={!dirty} onClick={() => onSave(cat.trim() || null, localTags)}>
+          Save
+        </Button>
+      </div>
+    </div>
   );
 }
