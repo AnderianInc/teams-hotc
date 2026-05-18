@@ -175,7 +175,7 @@ export default function PlannedOutreachPanel() {
       }
     }
     return rows.sort((a, b) => a.dueAt - b.dueAt);
-  }, [records, sequences, runByKey]);
+  }, [records, sequences, runByKey, churchTz]);
 
   const now = Date.now();
   const pendingApproval = runs.filter((r) => r.status === "pending_approval");
