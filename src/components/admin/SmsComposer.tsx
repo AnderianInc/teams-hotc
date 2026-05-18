@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Zap } from "lucide-react";
+import { MessageSquare, Send, Loader2, Zap, AlertTriangle } from "lucide-react";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { findRecentDuplicate, type DuplicateHit } from "@/lib/duplicateGuard";
+import { formatDistanceToNow } from "date-fns";
+import { normalizePhone } from "@/lib/phone";
 
 interface SmsComposerProps {
   defaultTo?: string;
@@ -33,6 +37,28 @@ export default function SmsComposer({
   const [sending, setSending] = useState(false);
   const [overrideConsent, setOverrideConsent] = useState(false);
   const [consentNote, setConsentNote] = useState("");
+  const [duplicateHit, setDuplicateHit] = useState<DuplicateHit | null>(null);
+  const [acknowledgedDup, setAcknowledgedDup] = useState(false);
+
+  useEffect(() => {
+    setAcknowledgedDup(false);
+    const norm = normalizePhone(to);
+    if (!norm.valid || !norm.e164 || !body.trim()) {
+      setDuplicateHit(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const hit = await findRecentDuplicate({
+        channel: "sms",
+        toPhone: norm.e164,
+        bodyPrefix: body.trim().slice(0, 60),
+        withinDays: 7,
+      });
+      if (!cancelled) setDuplicateHit(hit);
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [to, body]);
 
   const handleSend = async () => {
     if (!to.trim()) {
@@ -41,6 +67,11 @@ export default function SmsComposer({
     }
     if (!body.trim()) {
       toast.error("Message body is required");
+      return;
+    }
+    if (duplicateHit && !acknowledgedDup) {
+      toast.warning("This contact received a very similar text recently — confirm below to send anyway");
+      setAcknowledgedDup(true);
       return;
     }
     setSending(true);
@@ -111,11 +142,10 @@ export default function SmsComposer({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <Label>To (phone number)</Label>
-            <Input
-              type="tel"
-              placeholder="5551234567"
+            <PhoneInput
+              placeholder="(555) 123-4567"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(v) => setTo(v)}
             />
           </div>
           <div className="space-y-1">
@@ -167,11 +197,22 @@ export default function SmsComposer({
           )}
         </div>
 
+        {duplicateHit && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              A very similar text was sent to this number{" "}
+              <strong>{formatDistanceToNow(new Date(duplicateHit.sentAt), { addSuffix: true })}</strong>.
+              {acknowledgedDup ? " Click Send again to send anyway." : " Click Send to acknowledge and proceed."}
+            </div>
+          </div>
+        )}
+
         <Button onClick={handleSend} disabled={sending || !to.trim() || !body.trim()} className="w-full">
           {sending ? (
             <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...</>
           ) : (
-            <><Send className="h-4 w-4 mr-2" /> Send Text</>
+            <><Send className="h-4 w-4 mr-2" /> {duplicateHit && acknowledgedDup ? "Send anyway" : "Send Text"}</>
           )}
         </Button>
       </CardContent>

@@ -14,8 +14,11 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, Save, Loader2, User, Phone, Mail, MapPin, Calendar, Heart, Users, Plus, X, Cake, Tag,
+  ArrowLeft, Save, Loader2, User, Phone, Mail, MapPin, Calendar, Heart, Users, Plus, X, Cake, Tag, MessageSquare,
 } from "lucide-react";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { formatPhoneDisplay } from "@/lib/phone";
+import { CommsTimeline } from "@/components/comms/CommsTimeline";
 
 // ─── Types ───────────────────────────────────────────────
 interface AttendeeData {
@@ -243,7 +246,7 @@ export default function DirectoryEntryDetail() {
                 </div>
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1"><Phone className="h-3 w-3" /> Phone</Label>
-                  <Input type="tel" value={form.phone || ""} onChange={(e) => update("phone", e.target.value)} />
+                  <PhoneInput value={form.phone || ""} onChange={(v) => update("phone", v || null)} />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
                   <Label className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Address</Label>
@@ -253,7 +256,7 @@ export default function DirectoryEntryDetail() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 <InfoRow icon={Mail} label="Email" value={entry.email} />
-                <InfoRow icon={Phone} label="Phone" value={entry.phone} />
+                <InfoRow icon={Phone} label="Phone" value={formatPhoneDisplay(entry.phone, entry.phone || null)} />
                 <InfoRow icon={MapPin} label="Address" value={entry.address} className="sm:col-span-2" />
               </div>
             )}
@@ -347,6 +350,19 @@ export default function DirectoryEntryDetail() {
 
       {/* Relationships */}
       <RelationshipsCard attendeeId={id!} relationships={relationships} onRefresh={fetchEntry} />
+
+      {/* Communications Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <MessageSquare className="h-4 w-4" /> Communications
+          </CardTitle>
+          <CardDescription>Every email, text, and follow-up touch on record</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CommsTimeline attendeeId={id!} email={entry.email} phone={entry.phone} />
+        </CardContent>
+      </Card>
 
       {/* Attendance History */}
       <Card>
