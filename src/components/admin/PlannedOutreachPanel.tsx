@@ -570,9 +570,28 @@ export default function PlannedOutreachPanel() {
                   {activeRun.detail && (
                     <div className="rounded border bg-muted/30 px-3 py-2 text-xs"><strong>Note:</strong> {activeRun.detail}</div>
                   )}
-                  <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
-                    <pre className="whitespace-pre-wrap font-sans text-sm">{activeRun.body}</pre>
-                  </div>
+                  {activeRun.status === "pending_approval" ? (
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-xs">Subject</Label>
+                        <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Message body</Label>
+                        <Textarea
+                          value={editBody}
+                          onChange={(e) => setEditBody(e.target.value)}
+                          rows={10}
+                          className="font-sans text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Edits apply only to this one message. The template stays unchanged.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded border bg-background p-3 max-h-[40vh] overflow-auto">
+                      <pre className="whitespace-pre-wrap font-sans text-sm">{activeRun.body}</pre>
+                    </div>
+                  )}
                   {activeRun.approved_at && (
                     <div className="text-xs text-muted-foreground">
                       Actioned {format(new Date(activeRun.approved_at), "MMM d, h:mm a")}
@@ -584,8 +603,23 @@ export default function PlannedOutreachPanel() {
                     <Button variant="outline" onClick={() => decide.mutate({ run_id: activeRun.id, action: "reject", reason: "Reviewer rejected" })} disabled={decide.isPending}>
                       <X className="h-4 w-4 mr-1" /> Reject
                     </Button>
-                    <Button onClick={() => decide.mutate({ run_id: activeRun.id, action: "approve" })} disabled={decide.isPending}>
-                      <Check className="h-4 w-4 mr-1" /> Approve & send
+                    <Button
+                      variant="outline"
+                      onClick={() => saveRunEdits.mutate({ run_id: activeRun.id, subject: editSubject, body: editBody })}
+                      disabled={saveRunEdits.isPending || !isEdited}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" /> Save edits
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        if (isEdited) {
+                          await saveRunEdits.mutateAsync({ run_id: activeRun.id, subject: editSubject, body: editBody });
+                        }
+                        decide.mutate({ run_id: activeRun.id, action: "approve" });
+                      }}
+                      disabled={decide.isPending || saveRunEdits.isPending}
+                    >
+                      <Check className="h-4 w-4 mr-1" /> {isEdited ? "Save & approve" : "Approve & send"}
                     </Button>
                   </DialogFooter>
                 )}
