@@ -69,6 +69,11 @@ export default function SmsComposer({
       toast.error("Message body is required");
       return;
     }
+    if (duplicateHit && !acknowledgedDup) {
+      toast.warning("This contact received a very similar text recently — confirm below to send anyway");
+      setAcknowledgedDup(true);
+      return;
+    }
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-sms", {
