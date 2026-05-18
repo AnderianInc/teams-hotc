@@ -246,6 +246,46 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             </div>
           )}
 
+          {/* Staff Section */}
+          {entry.source !== "family" && userId && (
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="is-staff"
+                  checked={form.is_staff}
+                  onCheckedChange={(v) => update("is_staff", v)}
+                />
+                <Label htmlFor="is-staff" className="cursor-pointer">Mark as Staff</Label>
+              </div>
+              {form.is_staff && (
+                <>
+                  <div className="space-y-1">
+                    <Label>Staff Role</Label>
+                    <select
+                      className="w-full h-9 rounded-md border bg-background px-2 text-sm"
+                      value={form.staff_role_id}
+                      onChange={(e) => update("staff_role_id", e.target.value)}
+                    >
+                      <option value="">— Select role —</option>
+                      {staffRoles.map((r) => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">Manage roles under Admin → Staff Roles.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Custom Title (optional)</Label>
+                    <Input
+                      value={form.staff_title}
+                      onChange={(e) => update("staff_title", e.target.value)}
+                      placeholder="Overrides role name on profile"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Team Management Section */}
           {entry.source !== "family" && userId && (
             <>
