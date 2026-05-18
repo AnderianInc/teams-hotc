@@ -273,9 +273,11 @@ export default function FollowUpList() {
       if (status === "connected" || status === "closed") updates.completed_at = new Date().toISOString();
       const { error } = await (supabase.from as any)("follow_ups").update(updates).eq("id", id);
       if (error) throw error;
+      await syncPipelineStage(id, status);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      queryClient.invalidateQueries({ queryKey: ["outreach-pipeline"] });
       toast.success("Status updated");
     },
     onError: (e: Error) => toast.error(e.message),
