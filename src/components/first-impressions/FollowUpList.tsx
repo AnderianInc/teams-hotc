@@ -724,7 +724,17 @@ export default function FollowUpList() {
                 defaultToName={emailTarget.name}
                 defaultSubject="Follow-Up from House of Transformation Church"
                 relatedAttendeeId={emailTarget.attendeeId}
-                onSent={() => setEmailOpen(false)}
+                onSent={async () => {
+                  const fuId = emailTarget.followUpId;
+                  setEmailOpen(false);
+                  try {
+                    await (supabase.from as any)("follow_ups").update({ status: "contacted" }).eq("id", fuId);
+                    await syncPipelineStage(fuId, "contacted");
+                    queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+                  } catch (err) {
+                    console.error("mark contacted failed", err);
+                  }
+                }}
               />
             )}
           </DialogContent>
