@@ -110,8 +110,8 @@ export default function ChurchDirectory() {
 
     // Fetch attendees, profiles, team members, AND families+children in parallel
     const [attendeesRes, profilesRes, teamMembersRes, familiesRes, childrenRes, staffRolesRes] = await Promise.all([
-      supabase.from("attendees").select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth").order("last_name"),
-      supabase.from("profiles").select("attendee_id, user_id, full_name, email, is_staff, staff_role_id, staff_title"),
+      supabase.from("attendees").select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth, sms_opt_in").order("last_name"),
+      supabase.from("profiles").select("attendee_id, user_id, full_name, email, is_staff, staff_role_id, staff_title, sms_opt_in"),
       supabase.from("team_members").select("user_id, teams:teams(name)"),
       supabase.from("families").select("id, family_name, parent1_name, parent1_phone"),
       supabase.from("children").select("id, first_name, last_name, family_id, date_of_birth"),
