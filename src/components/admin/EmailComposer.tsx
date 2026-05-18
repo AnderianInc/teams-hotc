@@ -168,6 +168,17 @@ export default function EmailComposer({
           />
         </div>
 
+        {duplicateHit && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              We sent <strong>{duplicateHit.subject || "an email"}</strong> to this address{" "}
+              <strong>{formatDistanceToNow(new Date(duplicateHit.sentAt), { addSuffix: true })}</strong>.
+              {acknowledgedDup ? " Click Send again to send anyway." : " Click Send to acknowledge and proceed."}
+            </div>
+          </div>
+        )}
+
         <Button onClick={handleSend} disabled={sending} className="w-full">
           {sending ? (
             <>
@@ -175,7 +186,7 @@ export default function EmailComposer({
             </>
           ) : (
             <>
-              <Send className="h-4 w-4 mr-2" /> Send Email
+              <Send className="h-4 w-4 mr-2" /> {duplicateHit && acknowledgedDup ? "Send anyway" : "Send Email"}
             </>
           )}
         </Button>
