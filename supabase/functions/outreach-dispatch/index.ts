@@ -188,16 +188,40 @@ Deno.serve(async (req) => {
         if (seq.channel === "email") recipient = FI_TEAM_EMAIL;
         else earlySkip = "fi_team only supports email";
       } else if (attendee) {
-        if (seq.channel === "email") {
+        const dnc = await isDoNotContact(supabase, attendee.id, attendee.email, attendee.phone);
+        if (dnc) {
+          earlySkip = "do_not_contact";
+        } else if (seq.channel === "email") {
           if (!attendee.email) earlySkip = "no email";
           else recipient = attendee.email;
         } else if (seq.channel === "sms") {
-          if (!attendee.phone) earlySkip = "no phone";
-          else if (!attendee.sms_opt_in) earlySkip = "no sms opt-in";
-          else recipient = attendee.phone;
+          if (!attendee.phone) {
+            earlySkip = "no phone";
+          } else {
+            const p = normalizePhone(attendee.phone);
+            if (!p.valid || !p.e164) earlySkip = "invalid phone";
+            else if (!attendee.sms_opt_in) earlySkip = "no sms opt-in";
+            else recipient = p.e164;
+          }
         }
       } else {
         earlySkip = "no attendee linked";
+      }
+
+      // Duplicate guard
+      if (!earlySkip && recipient) {
+        const dup = await findRecentDuplicate({
+          supabase,
+          channel: seq.channel === "sms" ? "sms" : "email",
+          toEmail: seq.channel === "email" ? recipient : null,
+          toPhone: seq.channel === "sms" ? recipient : null,
+          subject: tpl.subject,
+          bodyPrefix: tpl.body,
+          sequenceId: seq.id,
+          externalRecordId: rec.id,
+          withinDays: 14,
+        });
+        if (dup) earlySkip = `duplicate (sent ${new Date(dup.sentAt).toISOString().slice(0,10)})`;
       }
 
       // scheduled_for computed above
