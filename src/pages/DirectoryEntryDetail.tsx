@@ -351,6 +351,19 @@ export default function DirectoryEntryDetail() {
       {/* Relationships */}
       <RelationshipsCard attendeeId={id!} relationships={relationships} onRefresh={fetchEntry} />
 
+      {/* Communications Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <MessageSquare className="h-4 w-4" /> Communications
+          </CardTitle>
+          <CardDescription>Every email, text, and follow-up touch on record</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CommsTimeline attendeeId={id!} email={entry.email} phone={entry.phone} />
+        </CardContent>
+      </Card>
+
       {/* Attendance History */}
       <Card>
         <CardHeader>
