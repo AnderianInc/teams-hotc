@@ -138,6 +138,21 @@ export default function SmsOptInManager() {
 
   const optedInCount = rows.filter((r) => r.sms_opt_in).length;
 
+  const cleanupPhones = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("normalize-phones", { body: {} });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      const fixed = d?.normalized ?? 0;
+      const issues = d?.issues ?? 0;
+      toast.success(`Phone cleanup complete — ${fixed} normalized, ${issues} flagged`);
+      qc.invalidateQueries({ queryKey: ["sms-opt-in-rows"] });
+    },
+    onError: (e: Error) => toast.error(`Phone cleanup failed: ${e.message}`),
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -145,8 +160,20 @@ export default function SmsOptInManager() {
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" /> SMS opt-in
           </CardTitle>
-          <div className="text-sm text-muted-foreground">
-            {optedInCount} of {rows.length} opted in
+          <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => cleanupPhones.mutate()}
+              disabled={cleanupPhones.isPending}
+              title="Normalize all phone numbers to E.164 (Twilio-safe)"
+            >
+              {cleanupPhones.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+              Run phone cleanup
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {optedInCount} of {rows.length} opted in
+            </div>
           </div>
         </div>
       </CardHeader>
