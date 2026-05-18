@@ -393,7 +393,17 @@ export default function PlannedOutreachPanel() {
       }
     >
       <TableCell><Badge variant="outline">{SRC_LABEL[p.source]}</Badge></TableCell>
-      <TableCell className="font-medium">{p.name}</TableCell>
+      <TableCell className="font-medium">
+        {p.name}
+        {(p.category || (p.tags && p.tags.length > 0)) && (
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {p.category && <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{p.category}</Badge>}
+            {(p.tags || []).map((t) => (
+              <Badge key={t} variant="outline" className="text-[10px] h-4 px-1.5">{t}</Badge>
+            ))}
+          </div>
+        )}
+      </TableCell>
       <TableCell className="text-xs">{p.seq.description || p.seq.template_slug}</TableCell>
       <TableCell><Badge variant="secondary" className="text-xs">{p.seq.channel}</Badge></TableCell>
       <TableCell className="text-xs text-muted-foreground">{p.seq.audience}</TableCell>
