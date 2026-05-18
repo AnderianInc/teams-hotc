@@ -37,6 +37,28 @@ export default function SmsComposer({
   const [sending, setSending] = useState(false);
   const [overrideConsent, setOverrideConsent] = useState(false);
   const [consentNote, setConsentNote] = useState("");
+  const [duplicateHit, setDuplicateHit] = useState<DuplicateHit | null>(null);
+  const [acknowledgedDup, setAcknowledgedDup] = useState(false);
+
+  useEffect(() => {
+    setAcknowledgedDup(false);
+    const norm = normalizePhone(to);
+    if (!norm.valid || !norm.e164 || !body.trim()) {
+      setDuplicateHit(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const hit = await findRecentDuplicate({
+        channel: "sms",
+        toPhone: norm.e164,
+        bodyPrefix: body.trim().slice(0, 60),
+        withinDays: 7,
+      });
+      if (!cancelled) setDuplicateHit(hit);
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [to, body]);
 
   const handleSend = async () => {
     if (!to.trim()) {
