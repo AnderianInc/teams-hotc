@@ -71,7 +71,7 @@ export default function ContactGroups() {
     // compute counts
     const map: Record<string, number> = {};
     await Promise.all(
-      (data ?? []).map(async (g: Group) => {
+      (data ?? []).map(async (g: any) => {
         const { data: rs } = await supabase.rpc("resolve_contact_group", { _group_id: g.id });
         map[g.id] = (rs as unknown[])?.length ?? 0;
       })
