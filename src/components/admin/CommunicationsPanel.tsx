@@ -61,8 +61,9 @@ export default function CommunicationsPanel() {
       <TabsContent value="sms-opt-in">
         <SmsOptInManager />
       </TabsContent>
-      <TabsContent value="templates">
+      <TabsContent value="templates" className="space-y-6">
         <EmailTemplates onUseTemplate={handleUseTemplate} />
+        <SmsTemplates />
       </TabsContent>
     </Tabs>
   );
