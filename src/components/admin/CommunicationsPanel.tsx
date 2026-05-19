@@ -29,6 +29,7 @@ export default function CommunicationsPanel() {
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="compose">Email</TabsTrigger>
         <TabsTrigger value="sms">Text (SMS)</TabsTrigger>
+        <TabsTrigger value="groups">Groups</TabsTrigger>
         <TabsTrigger value="log">Email Log</TabsTrigger>
         <TabsTrigger value="sms-log">SMS Log</TabsTrigger>
         <TabsTrigger value="sms-opt-in">SMS Opt-in</TabsTrigger>
