@@ -418,6 +418,102 @@ export default function DirectoryEntryDetail() {
 
 // ─── Sub-components ──────────────────────────────────────
 
+function GrowthTrackActions({ entry, onChanged }: { entry: AttendeeData; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const tags = entry.tags || [];
+  const isFirstTimer = tags.includes("first-timer");
+  const inGrowthTrack = tags.includes("growth-track");
+  const isActiveVisitor = tags.includes("active-visitor");
+  const isMember = entry.is_member;
+
+  const currentLabel = isMember
+    ? "Member"
+    : inGrowthTrack
+    ? "In Growth Track"
+    : isActiveVisitor
+    ? "Active Visitor"
+    : isFirstTimer
+    ? "First-Timer"
+    : "Visitor";
+
+  const apply = async (mutator: (t: string[]) => { tags: string[]; is_member?: boolean }, message: string) => {
+    setBusy(true);
+    const { tags: nextTags, is_member } = mutator(tags);
+    const update: any = { tags: Array.from(new Set(nextTags)) };
+    if (is_member !== undefined) update.is_member = is_member;
+    const { error } = await supabase.from("attendees").update(update).eq("id", entry.id);
+    setBusy(false);
+    if (error) toast.error(error.message);
+    else { toast.success(message); onChanged(); }
+  };
+
+  const promoteToActive = () =>
+    apply((t) => ({ tags: [...t.filter((x) => x !== "first-timer"), "active-visitor"] }), "Marked as Active Visitor");
+
+  const startGrowthTrack = () =>
+    apply((t) => ({ tags: [...t.filter((x) => x !== "first-timer"), "growth-track"] }), "Started Growth Track");
+
+  const completeGrowthTrack = () =>
+    apply(
+      (t) => ({
+        tags: t.filter((x) => x !== "first-timer" && x !== "growth-track" && x !== "active-visitor"),
+        is_member: true,
+      }),
+      "Growth Track complete — now a Member",
+    );
+
+  const revertToVisitor = () =>
+    apply(
+      (t) => ({ tags: t.filter((x) => x !== "growth-track" && x !== "active-visitor"), is_member: false }),
+      "Reverted to Visitor",
+    );
+
+  const removeFirstTimer = () =>
+    apply((t) => ({ tags: t.filter((x) => x !== "first-timer") }), 'Removed "first-timer" tag');
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide flex items-center gap-2">
+        <TrendingUp className="h-4 w-4" /> Growth Track Status
+      </h3>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={isMember ? "default" : "outline"} className="text-xs">
+          Current: {currentLabel}
+        </Badge>
+        {isFirstTimer && (
+          <Button size="sm" variant="outline" onClick={removeFirstTimer} disabled={busy}>
+            Remove first-timer
+          </Button>
+        )}
+        {!isMember && !isActiveVisitor && !inGrowthTrack && (
+          <Button size="sm" variant="outline" onClick={promoteToActive} disabled={busy}>
+            Mark as Active Visitor
+          </Button>
+        )}
+        {!isMember && !inGrowthTrack && (
+          <Button size="sm" variant="outline" onClick={startGrowthTrack} disabled={busy}>
+            Start Growth Track
+          </Button>
+        )}
+        {!isMember && (inGrowthTrack || isActiveVisitor) && (
+          <Button size="sm" onClick={completeGrowthTrack} disabled={busy} className="gap-1">
+            <CheckCircle2 className="h-3 w-3" /> Complete → Member
+          </Button>
+        )}
+        {(isMember || isActiveVisitor || inGrowthTrack) && (
+          <Button size="sm" variant="ghost" onClick={revertToVisitor} disabled={busy}>
+            Revert to Visitor
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground mt-2">
+        The Growth Track takes visitors through to membership. First-timer tag is also auto-removed after a second attendance.
+      </p>
+    </div>
+  );
+}
+
+
 function InfoRow({ icon: Icon, label, value, className }: { icon: any; label: string; value: string | null; className?: string }) {
   return (
     <div className={`flex items-start gap-2 ${className || ""}`}>
