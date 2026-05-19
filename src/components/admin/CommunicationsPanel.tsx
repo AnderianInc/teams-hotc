@@ -48,6 +48,9 @@ export default function CommunicationsPanel() {
           onSent={() => queryClient.invalidateQueries({ queryKey: ["sms-log"] })}
         />
       </TabsContent>
+      <TabsContent value="groups">
+        <ContactGroups />
+      </TabsContent>
       <TabsContent value="log">
         <EmailLog />
       </TabsContent>
