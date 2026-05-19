@@ -5,6 +5,7 @@ import EmailTemplates from "./EmailTemplates";
 import SmsComposer from "./SmsComposer";
 import SmsLog from "./SmsLog";
 import SmsOptInManager from "./SmsOptInManager";
+import ContactGroups from "./ContactGroups";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
