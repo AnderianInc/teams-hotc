@@ -304,14 +304,39 @@ export default function DirectoryEntryDetail() {
             </>
           )}
 
+          {/* Growth Track / Status Actions */}
+          {!editing && (
+            <>
+              <Separator />
+              <GrowthTrackActions entry={entry} onChanged={fetchEntry} />
+            </>
+          )}
+
           {/* Tags */}
           {entry.tags && entry.tags.length > 0 && !editing && (
             <>
               <Separator />
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Tags</h3>
-                <div className="flex gap-2 flex-wrap">
-                  {entry.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+                <div className="flex gap-2 flex-wrap items-center">
+                  {entry.tags.map((t) => (
+                    <Badge key={t} variant="secondary" className="gap-1 pr-1">
+                      {t}
+                      <button
+                        type="button"
+                        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-sm hover:bg-background/60"
+                        onClick={async () => {
+                          const next = (entry.tags || []).filter((x) => x !== t);
+                          const { error } = await supabase.from("attendees").update({ tags: next }).eq("id", entry.id);
+                          if (error) toast.error(error.message);
+                          else { toast.success(`Removed "${t}"`); fetchEntry(); }
+                        }}
+                        aria-label={`Remove ${t}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
                 </div>
               </div>
             </>
