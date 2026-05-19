@@ -1,162 +1,76 @@
-## Goal
+# Plan: SMS bulk send, Contact Groups, and day-after Welcome text
 
-Three things, bundled into one rollout:
+Three coordinated upgrades to the messaging system:
 
-1. **Filters** on the three large-data screens you picked (Church Directory, Planned Outreach, First Impressions lists), using a shared chips + popover pattern. No persistence. No CSV export.
-2. **Standardized phone numbers** across the app so they're stored and displayed in the same format and never fail Twilio's E.164 requirement.
-3. **Unified communications timeline + duplicate guard** so anyone reviewing a contact can see every email and SMS they've received and we don't accidentally re-send the same thing.
+## 1. Upgrade the Text (SMS) composer — searchable, filterable, multi-recipient
 
----
+In `src/components/admin/SmsComposer.tsx`:
+- Replace the single phone field with a **Recipients** picker:
+  - Search box (name / phone / email) across `attendees` + `profiles`
+  - Filter chips: SMS opt-in (default ON), has phone, tag, team membership, interest-meeting date, role (member/visitor/staff)
+  - Multi-select with running count + "Select all matching"
+  - Selected chips listed below with remove buttons
+- Add an "Insert from Group" button that loads a saved group (see §2)
+- Sending behavior:
+  - Loops recipients on the client, calls `send-sms` once per number with a small concurrency limit (e.g. 5) and per-recipient progress + error log
+  - Personalization tokens in the body: `{{first_name}}`, `{{last_name}}` — rendered per recipient before send
+  - Duplicate guard runs per recipient (existing `findRecentDuplicate`)
+- Keep single-send mode by default; "Add another" toggles multi-recipient mode so existing flows don't change
 
-## Part 1 — Filters
+No edge-function change needed — `send-sms` already enforces consent, do-not-contact, dedupe-friendly logging.
 
-### Shared filter kit (new)
+## 2. Reusable Contact Groups (used by both Email and SMS)
 
-- `src/components/filters/FilterChips.tsx` — pill toggles with an "All" reset.
-- `src/components/filters/FilterPopover.tsx` — single "Filters" button with a badge count, multi-select sections, optional date range, "Clear all".
-- `src/components/filters/ActiveFilterBar.tsx` — removable tags below the search row + result counter ("Showing 84 of 612").
-- `src/hooks/useTableFilters.ts` — `search`, `chips`, `facets`, `dateRange`, helpers, and a memoized `filter(rows, predicates)`.
+### Data model (migration)
+- `contact_groups` — id, name, description, kind (`static` | `smart`), filter (jsonb, for smart groups), created_by, timestamps
+- `contact_group_members` — group_id, member_type (`attendee` | `profile`), member_id (uuid) — for static groups only
+- RLS: admins & first-impressions members can read/manage
 
-All filtering is client-side over already-fetched rows. No edge function or RLS changes.
+### UI: new tab in Communications panel
+- "Groups" tab in `CommunicationsPanel.tsx` → new `ContactGroups.tsx`
+  - List groups with member counts and "Send Email" / "Send Text" quick actions
+  - Create/edit dialog:
+    - Static: search + multi-select people (reuses recipient picker from §1)
+    - Smart: rule builder — tags (any/all), SMS opt-in, has phone/email, is_member, is_staff, team membership, interest-meeting date, do-not-contact off
+  - Preview pane shows live count + first 20 matches
 
-### Church Directory (`ChurchDirectory.tsx`)
-- **Chips:** Type — All · Members · Visitors · Volunteers.
-- **Popover:** Team, Role on team, Has email, Has phone, SMS opt-in, Birthday month, Tags, Family (With/Solo).
+### Wiring
+- `EmailComposer` and `SmsComposer` both get a "Load Group" action that resolves a group → recipient list at send time (smart groups re-evaluate at click)
 
-### Planned Outreach (`PlannedOutreachPanel.tsx`)
-- **Search:** recipient name, email/phone, subject, body preview.
-- **Chips:** Source (Prayer/Visit/Interest), Channel (Email/SMS).
-- **Popover:** Step, Audience, Requires review, Scheduled window (Today / 7d / 30d / Custom).
-- Tab counters show "12 of 84" when filtered.
+## 3. Day-after Welcome SMS
 
-### First Impressions
-**Attendees:** chips for Status, popover for Source, Has email, Has phone, SMS opt-in, Tags, First-visit window.
-**Follow-ups:** chips for Status + Priority, popover for Pipeline stage, Method, Due window, Assignee, Tags.
+### Editable template
+- Insert a row in `email_templates` is not the right fit (it's HTML). Add a tiny SMS template store:
+  - Add `sms_templates` table: slug, name, body, placeholders, timestamps (RLS: admins manage, FI read)
+  - Seed: `welcome_followup_sms` with default body using `{{first_name}}`
+- Add an "SMS Templates" sub-section under the existing Templates tab to edit it
 
-### Behavior
-- Facet options derived from loaded rows. Empty state: "No matches — Clear filters". Resets on reload.
+### Scheduling
+- New edge function `send-welcome-followup-sms` (verify_jwt false, called by cron):
+  - Finds `attendees` where:
+    - `sms_opt_in = true` AND `phone IS NOT NULL`
+    - `created_at` between 22h and 26h ago (so a daily run catches yesterday's welcome submissions)
+    - Not already tagged `welcome_followup_sms_sent`
+    - `do_not_contact = false`
+  - For each, render template and call `send-sms` (override_consent false — relies on real opt-in)
+  - Tag attendee `welcome_followup_sms_sent` after success
+- Schedule via `pg_cron` + `pg_net` to run daily at 10:00 local (cron expr to be confirmed with your timezone)
 
----
-
-## Part 2 — Standardized phone numbers
-
-### Problem
-Phones are entered in many shapes (`(415) 555 1212`, `415-555-1212`, `+1 415 555 1212`, `4155551212`). The display looks inconsistent everywhere, and bad rows can fail Twilio's required E.164 format.
-
-### Approach
-Normalize **on write**, store **canonical E.164** (`+15558675310`), render with a friendly mask. Backfill what's already there.
-
-**Library:** `libphonenumber-js` (~80 KB). Default country `US` (configurable via `app_settings`).
-
-### New files
-- `src/lib/phone.ts` — `normalizePhone(input)`, `formatPhoneDisplay(e164)`, `isLikelyMobile(e164)`.
-- `src/components/ui/phone-input.tsx` — live-formats as user types, stores canonical E.164 on blur, shows inline validation error.
-- `supabase/functions/_shared/phone.ts` — same logic for Deno so server and client agree.
-
-### Replace raw phone `<Input>` with `PhoneInput` in
-`Welcome.tsx`, `CompleteProfile.tsx`, `AttendeeList.tsx`, `DirectoryEditDialog.tsx`, `EditVolunteerDialog.tsx`, `RegisterChild.tsx`, `EditFamily.tsx`, plus any others surfaced before implementation.
-
-### Display
-Replace bare `{x.phone}` with `formatPhoneDisplay(x.phone)` in directory tables, attendee cards, follow-up list, review dialogs.
-
-### Bulk import
-`BulkImport.tsx` runs each row's phone through `normalizePhone` before insert; unparseable rows surface in the existing error summary.
-
-### Backfill
-- Migration: `ALTER TABLE attendees ADD COLUMN phone_raw text;` and same on `profiles` (preserves original).
-- New `phone_normalization_issues` table (id, source_table, row_id, original, reason, created_at), admin-only RLS.
-- New `supabase/functions/normalize-phones` edge function — pages through both tables, copies original into `phone_raw` (only when null), writes canonical E.164 to `phone`, logs unparseables to the issues table. Invoked once by admin via a "Run phone cleanup" button on the SMS Opt-in tab. Safe to re-run.
-
-### Twilio safety
-- `send-sms` uses the shared helper; rejects with a clear error if the resolved `To` isn't valid E.164.
-- `outreach-dispatch` marks rows with invalid phone as `skipped` with reason `invalid phone`, visible in the existing Skipped tab.
+### Admin visibility
+- Surface last-run status (sent/skipped/failed counts) in the Communications → SMS Log tab via a small status card reading from `sms_log` filtered by today's tag
 
 ---
 
-## Part 3 — Unified communications timeline + duplicate guard
+## Technical notes
+- All SMS still flows through `supabase/functions/send-sms` → consent, footer, do-not-contact, and `sms_log` already covered.
+- Smart-group filters are evaluated server-side via a Supabase RPC `resolve_contact_group(group_id)` returning a unified recipient set (name, phone, email, opt_in flags) so Email and SMS both use the same source of truth.
+- New memory entries to add after build: `mem://features/communications/contact-groups`, `mem://features/communications/welcome-followup-sms`.
 
-### Problem
-We send emails (and now SMS) from many surfaces — admin composer, automated outreach sequences, birthday cron, follow-up activities, register-visitor confirmation. Each writes to its own log. A team member has no single place to see "what has this person received from us?" and we can accidentally send the same template twice.
-
-### Approach
-
-**A. One unified contact-comms view, fed by existing tables.**
-
-No new write paths. Instead, a normalized read-side view in the UI that pulls from:
-- `email_log` (filter `related_attendee_id` OR `to_email` match)
-- `sms_log` (filter `related_attendee_id` OR `to_phone` match)
-- `outreach_sequence_runs` (joined to `external_records.attendee_id`)
-- `follow_up_activities` where `activity_type ∈ ('email','sms','call','in_person','visit')` for the attendee's follow-ups
-
-A new helper `src/lib/commsTimeline.ts` runs the four queries in parallel and merges them into a single sorted list with shape:
-```text
-{ id, ts, channel, direction, subject, preview, source, sentBy, status, refType, refId }
-```
-
-**B. New `CommsTimeline` component** (`src/components/comms/CommsTimeline.tsx`)
-- Vertical timeline, newest first, grouped by month.
-- Each item shows channel icon (mail/sms/phone), source pill (Manual / Sequence / Birthday / Follow-up / Visitor confirm), subject/preview, "Sent by" + relative time.
-- Click expands to show full body (reuses the email viewer style from `EmailLog.tsx`).
-- Filters: channel, source, date range (uses the shared filter kit from Part 1).
-
-**C. Surface it on**
-- **`DirectoryEntryDetail.tsx`** — new "Communications" tab next to the existing tabs.
-- **First Impressions attendee drawer** — new "Comms" tab.
-- **`PlannedOutreachPanel.tsx` review dialog** — shows the recipient's last 5 comms above the message editor (so the reviewer can see "we already sent this person the same Visit follow-up yesterday").
-
-**D. Duplicate guard (cross-channel, pre-send).**
-
-A shared helper `wasRecentlyContacted({ attendeeId, channel, templateSlug?, subject?, withinDays })` returns the matching prior send if any. It checks:
-- `email_log` for same `to_email` + same `subject` within window, OR
-- `outreach_sequence_runs` for same `external_record.attendee_id` + same `sequence_id` ever (sequences should never re-run), OR
-- `sms_log` for same `to_phone` + same first 60 chars of body within window.
-
-Wired into:
-- **`outreach-dispatch`** — before sending, if `wasRecentlyContacted(..., withinDays: 14)` returns a hit for the same sequence step or the same subject, the row is marked `skipped` with reason `duplicate (sent <date>)` instead of sending. Visible in the existing Skipped tab.
-- **`EmailComposer` / `SmsComposer`** — when the user picks a recipient, if there's a hit in the last 7 days, show an inline warning banner: "We sent **[subject]** to this contact on **May 15**. Send anyway?". Non-blocking; just a confirm step.
-- **Outreach review dialog** — same warning banner when the prior send overlaps the queued message.
-
-**E. Per-contact "Do not contact" flag (lightweight)**
-
-New boolean `do_not_contact` + `do_not_contact_reason text` on `attendees` and `profiles`. When set:
-- `send-email`, `send-sms`, `outreach-dispatch` all hard-block with status `suppressed` + reason `do_not_contact`.
-- Directory edit dialog gets a toggle, mirroring the SMS opt-in pattern.
-
-No new external services. All checks are SQL queries against existing tables plus the two new columns.
-
----
-
-## Files
-
-**New**
-- `src/components/filters/{FilterChips,FilterPopover,ActiveFilterBar}.tsx`
-- `src/hooks/useTableFilters.ts`
-- `src/lib/phone.ts`
-- `src/components/ui/phone-input.tsx`
-- `src/lib/commsTimeline.ts`
-- `src/components/comms/CommsTimeline.tsx`
-- `src/lib/duplicateGuard.ts`
-- `supabase/functions/_shared/phone.ts`
-- `supabase/functions/_shared/duplicateGuard.ts`
-- `supabase/functions/normalize-phones/index.ts`
-
-**Edited**
-- `ChurchDirectory.tsx`, `PlannedOutreachPanel.tsx`, `AttendeeList.tsx`, `FollowUpList.tsx`
-- `DirectoryEditDialog.tsx`, `EditVolunteerDialog.tsx`, `BulkImport.tsx`, `SmsOptInManager.tsx`
-- `RegisterChild.tsx`, `EditFamily.tsx`, `Welcome.tsx`, `CompleteProfile.tsx`
-- `DirectoryEntryDetail.tsx` (add Communications tab)
-- `EmailComposer.tsx`, `SmsComposer.tsx` (duplicate warning)
-- `supabase/functions/send-email/index.ts`, `send-sms/index.ts`, `outreach-dispatch/index.ts` (DNC + duplicate guard + shared phone helper)
-
-**Migrations**
-- `attendees`, `profiles`: add `phone_raw text`, `do_not_contact boolean default false`, `do_not_contact_reason text`.
-- New `phone_normalization_issues` table, admin-only RLS.
-
----
-
-## Out of scope
-- Saved/named filter views, URL-encoded filters, CSV export.
-- Email Log / SMS Log / Weekly Attendance / Roster filters.
-- Inbound email/SMS replies (we only log what we send).
-- International phone collection beyond US default + manual country picker.
-- A standalone "all comms" admin report — the timeline lives on each contact's page; admins can still use Email Log / SMS Log tabs for the cross-contact view.
+## Build order
+1. Migration: `contact_groups`, `contact_group_members`, `sms_templates`, seed welcome template
+2. Recipient picker component (shared by composer + groups dialog)
+3. Upgrade `SmsComposer` to multi-recipient
+4. Groups UI + RPC `resolve_contact_group`
+5. Wire "Load Group" in Email + SMS composers
+6. `send-welcome-followup-sms` edge function + pg_cron schedule
+7. SMS templates editor in Templates tab

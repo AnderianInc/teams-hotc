@@ -323,6 +323,71 @@ export type Database = {
           },
         ]
       }
+      contact_group_members: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          member_id: string
+          member_type: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          member_id: string
+          member_type: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          member_id?: string
+          member_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "contact_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          filter: Json
+          id: string
+          kind: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          filter?: Json
+          id?: string
+          kind?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          filter?: Json
+          id?: string
+          kind?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_log: {
         Row: {
           body_html: string | null
@@ -1255,6 +1320,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          name: string
+          placeholders: string[] | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          name: string
+          placeholders?: string[] | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          name?: string
+          placeholders?: string[] | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_roles: {
         Row: {
           created_at: string
@@ -1516,6 +1611,20 @@ export type Database = {
       is_team_member: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
+      }
+      resolve_contact_group: {
+        Args: { _group_id: string }
+        Returns: {
+          do_not_contact: boolean
+          email: string
+          first_name: string
+          last_name: string
+          phone: string
+          sms_opt_in: boolean
+          source: string
+          source_id: string
+          tags: string[]
+        }[]
       }
     }
     Enums: {
