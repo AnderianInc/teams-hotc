@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.email-unsubscribe]
 verify_jwt = false
+
+[functions.dispatch-scheduled-emails]
+verify_jwt = false
