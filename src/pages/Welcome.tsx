@@ -165,27 +165,42 @@ export default function Welcome() {
                 rows={3}
               />
             </div>
-            {form.phone && (
-              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 accent-primary"
-                    checked={form.smsOptIn}
-                    onChange={(e) => update("smsOptIn", e.target.checked)}
-                  />
-                  <span className="text-xs leading-snug">
-                    Yes, I agree to receive recurring text messages from House of Transformation Church about
-                    services, events, prayer follow-up and announcements at the number above. Message frequency
-                    varies. Msg &amp; data rates may apply. Reply <strong>HELP</strong> for help, <strong>STOP</strong>{" "}
-                    to unsubscribe. Consent is not required for any purchase. See our{" "}
-                    <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">
-                      SMS Terms &amp; Privacy
-                    </a>.
-                  </span>
-                </label>
-              </div>
-            )}
+            <div className="rounded-md border-2 border-primary/30 bg-muted/30 p-4 space-y-2">
+              <div className="text-sm font-semibold">Text message (SMS) consent</div>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-primary"
+                  checked={form.smsOptIn}
+                  onChange={(e) => update("smsOptIn", e.target.checked)}
+                  disabled={!form.phone}
+                />
+                <span className="text-xs leading-snug">
+                  Yes, I agree to receive recurring <strong>text messages (SMS)</strong> from House of
+                  Transformation Church at the mobile number I provided above. Messages may include:
+                  welcome and first-time visitor follow-ups, service and event reminders, prayer follow-up
+                  and pastoral check-ins, volunteer scheduling reminders, and general church announcements.
+                  Message frequency varies (typically 2&ndash;6 messages per month). Message and data rates
+                  may apply. Reply <strong>HELP</strong> for help, reply <strong>STOP</strong> to
+                  unsubscribe at any time. Consent to receive text messages is <strong>not a condition</strong>{" "}
+                  of attending the church or any service. See our{" "}
+                  <a href="/sms-policy" target="_blank" rel="noopener" className="text-primary underline">
+                    SMS Terms
+                  </a>{" "}
+                  and{" "}
+                  <a href="/sms-policy#privacy" target="_blank" rel="noopener" className="text-primary underline">
+                    Privacy Policy
+                  </a>
+                  . Your mobile information will not be shared with third parties or affiliates for
+                  marketing purposes.
+                </span>
+              </label>
+              {!form.phone && (
+                <p className="text-xs text-muted-foreground italic">
+                  Enter a mobile phone number above to enable SMS opt-in.
+                </p>
+              )}
+            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Submitting..." : "Submit"}
