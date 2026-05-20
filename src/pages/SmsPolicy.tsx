@@ -105,7 +105,7 @@ export default function SmsPolicy() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Privacy</CardTitle></CardHeader>
+          <CardHeader id="privacy"><CardTitle>Privacy</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm leading-relaxed">
             <p>
               We do not sell, rent, share, or otherwise disclose your phone number or any information collected
