@@ -24,6 +24,7 @@ import OrgChart from "@/pages/OrgChart";
 import SmsPolicy from "@/pages/SmsPolicy";
 import ProofOfConsent from "@/pages/ProofOfConsent";
 import Help from "@/pages/Help";
+import Unsubscribe from "@/pages/Unsubscribe";
 import { useEffect } from "react";
 import { loadChurchTimezone } from "@/lib/timezone";
 
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/sms-consent" element={<ProofOfConsent />} />
             <Route path="/help" element={<Help />} />
             <Route path="/help/:slug" element={<Help />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/" element={<RootRoute />} />
             <Route
               element={
