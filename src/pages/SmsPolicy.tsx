@@ -48,11 +48,22 @@ export default function SmsPolicy() {
 
             <h3 className="font-semibold pt-4">Exact opt-in language presented to users</h3>
             <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground">
-              &ldquo;Yes, I agree to receive recurring text messages from House of Transformation Church about
-              upcoming services, events, prayer follow-up, and community announcements at the phone number provided.
-              Message frequency varies. Message and data rates may apply. Reply <strong>HELP</strong> for help, reply
-              <strong> STOP</strong> to unsubscribe at any time. Consent is not a condition of any purchase.&rdquo;
+              &ldquo;Yes, I agree to receive recurring <strong>text messages (SMS)</strong> from House of
+              Transformation Church at the mobile number I provided above. Messages may include: welcome
+              and first-time visitor follow-ups, service and event reminders, prayer follow-up and pastoral
+              check-ins, volunteer scheduling reminders, and general church announcements. Message
+              frequency varies (typically 2&ndash;6 messages per month). Message and data rates may apply.
+              Reply <strong>HELP</strong> for help, reply <strong>STOP</strong> to unsubscribe at any time.
+              Consent to receive text messages is <strong>not a condition</strong> of attending the church
+              or any service.&rdquo;
             </blockquote>
+            <p className="text-xs">
+              The SMS consent checkbox is displayed in its own bordered section on the Welcome form,
+              separate from any acceptance of our Privacy Policy or Terms of Service. The checkbox is
+              unchecked by default and the user must actively select it before any text message will be sent.
+              Your mobile information will not be shared with third parties or affiliates for marketing
+              purposes.
+            </p>
           </CardContent>
         </Card>
 
@@ -94,7 +105,7 @@ export default function SmsPolicy() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Privacy</CardTitle></CardHeader>
+          <CardHeader id="privacy"><CardTitle>Privacy</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm leading-relaxed">
             <p>
               We do not sell, rent, share, or otherwise disclose your phone number or any information collected

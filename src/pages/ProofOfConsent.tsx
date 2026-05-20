@@ -87,15 +87,20 @@ export default function ProofOfConsent() {
           <CardContent className="space-y-3 text-sm leading-relaxed">
             <p>The checkbox on every collection point is labeled with the following text:</p>
             <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground">
-              &ldquo;Yes, I agree to receive recurring text messages from House of Transformation Church about
-              upcoming services, events, prayer follow-up, and community announcements at the phone number
-              provided. Message frequency varies. Message and data rates may apply. Reply <strong>HELP</strong>{" "}
-              for help, reply <strong>STOP</strong> to unsubscribe at any time. Consent is not a condition of any
-              purchase.&rdquo;
+              &ldquo;Yes, I agree to receive recurring <strong>text messages (SMS)</strong> from House of
+              Transformation Church at the mobile number I provided above. Messages may include: welcome
+              and first-time visitor follow-ups, service and event reminders, prayer follow-up and pastoral
+              check-ins, volunteer scheduling reminders, and general church announcements. Message
+              frequency varies (typically 2&ndash;6 messages per month). Message and data rates may apply.
+              Reply <strong>HELP</strong> for help, reply <strong>STOP</strong> to unsubscribe at any time.
+              Consent to receive text messages is <strong>not a condition</strong> of attending the church
+              or any service.&rdquo;
             </blockquote>
             <p>
-              The checkbox is rendered in an unchecked state by default and the user must actively select it. The
-              underlying form will not submit an SMS opt-in record unless the user checks the box.
+              The checkbox is rendered in an unchecked state by default and the user must actively select it.
+              The SMS consent checkbox is displayed in its own bordered section, <strong>separate from</strong>{" "}
+              any acceptance of our Privacy Policy or Terms of Service. The underlying form will not submit
+              an SMS opt-in record unless the user checks the box.
             </p>
           </CardContent>
         </Card>
