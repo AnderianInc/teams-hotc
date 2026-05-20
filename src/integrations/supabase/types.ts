@@ -392,6 +392,7 @@ export type Database = {
         Row: {
           body_html: string | null
           created_at: string | null
+          error: string | null
           id: string
           related_attendee_id: string | null
           sent_at: string | null
@@ -404,6 +405,7 @@ export type Database = {
         Insert: {
           body_html?: string | null
           created_at?: string | null
+          error?: string | null
           id?: string
           related_attendee_id?: string | null
           sent_at?: string | null
@@ -416,6 +418,7 @@ export type Database = {
         Update: {
           body_html?: string | null
           created_at?: string | null
+          error?: string | null
           id?: string
           related_attendee_id?: string | null
           sent_at?: string | null
@@ -937,6 +940,63 @@ export type Database = {
           step_order?: number
           subject_override?: string | null
           template_slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pending_email_approvals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          attendee_id: string | null
+          body_html: string
+          created_at: string
+          error: string | null
+          id: string
+          notes: string | null
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          subject: string
+          template_slug: string | null
+          to_email: string
+          to_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attendee_id?: string | null
+          body_html: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          notes?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+          template_slug?: string | null
+          to_email: string
+          to_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attendee_id?: string | null
+          body_html?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          notes?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          template_slug?: string | null
+          to_email?: string
+          to_name?: string | null
           updated_at?: string
         }
         Relationships: []
