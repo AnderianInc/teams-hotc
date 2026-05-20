@@ -101,6 +101,8 @@ serve(async (req) => {
       console.error("DNC check failed", e);
     }
 
+    const finalHtml = html ? wrapTemplate(normalizeBody(html), subject) : undefined;
+
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -111,8 +113,9 @@ serve(async (req) => {
         from: "HOTC <contact@hotc.life>",
         to: Array.isArray(to) ? to : [to],
         subject,
-        html: html || undefined,
+        html: finalHtml,
         text: text || undefined,
+        reply_to: "contact@hotc.life",
       }),
     });
 
