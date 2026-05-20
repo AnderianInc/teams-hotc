@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.twilio-inbound-sms]
 verify_jwt = false
+
+[functions.email-unsubscribe]
+verify_jwt = false
