@@ -1278,6 +1278,54 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_inbound: {
+        Row: {
+          body: string
+          created_at: string
+          from_name: string | null
+          from_phone: string
+          id: string
+          media_urls: string[] | null
+          num_media: number | null
+          provider_message_id: string | null
+          received_at: string
+          related_attendee_id: string | null
+          status: string
+          to_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          from_name?: string | null
+          from_phone: string
+          id?: string
+          media_urls?: string[] | null
+          num_media?: number | null
+          provider_message_id?: string | null
+          received_at?: string
+          related_attendee_id?: string | null
+          status?: string
+          to_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          from_name?: string | null
+          from_phone?: string
+          id?: string
+          media_urls?: string[] | null
+          num_media?: number | null
+          provider_message_id?: string | null
+          received_at?: string
+          related_attendee_id?: string | null
+          status?: string
+          to_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sms_log: {
         Row: {
           body: string
