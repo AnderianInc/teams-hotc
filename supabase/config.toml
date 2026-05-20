@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.send-password-reset]
 verify_jwt = false
+
+[functions.twilio-inbound-sms]
+verify_jwt = false
