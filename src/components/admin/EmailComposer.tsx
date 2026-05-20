@@ -263,7 +263,7 @@ export default function EmailComposer({
         </div>
 
         <div className="space-y-1">
-          <Label>Email Body (HTML)</Label>
+          <Label>Email Body (Markdown or HTML supported)</Label>
           <Textarea
             placeholder="Write your email content here..."
             value={body}
