@@ -6,6 +6,7 @@ import SmsComposer from "./SmsComposer";
 import SmsLog from "./SmsLog";
 import SmsOptInManager from "./SmsOptInManager";
 import SmsInbox from "./SmsInbox";
+import PendingEmailsPanel from "./PendingEmailsPanel";
 import ContactGroups from "./ContactGroups";
 import SmsTemplates from "./SmsTemplates";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ export default function CommunicationsPanel() {
         <TabsTrigger value="compose">Email</TabsTrigger>
         <TabsTrigger value="sms">Text (SMS)</TabsTrigger>
         <TabsTrigger value="inbox">Inbox</TabsTrigger>
+        <TabsTrigger value="pending">Pending</TabsTrigger>
         <TabsTrigger value="groups">Groups</TabsTrigger>
         <TabsTrigger value="log">Email Log</TabsTrigger>
         <TabsTrigger value="sms-log">SMS Log</TabsTrigger>
@@ -53,6 +55,9 @@ export default function CommunicationsPanel() {
       </TabsContent>
       <TabsContent value="inbox">
         <SmsInbox />
+      </TabsContent>
+      <TabsContent value="pending">
+        <PendingEmailsPanel />
       </TabsContent>
       <TabsContent value="groups">
         <ContactGroups />
