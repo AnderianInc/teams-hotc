@@ -30,10 +30,14 @@ serve(async (req) => {
 
     if (!row.unsubscribed_at) {
       await sb.from("email_unsubscribes").update({ unsubscribed_at: new Date().toISOString() }).eq("id", row.id);
-      // Best-effort mirror into attendees/profiles
-      await sb.from("attendees").update({ do_not_contact: true }).eq("email", row.email);
-      await sb.from("profiles").update({ do_not_contact: true }).eq("email", row.email);
+      // Best-effort mirror into attendees/profiles (case-insensitive)
+      const emailLower = String(row.email ?? "").trim().toLowerCase();
+      if (emailLower) {
+        await sb.from("attendees").update({ do_not_contact: true, do_not_contact_reason: "Unsubscribed via email link" }).ilike("email", emailLower);
+        await sb.from("profiles").update({ do_not_contact: true, do_not_contact_reason: "Unsubscribed via email link" }).ilike("email", emailLower);
+      }
     }
+
 
     return new Response(JSON.stringify({ success: true, email: row.email }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -23,7 +23,9 @@ export interface Recipient {
   tags: string[];
   isMember?: boolean;
   isStaff?: boolean;
+  unsubscribed?: boolean;
 }
+
 
 interface Props {
   channel: Channel;
@@ -45,7 +47,7 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [a, p] = await Promise.all([
+      const [a, p, u] = await Promise.all([
         supabase
           .from("attendees")
           .select("id, first_name, last_name, email, phone, sms_opt_in, do_not_contact, tags, is_member")
@@ -56,7 +58,14 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
           .select("id, full_name, email, phone, sms_opt_in, do_not_contact, is_staff")
           .order("full_name", { ascending: true })
           .limit(2000),
+        supabase
+          .from("email_unsubscribes")
+          .select("email")
+          .not("unsubscribed_at", "is", null)
+          .limit(5000),
       ]);
+      const unsubSet = new Set<string>((u.data ?? []).map((r: any) => String(r.email ?? "").trim().toLowerCase()));
+
       const aRows: Recipient[] = (a.data ?? []).map((r: any) => ({
         key: `attendee:${r.id}`,
         source: "attendee",
@@ -69,7 +78,9 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
         doNotContact: !!r.do_not_contact,
         tags: r.tags ?? [],
         isMember: !!r.is_member,
+        unsubscribed: !!(r.email && unsubSet.has(String(r.email).trim().toLowerCase())),
       }));
+
       const pRows: Recipient[] = (p.data ?? []).map((r: any) => {
         const parts = String(r.full_name ?? "").trim().split(/\s+/);
         return {
@@ -84,8 +95,10 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
           doNotContact: !!r.do_not_contact,
           tags: [],
           isStaff: !!r.is_staff,
+          unsubscribed: !!(r.email && unsubSet.has(String(r.email).trim().toLowerCase())),
         };
       });
+
       // De-dupe by phone or email when both present
       const seen = new Set<string>();
       const merged: Recipient[] = [];
@@ -110,6 +123,8 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
     const q = search.trim().toLowerCase();
     return pool.filter((r) => {
       if (excludeDnc && r.doNotContact) return false;
+      if (channel === "email" && r.unsubscribed) return false;
+
       if (channel === "sms") {
         if (!r.phone) return false;
         if (smsOnly && !r.smsOptIn) return false;
@@ -223,6 +238,8 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
                   <Badge variant="outline" className="text-[10px]">opt-in</Badge>
                 )}
                 {r.doNotContact && <Badge variant="destructive" className="text-[10px]">DNC</Badge>}
+                {r.unsubscribed && <Badge variant="destructive" className="text-[10px]">unsubscribed</Badge>}
+
               </li>
             );
           })}
