@@ -47,7 +47,7 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [a, p] = await Promise.all([
+      const [a, p, u] = await Promise.all([
         supabase
           .from("attendees")
           .select("id, first_name, last_name, email, phone, sms_opt_in, do_not_contact, tags, is_member")
@@ -58,7 +58,14 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
           .select("id, full_name, email, phone, sms_opt_in, do_not_contact, is_staff")
           .order("full_name", { ascending: true })
           .limit(2000),
+        supabase
+          .from("email_unsubscribes")
+          .select("email")
+          .not("unsubscribed_at", "is", null)
+          .limit(5000),
       ]);
+      const unsubSet = new Set<string>((u.data ?? []).map((r: any) => String(r.email ?? "").trim().toLowerCase()));
+
       const aRows: Recipient[] = (a.data ?? []).map((r: any) => ({
         key: `attendee:${r.id}`,
         source: "attendee",
