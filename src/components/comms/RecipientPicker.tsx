@@ -23,7 +23,9 @@ export interface Recipient {
   tags: string[];
   isMember?: boolean;
   isStaff?: boolean;
+  unsubscribed?: boolean;
 }
+
 
 interface Props {
   channel: Channel;
