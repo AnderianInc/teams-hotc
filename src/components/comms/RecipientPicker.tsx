@@ -78,7 +78,9 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
         doNotContact: !!r.do_not_contact,
         tags: r.tags ?? [],
         isMember: !!r.is_member,
+        unsubscribed: !!(r.email && unsubSet.has(String(r.email).trim().toLowerCase())),
       }));
+
       const pRows: Recipient[] = (p.data ?? []).map((r: any) => {
         const parts = String(r.full_name ?? "").trim().split(/\s+/);
         return {
