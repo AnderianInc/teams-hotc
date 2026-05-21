@@ -95,8 +95,10 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
           doNotContact: !!r.do_not_contact,
           tags: [],
           isStaff: !!r.is_staff,
+          unsubscribed: !!(r.email && unsubSet.has(String(r.email).trim().toLowerCase())),
         };
       });
+
       // De-dupe by phone or email when both present
       const seen = new Set<string>();
       const merged: Recipient[] = [];
