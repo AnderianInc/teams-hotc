@@ -123,6 +123,8 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
     const q = search.trim().toLowerCase();
     return pool.filter((r) => {
       if (excludeDnc && r.doNotContact) return false;
+      if (channel === "email" && r.unsubscribed) return false;
+
       if (channel === "sms") {
         if (!r.phone) return false;
         if (smsOnly && !r.smsOptIn) return false;
