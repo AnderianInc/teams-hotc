@@ -238,6 +238,8 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
                   <Badge variant="outline" className="text-[10px]">opt-in</Badge>
                 )}
                 {r.doNotContact && <Badge variant="destructive" className="text-[10px]">DNC</Badge>}
+                {r.unsubscribed && <Badge variant="destructive" className="text-[10px]">unsubscribed</Badge>}
+
               </li>
             );
           })}
