@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Settings2, Bell, Calendar, UserX } from "lucide-react";
+import { Settings2, Bell, Calendar, UserX, Coffee } from "lucide-react";
 
 // app_settings is a key-value store table (key text PK, value jsonb)
 async function getSetting<T>(key: string, fallback: T): Promise<T> {
@@ -36,6 +36,8 @@ interface TriggerConfig {
   default_inreach_assignee: string;
   outreach_followup_enabled: boolean;
   outreach_followup_days: number;
+  coffee_with_pk_enabled: boolean;
+  coffee_with_pk_lead_days: number;
 }
 
 const DEFAULTS: TriggerConfig = {
@@ -46,6 +48,8 @@ const DEFAULTS: TriggerConfig = {
   default_inreach_assignee: "",
   outreach_followup_enabled: true,
   outreach_followup_days: 3,
+  coffee_with_pk_enabled: true,
+  coffee_with_pk_lead_days: 1,
 };
 
 export default function AutoTriggerSettings() {
@@ -189,6 +193,38 @@ export default function AutoTriggerSettings() {
               value={config.outreach_followup_days}
               disabled={!config.outreach_followup_enabled}
               onChange={(e) => update("outreach_followup_days", Number(e.target.value))}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Coffee with P.K Auto-Queue */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Coffee className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium text-sm">Coffee with P.K Follow-up Email</span>
+            </div>
+            <Switch
+              checked={config.coffee_with_pk_enabled}
+              onCheckedChange={(v) => update("coffee_with_pk_enabled", v)}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            When a new attendee is added with an email, automatically queue the "Coffee with P.K"
+            email for admin review in the Pending tab.
+          </p>
+          <div className="flex items-center gap-3">
+            <Label className="text-xs w-40 shrink-0">Days after registration</Label>
+            <Input
+              type="number"
+              min={0}
+              max={30}
+              className="w-24 h-8 text-sm"
+              value={config.coffee_with_pk_lead_days}
+              disabled={!config.coffee_with_pk_enabled}
+              onChange={(e) => update("coffee_with_pk_lead_days", Number(e.target.value))}
             />
           </div>
         </div>

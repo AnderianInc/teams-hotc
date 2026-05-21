@@ -20,11 +20,19 @@ export default function CommunicationsPanel() {
     subject: "",
     body: "",
   });
+  const [smsComposerKey, setSmsComposerKey] = useState(0);
+  const [smsDefaultBody, setSmsDefaultBody] = useState("");
 
   const handleUseTemplate = (subject: string, bodyHtml: string) => {
     setComposerDefaults({ subject, body: bodyHtml });
     setComposerKey((k) => k + 1);
     setActiveTab("compose");
+  };
+
+  const handleUseSmsTemplate = (body: string) => {
+    setSmsDefaultBody(body);
+    setSmsComposerKey((k) => k + 1);
+    setActiveTab("sms");
   };
 
   return (
@@ -50,6 +58,8 @@ export default function CommunicationsPanel() {
       </TabsContent>
       <TabsContent value="sms">
         <SmsComposer
+          key={smsComposerKey}
+          defaultBody={smsDefaultBody}
           onSent={() => queryClient.invalidateQueries({ queryKey: ["sms-log"] })}
         />
       </TabsContent>
@@ -73,7 +83,7 @@ export default function CommunicationsPanel() {
       </TabsContent>
       <TabsContent value="templates" className="space-y-6">
         <EmailTemplates onUseTemplate={handleUseTemplate} />
-        <SmsTemplates />
+        <SmsTemplates onUseTemplate={handleUseSmsTemplate} />
       </TabsContent>
     </Tabs>
   );

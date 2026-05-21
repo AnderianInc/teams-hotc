@@ -7,7 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { MessageSquare, Save, Plus, Trash2 } from "lucide-react";
+import { MessageSquare, Save, Plus, Trash2, Send } from "lucide-react";
+
+interface SmsTemplatesProps {
+  onUseTemplate?: (body: string) => void;
+}
 
 interface SmsTemplate {
   id: string;
@@ -18,7 +22,7 @@ interface SmsTemplate {
   updated_at: string | null;
 }
 
-export default function SmsTemplates() {
+export default function SmsTemplates({ onUseTemplate }: SmsTemplatesProps = {}) {
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Record<string, SmsTemplate>>({});
@@ -113,6 +117,18 @@ export default function SmsTemplates() {
                     <Badge variant="outline" className="text-[10px]">{t.slug}</Badge>
                   </div>
                   <div className="flex gap-1">
+                    {onUseTemplate && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          onUseTemplate(cur.body);
+                          toast.success("Template loaded into Text composer");
+                        }}
+                      >
+                        <Send className="h-3.5 w-3.5 mr-1" /> Use
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant={dirty ? "default" : "ghost"}

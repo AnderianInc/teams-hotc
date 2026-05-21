@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { FileText, Pencil, Eye, Save, X, MoreHorizontal, Send } from "lucide-react";
+import { FileText, Pencil, Eye, Save, X, MoreHorizontal, Send, Plus, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface EmailTemplate {
@@ -95,16 +95,45 @@ export default function EmailTemplates({ onUseTemplate }: Props) {
     toast.success("Template loaded into composer");
   };
 
+  const createNew = async () => {
+    const slug = prompt("Template slug (lowercase, hyphenated, e.g. 'welcome-back'):");
+    if (!slug) return;
+    const name = prompt("Template name (display label):", slug) || slug;
+    const { error } = await supabase.from("email_templates").insert({
+      slug,
+      name,
+      subject: "Subject — Hi {{first_name}}",
+      body_html: "<p>Hi {{first_name}},</p>\n<p>Write your message here.</p>",
+      placeholders: ["first_name"],
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Template created");
+    fetchTemplates();
+  };
+
+  const remove = async (t: EmailTemplate) => {
+    if (!confirm(`Delete "${t.name}"?`)) return;
+    const { error } = await supabase.from("email_templates").delete().eq("id", t.id);
+    if (error) return toast.error(error.message);
+    toast.success("Template deleted");
+    fetchTemplates();
+  };
+
   if (loading) {
     return <p className="text-muted-foreground text-center py-8">Loading templates...</p>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-2">
-        <FileText className="h-5 w-5 text-muted-foreground" />
-        <h3 className="font-semibold text-lg">Email Templates</h3>
-        <Badge variant="secondary">{templates.length} templates</Badge>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-muted-foreground" />
+          <h3 className="font-semibold text-lg">Email Templates</h3>
+          <Badge variant="secondary">{templates.length} templates</Badge>
+        </div>
+        <Button size="sm" onClick={createNew}>
+          <Plus className="h-4 w-4 mr-1.5" /> New Template
+        </Button>
       </div>
 
       <div className="grid gap-4">
@@ -134,6 +163,10 @@ export default function EmailTemplates({ onUseTemplate }: Props) {
                         Use Template
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem onClick={() => remove(t)} className="text-destructive focus:text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
