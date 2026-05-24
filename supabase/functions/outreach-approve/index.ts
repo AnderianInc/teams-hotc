@@ -33,7 +33,12 @@ Deno.serve(async (req) => {
   );
 
   const body = await req.json().catch(() => ({}));
-  const { run_id, action, reason } = body as { run_id?: string; action?: "approve" | "reject"; reason?: string };
+  const { run_id, action, reason, mode } = body as {
+    run_id?: string;
+    action?: "approve" | "reject";
+    reason?: string;
+    mode?: "queue" | "now";
+  };
   if (!run_id || !["approve", "reject"].includes(action || "")) {
     return new Response(JSON.stringify({ error: "Bad request" }), { status: 400, headers: corsHeaders });
   }
@@ -65,9 +70,10 @@ Deno.serve(async (req) => {
     .eq("id", run.external_record_id)
     .maybeSingle();
 
-  // If scheduled for the future, mark approved and let dispatcher send at due time
+  // Queue mode (or future-scheduled with no explicit mode): mark approved and let dispatcher send at due time
   const scheduledMs = run.scheduled_for ? new Date(run.scheduled_for).getTime() : 0;
-  if (scheduledMs && scheduledMs > Date.now()) {
+  const shouldQueue = mode === "queue" || (mode !== "now" && scheduledMs && scheduledMs > Date.now());
+  if (shouldQueue) {
     await admin.from("outreach_sequence_runs").update({
       status: "approved",
       detail: null,

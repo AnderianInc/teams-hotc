@@ -11,7 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil, Tag, ChevronDown, ChevronRight } from "lucide-react";
+import { CalendarClock, PlayCircle, Plus, Trash2, Check, X, ShieldAlert, Pencil, Tag, ChevronDown, ChevronRight, Send, Clock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
@@ -315,18 +316,43 @@ export default function PlannedOutreachPanel() {
   });
 
   const decide = useMutation({
-    mutationFn: async ({ run_id, action, reason }: { run_id: string; action: "approve" | "reject"; reason?: string }) => {
-      const { data, error } = await supabase.functions.invoke("outreach-approve", { body: { run_id, action, reason } });
+    mutationFn: async ({ run_id, action, reason, mode }: { run_id: string; action: "approve" | "reject"; reason?: string; mode?: "queue" | "now" }) => {
+      const { data, error } = await supabase.functions.invoke("outreach-approve", { body: { run_id, action, reason, mode } });
       if (error) throw error;
       return data;
     },
     onSuccess: (d: any, vars) => {
       if (vars.action === "approve") {
-        toast.success(d?.status === "approved" ? "Approved — will send at scheduled time" : `Sent (${d?.status})`);
+        toast.success(d?.status === "approved" ? "Approved — queued for scheduled send" : `Sent (${d?.status})`);
       } else {
         toast.success("Rejected");
       }
       setReviewRunId(null);
+      qc.invalidateQueries({ queryKey: ["outreach-runs"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Bulk selection for pending approvals
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const bulkApproveQueue = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(
+        ids.map((id) => supabase.functions.invoke("outreach-approve", { body: { run_id: id, action: "approve", mode: "queue" } }))
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const fail = results.length - ok;
+      return { ok, fail };
+    },
+    onSuccess: ({ ok, fail }) => {
+      toast.success(`Queued ${ok}${fail ? ` · ${fail} failed` : ""}`);
+      setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ["outreach-runs"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -521,11 +547,33 @@ export default function PlannedOutreachPanel() {
             <TabsContent value="pending">
               <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs">
                 These items have been pre-queued for your review <strong>before</strong> their scheduled send time.
-                Approve to schedule the send; the dispatcher will deliver at the scheduled time (or immediately if already past).
+                Use <strong>Approve & queue</strong> to schedule the send for its planned time, or <strong>Approve & send now</strong> to deliver immediately.
               </div>
+              {pendingApproval.length > 0 && (
+                <div className="mb-3 flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.size > 0 && selectedIds.size === pendingApproval.length}
+                      onCheckedChange={(v) => {
+                        if (v) setSelectedIds(new Set(pendingApproval.map((r) => r.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                    />
+                    <span>{selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={selectedIds.size === 0 || bulkApproveQueue.isPending}
+                    onClick={() => bulkApproveQueue.mutate(Array.from(selectedIds))}
+                  >
+                    <Clock className="h-3.5 w-3.5 mr-1" /> Approve & queue selected
+                  </Button>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8"></TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Recipient</TableHead>
                     <TableHead>Channel</TableHead>
@@ -548,13 +596,27 @@ export default function PlannedOutreachPanel() {
                     const groupArr = Array.from(groups.entries());
                     return groupArr.flatMap(([key, g]) => {
                       const collapsed = !expandedGroups.has(key);
+                      const groupIds = g.rows.map((r) => r.id);
+                      const allSel = groupIds.every((id) => selectedIds.has(id));
                       return [
                         <TableRow
                           key={`group-${key}`}
-                          className="bg-muted/40 hover:bg-muted/60 cursor-pointer"
-                          onClick={() => toggleGroup(key)}
+                          className="bg-muted/40 hover:bg-muted/60"
                         >
-                          <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={allSel}
+                              onCheckedChange={(v) => {
+                                setSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (v) groupIds.forEach((id) => next.add(id));
+                                  else groupIds.forEach((id) => next.delete(id));
+                                  return next;
+                                });
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer" onClick={() => toggleGroup(key)}>
                             <span className="inline-flex items-center gap-1.5">
                               {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                               {g.name}
@@ -569,6 +631,12 @@ export default function PlannedOutreachPanel() {
                           const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
                           return (
                             <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={selectedIds.has(r.id)}
+                                  onCheckedChange={() => toggleSelected(r.id)}
+                                />
+                              </TableCell>
                               <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source}</Badge></TableCell>
                               <TableCell className="pl-6 text-xs text-muted-foreground">{r.recipient}</TableCell>
                               <TableCell><Badge variant="secondary" className="text-xs">{r.channel}</Badge></TableCell>
@@ -593,11 +661,12 @@ export default function PlannedOutreachPanel() {
                     });
                   })()}
                   {pendingApproval.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nothing waiting</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing waiting</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
             </TabsContent>
+
 
             {(["due", "upcoming", "completed"] as const).map((key) => {
               const list = key === "due" ? dueNow : key === "upcoming" ? upcoming : completed;
@@ -829,15 +898,27 @@ export default function PlannedOutreachPanel() {
                       <Pencil className="h-4 w-4 mr-1" /> Save edits
                     </Button>
                     <Button
+                      variant="secondary"
                       onClick={async () => {
                         if (isEdited) {
                           await saveRunEdits.mutateAsync({ run_id: activeRun.id, subject: editSubject, body: editBody });
                         }
-                        decide.mutate({ run_id: activeRun.id, action: "approve" });
+                        decide.mutate({ run_id: activeRun.id, action: "approve", mode: "queue" });
                       }}
                       disabled={decide.isPending || saveRunEdits.isPending}
                     >
-                      <Check className="h-4 w-4 mr-1" /> {isEdited ? "Save & approve" : "Approve & send"}
+                      <Clock className="h-4 w-4 mr-1" /> Approve & queue
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        if (isEdited) {
+                          await saveRunEdits.mutateAsync({ run_id: activeRun.id, subject: editSubject, body: editBody });
+                        }
+                        decide.mutate({ run_id: activeRun.id, action: "approve", mode: "now" });
+                      }}
+                      disabled={decide.isPending || saveRunEdits.isPending}
+                    >
+                      <Send className="h-4 w-4 mr-1" /> Approve & send now
                     </Button>
                   </DialogFooter>
                 )}
