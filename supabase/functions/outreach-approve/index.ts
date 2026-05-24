@@ -33,7 +33,12 @@ Deno.serve(async (req) => {
   );
 
   const body = await req.json().catch(() => ({}));
-  const { run_id, action, reason } = body as { run_id?: string; action?: "approve" | "reject"; reason?: string };
+  const { run_id, action, reason, mode } = body as {
+    run_id?: string;
+    action?: "approve" | "reject";
+    reason?: string;
+    mode?: "queue" | "now";
+  };
   if (!run_id || !["approve", "reject"].includes(action || "")) {
     return new Response(JSON.stringify({ error: "Bad request" }), { status: 400, headers: corsHeaders });
   }
