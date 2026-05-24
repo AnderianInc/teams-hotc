@@ -547,11 +547,33 @@ export default function PlannedOutreachPanel() {
             <TabsContent value="pending">
               <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs">
                 These items have been pre-queued for your review <strong>before</strong> their scheduled send time.
-                Approve to schedule the send; the dispatcher will deliver at the scheduled time (or immediately if already past).
+                Use <strong>Approve & queue</strong> to schedule the send for its planned time, or <strong>Approve & send now</strong> to deliver immediately.
               </div>
+              {pendingApproval.length > 0 && (
+                <div className="mb-3 flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.size > 0 && selectedIds.size === pendingApproval.length}
+                      onCheckedChange={(v) => {
+                        if (v) setSelectedIds(new Set(pendingApproval.map((r) => r.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                    />
+                    <span>{selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={selectedIds.size === 0 || bulkApproveQueue.isPending}
+                    onClick={() => bulkApproveQueue.mutate(Array.from(selectedIds))}
+                  >
+                    <Clock className="h-3.5 w-3.5 mr-1" /> Approve & queue selected
+                  </Button>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8"></TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Recipient</TableHead>
                     <TableHead>Channel</TableHead>
@@ -574,13 +596,27 @@ export default function PlannedOutreachPanel() {
                     const groupArr = Array.from(groups.entries());
                     return groupArr.flatMap(([key, g]) => {
                       const collapsed = !expandedGroups.has(key);
+                      const groupIds = g.rows.map((r) => r.id);
+                      const allSel = groupIds.every((id) => selectedIds.has(id));
                       return [
                         <TableRow
                           key={`group-${key}`}
-                          className="bg-muted/40 hover:bg-muted/60 cursor-pointer"
-                          onClick={() => toggleGroup(key)}
+                          className="bg-muted/40 hover:bg-muted/60"
                         >
-                          <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={allSel}
+                              onCheckedChange={(v) => {
+                                setSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (v) groupIds.forEach((id) => next.add(id));
+                                  else groupIds.forEach((id) => next.delete(id));
+                                  return next;
+                                });
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer" onClick={() => toggleGroup(key)}>
                             <span className="inline-flex items-center gap-1.5">
                               {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                               {g.name}
@@ -595,6 +631,12 @@ export default function PlannedOutreachPanel() {
                           const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
                           return (
                             <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setReviewRunId(r.id)}>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={selectedIds.has(r.id)}
+                                  onCheckedChange={() => toggleSelected(r.id)}
+                                />
+                              </TableCell>
                               <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source}</Badge></TableCell>
                               <TableCell className="pl-6 text-xs text-muted-foreground">{r.recipient}</TableCell>
                               <TableCell><Badge variant="secondary" className="text-xs">{r.channel}</Badge></TableCell>
@@ -619,11 +661,12 @@ export default function PlannedOutreachPanel() {
                     });
                   })()}
                   {pendingApproval.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nothing waiting</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing waiting</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
             </TabsContent>
+
 
             {(["due", "upcoming", "completed"] as const).map((key) => {
               const list = key === "due" ? dueNow : key === "upcoming" ? upcoming : completed;
