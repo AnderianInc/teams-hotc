@@ -70,9 +70,10 @@ Deno.serve(async (req) => {
     .eq("id", run.external_record_id)
     .maybeSingle();
 
-  // If scheduled for the future, mark approved and let dispatcher send at due time
+  // Queue mode (or future-scheduled with no explicit mode): mark approved and let dispatcher send at due time
   const scheduledMs = run.scheduled_for ? new Date(run.scheduled_for).getTime() : 0;
-  if (scheduledMs && scheduledMs > Date.now()) {
+  const shouldQueue = mode === "queue" || (mode !== "now" && scheduledMs && scheduledMs > Date.now());
+  if (shouldQueue) {
     await admin.from("outreach_sequence_runs").update({
       status: "approved",
       detail: null,
