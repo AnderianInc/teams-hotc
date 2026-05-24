@@ -898,15 +898,27 @@ export default function PlannedOutreachPanel() {
                       <Pencil className="h-4 w-4 mr-1" /> Save edits
                     </Button>
                     <Button
+                      variant="secondary"
                       onClick={async () => {
                         if (isEdited) {
                           await saveRunEdits.mutateAsync({ run_id: activeRun.id, subject: editSubject, body: editBody });
                         }
-                        decide.mutate({ run_id: activeRun.id, action: "approve" });
+                        decide.mutate({ run_id: activeRun.id, action: "approve", mode: "queue" });
                       }}
                       disabled={decide.isPending || saveRunEdits.isPending}
                     >
-                      <Check className="h-4 w-4 mr-1" /> {isEdited ? "Save & approve" : "Approve & send"}
+                      <Clock className="h-4 w-4 mr-1" /> Approve & queue
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        if (isEdited) {
+                          await saveRunEdits.mutateAsync({ run_id: activeRun.id, subject: editSubject, body: editBody });
+                        }
+                        decide.mutate({ run_id: activeRun.id, action: "approve", mode: "now" });
+                      }}
+                      disabled={decide.isPending || saveRunEdits.isPending}
+                    >
+                      <Send className="h-4 w-4 mr-1" /> Approve & send now
                     </Button>
                   </DialogFooter>
                 )}
