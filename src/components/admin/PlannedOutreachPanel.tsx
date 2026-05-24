@@ -316,18 +316,43 @@ export default function PlannedOutreachPanel() {
   });
 
   const decide = useMutation({
-    mutationFn: async ({ run_id, action, reason }: { run_id: string; action: "approve" | "reject"; reason?: string }) => {
-      const { data, error } = await supabase.functions.invoke("outreach-approve", { body: { run_id, action, reason } });
+    mutationFn: async ({ run_id, action, reason, mode }: { run_id: string; action: "approve" | "reject"; reason?: string; mode?: "queue" | "now" }) => {
+      const { data, error } = await supabase.functions.invoke("outreach-approve", { body: { run_id, action, reason, mode } });
       if (error) throw error;
       return data;
     },
     onSuccess: (d: any, vars) => {
       if (vars.action === "approve") {
-        toast.success(d?.status === "approved" ? "Approved — will send at scheduled time" : `Sent (${d?.status})`);
+        toast.success(d?.status === "approved" ? "Approved — queued for scheduled send" : `Sent (${d?.status})`);
       } else {
         toast.success("Rejected");
       }
       setReviewRunId(null);
+      qc.invalidateQueries({ queryKey: ["outreach-runs"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Bulk selection for pending approvals
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const bulkApproveQueue = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(
+        ids.map((id) => supabase.functions.invoke("outreach-approve", { body: { run_id: id, action: "approve", mode: "queue" } }))
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const fail = results.length - ok;
+      return { ok, fail };
+    },
+    onSuccess: ({ ok, fail }) => {
+      toast.success(`Queued ${ok}${fail ? ` · ${fail} failed` : ""}`);
+      setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ["outreach-runs"] });
     },
     onError: (e: Error) => toast.error(e.message),
