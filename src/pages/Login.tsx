@@ -37,7 +37,7 @@ export default function Login() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("If that email exists, a reset link is on its way from contact@hotc.life.");
+      toast.success("If that email exists, a reset link is on its way from community@hotc.life.");
       setMode("login");
     }
   };

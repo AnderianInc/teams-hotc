@@ -125,7 +125,7 @@ export default function SmsPolicy() {
           <CardHeader><CardTitle>Contact us</CardTitle></CardHeader>
           <CardContent className="space-y-1 text-sm leading-relaxed">
             <p>House of Transformation Church</p>
-            <p>Email: <a href="mailto:contact@hotc.life" className="text-primary underline">contact@hotc.life</a></p>
+            <p>Email: <a href="mailto:community@hotc.life" className="text-primary underline">community@hotc.life</a></p>
             <p>Web: <a href="https://teams.hotc.life" className="text-primary underline">teams.hotc.life</a></p>
           </CardContent>
         </Card>

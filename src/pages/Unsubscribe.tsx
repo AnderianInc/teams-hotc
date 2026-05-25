@@ -34,7 +34,7 @@ export default function Unsubscribe() {
             <p className="text-sm text-muted-foreground mt-2">
               {email ? <><strong>{email}</strong> will </> : "You will "}
               no longer receive emails from us. If this was a mistake, please contact us at{" "}
-              <a className="underline" href="mailto:contact@hotc.life">contact@hotc.life</a>.
+              <a className="underline" href="mailto:community@hotc.life">community@hotc.life</a>.
             </p>
           </>
         )}

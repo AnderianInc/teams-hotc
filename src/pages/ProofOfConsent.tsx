@@ -154,8 +154,8 @@ export default function ProofOfConsent() {
             <p>House of Transformation Church</p>
             <p>
               Email:{" "}
-              <a href="mailto:contact@hotc.life" className="text-primary underline">
-                contact@hotc.life
+              <a href="mailto:community@hotc.life" className="text-primary underline">
+                community@hotc.life
               </a>
             </p>
             <p>
