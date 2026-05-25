@@ -246,6 +246,7 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
                 )}
                 {r.doNotContact && <Badge variant="destructive" className="text-[10px]">DNC</Badge>}
                 {r.unsubscribed && <Badge variant="destructive" className="text-[10px]">unsubscribed</Badge>}
+                {r.smsOptedOut && <Badge variant="destructive" className="text-[10px]">SMS STOP</Badge>}
 
               </li>
             );
