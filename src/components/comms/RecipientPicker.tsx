@@ -24,6 +24,7 @@ export interface Recipient {
   isMember?: boolean;
   isStaff?: boolean;
   unsubscribed?: boolean;
+  smsOptedOut?: boolean;
 }
 
 
