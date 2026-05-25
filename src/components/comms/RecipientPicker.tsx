@@ -101,6 +101,7 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
           tags: [],
           isStaff: !!r.is_staff,
           unsubscribed: !!(r.email && unsubSet.has(String(r.email).trim().toLowerCase())),
+          smsOptedOut: !!(r.phone && last10(r.phone) && optOutSet.has(last10(r.phone))),
         };
       });
 
