@@ -100,8 +100,15 @@ export default function SmsComposer({
       toast.error(error.message);
       return;
     }
-    const phoneOnly = (data ?? [])
-      .filter((r: any) => r.phone && !r.do_not_contact)
+    // Fetch global SMS opt-out list to filter out anyone who replied STOP
+    const { data: optOuts } = await supabase.from("sms_opt_outs").select("phone_last10").limit(10000);
+    const optOutSet = new Set<string>((optOuts ?? []).map((r: any) => String(r.phone_last10 ?? "")));
+    const last10 = (s: string | null | undefined) => String(s ?? "").replace(/\D/g, "").slice(-10);
+
+    const all = (data ?? []).filter((r: any) => r.phone && !r.do_not_contact);
+    const removed = all.filter((r: any) => optOutSet.has(last10(r.phone))).length;
+    const phoneOnly = all
+      .filter((r: any) => !optOutSet.has(last10(r.phone)))
       .map((r: any) => ({
         key: `${r.source}:${r.source_id}`,
         source: r.source,
@@ -120,7 +127,9 @@ export default function SmsComposer({
       return [...prev, ...phoneOnly.filter((r) => !keys.has(r.key))];
     });
     setGroupOpen(false);
-    toast.success(`Loaded ${phoneOnly.length} recipients from group`);
+    toast.success(
+      `Loaded ${phoneOnly.length} recipients from group${removed > 0 ? ` (${removed} excluded — opted out via STOP)` : ""}`,
+    );
   };
 
   const handleSendSingle = async () => {
