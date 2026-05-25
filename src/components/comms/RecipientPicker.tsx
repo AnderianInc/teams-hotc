@@ -83,6 +83,7 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
         tags: r.tags ?? [],
         isMember: !!r.is_member,
         unsubscribed: !!(r.email && unsubSet.has(String(r.email).trim().toLowerCase())),
+        smsOptedOut: !!(r.phone && last10(r.phone) && optOutSet.has(last10(r.phone))),
       }));
 
       const pRows: Recipient[] = (p.data ?? []).map((r: any) => {
