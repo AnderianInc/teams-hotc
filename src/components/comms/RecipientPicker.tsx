@@ -133,6 +133,7 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
 
       if (channel === "sms") {
         if (!r.phone) return false;
+        if (r.smsOptedOut) return false; // Hard-block: replied STOP or manually opted out
         if (smsOnly && !r.smsOptIn) return false;
       } else {
         if (hasContact && !r.email) return false;
