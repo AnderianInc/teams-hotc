@@ -162,12 +162,12 @@ serve(async (req) => {
       method: "POST",
       headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "HOTC <contact@hotc.life>",
+        from: "HOTC <community@hotc.life>",
         to: Array.isArray(to) ? to : [to],
         subject,
         html: finalHtml,
         text: text || undefined,
-        reply_to: "contact@hotc.life",
+        reply_to: "community@hotc.life",
         headers: Object.keys(headersExtra).length ? headersExtra : undefined,
       }),
     });
