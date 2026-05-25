@@ -9,8 +9,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
     const { prompt, context } = await req.json();
     if (!prompt?.trim()) throw new Error("prompt is required");
@@ -23,28 +23,30 @@ serve(async (req) => {
       context ? `Additional context: ${context}` : "",
     ].filter(Boolean).join(" ");
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: "user", content: prompt }],
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(`Anthropic API error: ${res.status} ${err}`);
+      if (res.status === 429) throw new Error("Rate limit reached. Please try again shortly.");
+      if (res.status === 402) throw new Error("AI credits exhausted. Please add credits in Workspace settings.");
+      throw new Error(`AI gateway error: ${res.status} ${err}`);
     }
 
     const data = await res.json();
-    const content = data.content?.[0]?.text ?? "";
+    const content = data.choices?.[0]?.message?.content ?? "";
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
