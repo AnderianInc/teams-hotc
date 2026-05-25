@@ -47,6 +47,21 @@ serve(async (req) => {
     // OR the caller explicitly overrides (e.g., the volunteer recorded verbal consent and provides a note).
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    // Hard block: anyone who texted STOP (or was manually opted out) is in sms_opt_outs.
+    // This check cannot be bypassed by override_consent.
+    {
+      const { data: optedOut } = await supabase.rpc("is_phone_opted_out", { _phone: phone });
+      if (optedOut === true) {
+        return new Response(
+          JSON.stringify({
+            error: "Recipient has opted out of SMS (replied STOP or was manually unsubscribed).",
+            code: "SMS_OPT_OUT",
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // Do-not-contact enforcement
     {
       let blocked = false;
