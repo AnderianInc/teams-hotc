@@ -70,11 +70,22 @@ serve(async (req) => {
       }
     }
 
-    // Handle STOP / UNSUBSCRIBE keywords — record do_not_contact
+    // Handle STOP / UNSUBSCRIBE keywords — record do_not_contact + persistent opt-out
     const upper = body.trim().toUpperCase();
     if (["STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT"].includes(upper)) {
       if (last10) {
-        await supabase.rpc("noop").catch(() => {});
+        // Persistent global block — survives even if attendee/profile is later edited or deleted
+        await supabase.from("sms_opt_outs").upsert(
+          {
+            phone_e164: from,
+            phone_last10: last10,
+            reason: `Inbound keyword: ${upper}`,
+            source: "inbound_stop",
+            opted_out_at: new Date().toISOString(),
+          },
+          { onConflict: "phone_last10" },
+        );
+
         // Best-effort updates by phone last 10 digits
         const { data: aMatches } = await supabase
           .from("attendees").select("id, phone").limit(500);
