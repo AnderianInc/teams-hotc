@@ -1452,6 +1452,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_opt_outs: {
+        Row: {
+          created_at: string
+          id: string
+          opted_out_at: string
+          phone_e164: string | null
+          phone_last10: string
+          reason: string | null
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          opted_out_at?: string
+          phone_e164?: string | null
+          phone_last10: string
+          reason?: string | null
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          opted_out_at?: string
+          phone_e164?: string | null
+          phone_last10?: string
+          reason?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       sms_templates: {
         Row: {
           body: string
@@ -1736,6 +1766,7 @@ export type Database = {
         Returns: boolean
       }
       is_kids_ministry_member: { Args: { _user_id: string }; Returns: boolean }
+      is_phone_opted_out: { Args: { _phone: string }; Returns: boolean }
       is_team_lead: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
