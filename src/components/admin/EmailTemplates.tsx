@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/comms/RichTextEditor";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -203,14 +204,14 @@ export default function EmailTemplates({ onUseTemplate }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Body HTML</Label>
-                <Textarea
+                <Label>Body</Label>
+                <RichTextEditor
                   value={editing.body_html}
-                  onChange={(e) => setEditing({ ...editing, body_html: e.target.value })}
-                  rows={16}
-                  className="font-mono text-xs"
+                  onChange={(html) => setEditing({ ...editing, body_html: html })}
+                  minHeight={320}
                 />
               </div>
+
               {editing.placeholders && editing.placeholders.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Available placeholders: {editing.placeholders.map((p) => `{{${p}}}`).join(", ")}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/comms/RichTextEditor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -292,12 +293,12 @@ export default function EmailComposer({
         </div>
 
         <div className="space-y-1">
-          <Label>Email Body (Markdown or HTML supported)</Label>
-          <Textarea
-            placeholder="Write your email content here..."
+          <Label>Email Body</Label>
+          <RichTextEditor
             value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={10}
+            onChange={setBody}
+            placeholder="Write your email content here..."
+            minHeight={240}
           />
           {mode === "multi" && (
             <p className="text-[11px] text-muted-foreground">
@@ -305,6 +306,7 @@ export default function EmailComposer({
             </p>
           )}
         </div>
+
 
         {mode === "single" && duplicateHit && (
           <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs flex items-start gap-2">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Mail, MoreHorizontal, Trash2, Eye, FileText, AlertCircle } from "lucide-react";
+import { Mail, MoreHorizontal, Trash2, Eye, FileText, AlertCircle, RotateCw, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
 export default function EmailLog() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<any>(null);
@@ -25,6 +27,8 @@ export default function EmailLog() {
   const [tplSlug, setTplSlug] = useState("");
   const [tplPlaceholders, setTplPlaceholders] = useState("");
   const [savingTpl, setSavingTpl] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [bulkRetrying, setBulkRetrying] = useState(false);
 
   const { data: emails, isLoading } = useQuery({
     queryKey: ["email-log", statusFilter],
@@ -55,6 +59,61 @@ export default function EmailLog() {
     toast.success(`Deleted ${ids.length}`);
     setSelected(new Set());
     qc.invalidateQueries({ queryKey: ["email-log"] });
+  };
+
+  const retryOne = async (email: any): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: email.to_email,
+          to_name: email.to_name || undefined,
+          subject: email.subject,
+          html: email.body_html || "",
+          logged_by: user?.id,
+          related_attendee_id: email.related_attendee_id || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e.message || "Failed" };
+    }
+  };
+
+  const handleRetry = async (email: any) => {
+    setRetryingId(email.id);
+    const res = await retryOne(email);
+    setRetryingId(null);
+    if (res.ok) {
+      toast.success("Resent");
+      qc.invalidateQueries({ queryKey: ["email-log"] });
+    } else {
+      toast.error("Retry failed: " + res.error);
+    }
+  };
+
+  const handleBulkRetry = async () => {
+    const failed = (emails ?? []).filter((e: any) => selected.has(e.id) && e.status === "failed");
+    if (!failed.length) return toast.error("Select failed emails to retry");
+    setBulkRetrying(true);
+    // throttle at ~4/sec to respect Resend rate limit
+    const MIN_INTERVAL = 250;
+    let nextSlot = Date.now();
+    let ok = 0, fail = 0;
+    for (const e of failed) {
+      const now = Date.now();
+      const wait = Math.max(0, nextSlot - now);
+      nextSlot = Math.max(now, nextSlot) + MIN_INTERVAL;
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+      const r = await retryOne(e);
+      if (r.ok) ok++; else fail++;
+    }
+    setBulkRetrying(false);
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["email-log"] });
+    if (fail === 0) toast.success(`Resent ${ok}`);
+    else toast.warning(`Resent ${ok}, ${fail} still failing`);
   };
 
   const openSaveAsTemplate = (email: any) => {
@@ -103,6 +162,12 @@ export default function EmailLog() {
                 <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
+            {selected.size > 0 && (emails ?? []).some((e: any) => selected.has(e.id) && e.status === "failed") && (
+              <Button size="sm" variant="outline" onClick={handleBulkRetry} disabled={bulkRetrying}>
+                {bulkRetrying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RotateCw className="h-4 w-4 mr-1" />}
+                Retry failed
+              </Button>
+            )}
             {selected.size > 0 && (
               <Button size="sm" variant="destructive" onClick={() => handleDelete([...selected])}>
                 <Trash2 className="h-4 w-4 mr-1" /> Delete {selected.size}
@@ -171,6 +236,14 @@ export default function EmailLog() {
                           <DropdownMenuItem onClick={() => setViewing(email)}>
                             <Eye className="h-4 w-4 mr-2" /> View
                           </DropdownMenuItem>
+                          {email.status === "failed" && (
+                            <DropdownMenuItem onClick={() => handleRetry(email)} disabled={retryingId === email.id}>
+                              {retryingId === email.id
+                                ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                : <RotateCw className="h-4 w-4 mr-2" />}
+                              Retry send
+                            </DropdownMenuItem>
+                          )}
                           {email.body_html && (
                             <DropdownMenuItem onClick={() => openSaveAsTemplate(email)}>
                               <FileText className="h-4 w-4 mr-2" /> Save as template
