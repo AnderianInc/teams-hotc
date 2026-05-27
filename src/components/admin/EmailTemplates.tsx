@@ -203,14 +203,14 @@ export default function EmailTemplates({ onUseTemplate }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Body HTML</Label>
-                <Textarea
+                <Label>Body</Label>
+                <RichTextEditor
                   value={editing.body_html}
-                  onChange={(e) => setEditing({ ...editing, body_html: e.target.value })}
-                  rows={16}
-                  className="font-mono text-xs"
+                  onChange={(html) => setEditing({ ...editing, body_html: html })}
+                  minHeight={320}
                 />
               </div>
+
               {editing.placeholders && editing.placeholders.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Available placeholders: {editing.placeholders.map((p) => `{{${p}}}`).join(", ")}
