@@ -149,32 +149,61 @@ export default function EmailComposer({
     let ok = 0, failed = 0, done = 0;
     const errors: string[] = [];
 
+    // Resend caps sends at ~2/sec (free) up to 10/sec (paid). Stay at 4/sec
+    // with exponential backoff on 429 to avoid rate-limit errors.
+    const RATE_PER_SEC = 4;
+    const MIN_INTERVAL_MS = Math.ceil(1000 / RATE_PER_SEC);
+    let nextSlot = Date.now();
+
+    const waitForSlot = async () => {
+      const now = Date.now();
+      const slot = Math.max(now, nextSlot);
+      nextSlot = slot + MIN_INTERVAL_MS;
+      const wait = slot - now;
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    };
+
+    const sendOne = async (r: Recipient, attempt = 0): Promise<void> => {
+      await waitForSlot();
+      try {
+        const { data, error } = await supabase.functions.invoke("send-email", {
+          body: {
+            to: r.email,
+            to_name: `${r.firstName} ${r.lastName}`.trim() || undefined,
+            subject: renderTemplate(subject, r),
+            html: renderTemplate(body, r),
+            logged_by: user?.id,
+            related_attendee_id: r.source === "attendee" ? r.id : undefined,
+          },
+        });
+        const errMsg = error?.message || data?.error || "";
+        if (errMsg && /rate|429|too many/i.test(errMsg) && attempt < 4) {
+          await new Promise((res) => setTimeout(res, 500 * Math.pow(2, attempt)));
+          return sendOne(r, attempt + 1);
+        }
+        if (error || data?.error) throw new Error(errMsg);
+        ok++;
+      } catch (e) {
+        const msg = (e as Error).message || "";
+        if (/rate|429|too many/i.test(msg) && attempt < 4) {
+          await new Promise((res) => setTimeout(res, 500 * Math.pow(2, attempt)));
+          return sendOne(r, attempt + 1);
+        }
+        failed++;
+        errors.push(`${r.firstName} ${r.lastName}: ${msg}`);
+      }
+      done++;
+      setProgress({ done, ok, failed });
+    };
+
     const worker = async () => {
       while (queue.length) {
         const r = queue.shift();
         if (!r || !r.email) continue;
-        try {
-          const { data, error } = await supabase.functions.invoke("send-email", {
-            body: {
-              to: r.email,
-              to_name: `${r.firstName} ${r.lastName}`.trim() || undefined,
-              subject: renderTemplate(subject, r),
-              html: renderTemplate(body, r),
-              logged_by: user?.id,
-              related_attendee_id: r.source === "attendee" ? r.id : undefined,
-            },
-          });
-          if (error || data?.error) throw new Error(error?.message || data?.error);
-          ok++;
-        } catch (e) {
-          failed++;
-          errors.push(`${r.firstName} ${r.lastName}: ${(e as Error).message}`);
-        }
-        done++;
-        setProgress({ done, ok, failed });
+        await sendOne(r);
       }
     };
-    await Promise.all(Array.from({ length: 3 }, worker));
+    await Promise.all(Array.from({ length: RATE_PER_SEC }, worker));
     setSending(false);
     if (failed === 0) {
       toast.success(`Sent ${ok} email${ok === 1 ? "" : "s"}`);
