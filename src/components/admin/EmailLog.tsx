@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 export default function EmailLog() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<any>(null);
@@ -26,6 +27,8 @@ export default function EmailLog() {
   const [tplSlug, setTplSlug] = useState("");
   const [tplPlaceholders, setTplPlaceholders] = useState("");
   const [savingTpl, setSavingTpl] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [bulkRetrying, setBulkRetrying] = useState(false);
 
   const { data: emails, isLoading } = useQuery({
     queryKey: ["email-log", statusFilter],
