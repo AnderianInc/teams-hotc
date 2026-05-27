@@ -61,6 +61,61 @@ export default function EmailLog() {
     qc.invalidateQueries({ queryKey: ["email-log"] });
   };
 
+  const retryOne = async (email: any): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: email.to_email,
+          to_name: email.to_name || undefined,
+          subject: email.subject,
+          html: email.body_html || "",
+          logged_by: user?.id,
+          related_attendee_id: email.related_attendee_id || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e.message || "Failed" };
+    }
+  };
+
+  const handleRetry = async (email: any) => {
+    setRetryingId(email.id);
+    const res = await retryOne(email);
+    setRetryingId(null);
+    if (res.ok) {
+      toast.success("Resent");
+      qc.invalidateQueries({ queryKey: ["email-log"] });
+    } else {
+      toast.error("Retry failed: " + res.error);
+    }
+  };
+
+  const handleBulkRetry = async () => {
+    const failed = (emails ?? []).filter((e: any) => selected.has(e.id) && e.status === "failed");
+    if (!failed.length) return toast.error("Select failed emails to retry");
+    setBulkRetrying(true);
+    // throttle at ~4/sec to respect Resend rate limit
+    const MIN_INTERVAL = 250;
+    let nextSlot = Date.now();
+    let ok = 0, fail = 0;
+    for (const e of failed) {
+      const now = Date.now();
+      const wait = Math.max(0, nextSlot - now);
+      nextSlot = Math.max(now, nextSlot) + MIN_INTERVAL;
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+      const r = await retryOne(e);
+      if (r.ok) ok++; else fail++;
+    }
+    setBulkRetrying(false);
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["email-log"] });
+    if (fail === 0) toast.success(`Resent ${ok}`);
+    else toast.warning(`Resent ${ok}, ${fail} still failing`);
+  };
+
   const openSaveAsTemplate = (email: any) => {
     setTplName(email.subject || "");
     setTplSlug((email.subject || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60));
