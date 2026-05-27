@@ -236,6 +236,14 @@ export default function EmailLog() {
                           <DropdownMenuItem onClick={() => setViewing(email)}>
                             <Eye className="h-4 w-4 mr-2" /> View
                           </DropdownMenuItem>
+                          {email.status === "failed" && (
+                            <DropdownMenuItem onClick={() => handleRetry(email)} disabled={retryingId === email.id}>
+                              {retryingId === email.id
+                                ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                : <RotateCw className="h-4 w-4 mr-2" />}
+                              Retry send
+                            </DropdownMenuItem>
+                          )}
                           {email.body_html && (
                             <DropdownMenuItem onClick={() => openSaveAsTemplate(email)}>
                               <FileText className="h-4 w-4 mr-2" /> Save as template
