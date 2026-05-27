@@ -162,6 +162,12 @@ export default function EmailLog() {
                 <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
+            {selected.size > 0 && (emails ?? []).some((e: any) => selected.has(e.id) && e.status === "failed") && (
+              <Button size="sm" variant="outline" onClick={handleBulkRetry} disabled={bulkRetrying}>
+                {bulkRetrying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RotateCw className="h-4 w-4 mr-1" />}
+                Retry failed
+              </Button>
+            )}
             {selected.size > 0 && (
               <Button size="sm" variant="destructive" onClick={() => handleDelete([...selected])}>
                 <Trash2 className="h-4 w-4 mr-1" /> Delete {selected.size}
