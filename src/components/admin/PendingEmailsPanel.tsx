@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, MoreHorizontal, Check, X, Send, Pencil, Trash2 } from "lucide-react";
+import { Clock, MoreHorizontal, Check, X, Send, Pencil, Trash2, CalendarClock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -29,6 +30,11 @@ export default function PendingEmailsPanel() {
   const [statusFilter, setStatusFilter] = useState("pending");
   const [editing, setEditing] = useState<Row | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkReschedule, setBulkReschedule] = useState("");
+  const [bulkSubject, setBulkSubject] = useState("");
+  const [bulkNotes, setBulkNotes] = useState("");
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["pending-emails", statusFilter],
@@ -43,9 +49,37 @@ export default function PendingEmailsPanel() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["pending-emails"] });
 
+  const selectedRows = useMemo(
+    () => (rows ?? []).filter((r) => selected.has(r.id)),
+    [rows, selected]
+  );
+
+  const toggleOne = (id: string, on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleAll = (on: boolean) => {
+    if (on) setSelected(new Set((rows ?? []).map((r) => r.id)));
+    else setSelected(new Set());
+  };
+
+  const allChecked = !!rows?.length && rows.every((r) => selected.has(r.id));
+  const someChecked = !!selected.size && !allChecked;
+
   const update = async (id: string, patch: Partial<Row>) => {
     const { error } = await supabase.from("pending_email_approvals").update(patch).eq("id", id);
     if (error) toast.error(error.message); else refresh();
+  };
+
+  const bulkUpdate = async (ids: string[], patch: Partial<Row>) => {
+    const { error } = await supabase.from("pending_email_approvals").update(patch).in("id", ids);
+    if (error) { toast.error(error.message); return false; }
+    refresh();
+    return true;
   };
 
   const approve = (r: Row) => update(r.id, {
@@ -88,6 +122,86 @@ export default function PendingEmailsPanel() {
     toast.success("Saved");
   };
 
+  // ---------- bulk actions ----------
+  const bulkApprove = async () => {
+    const ids = selectedRows.filter((r) => r.status === "pending").map((r) => r.id);
+    if (!ids.length) return toast.info("No pending emails selected");
+    const ok = await bulkUpdate(ids, {
+      status: "approved",
+      approved_by: user?.id ?? null,
+      approved_at: new Date().toISOString(),
+    });
+    if (ok) { toast.success(`Approved ${ids.length}`); setSelected(new Set()); }
+  };
+
+  const bulkCancel = async () => {
+    const ids = selectedRows.filter((r) => r.status !== "sent" && r.status !== "cancelled").map((r) => r.id);
+    if (!ids.length) return toast.info("Nothing to cancel");
+    const ok = await bulkUpdate(ids, { status: "cancelled" });
+    if (ok) { toast.success(`Cancelled ${ids.length}`); setSelected(new Set()); }
+  };
+
+  const bulkDelete = async () => {
+    const ids = selectedRows.map((r) => r.id);
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} queued email(s)? This cannot be undone.`)) return;
+    const { error } = await supabase.from("pending_email_approvals").delete().in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(`Deleted ${ids.length}`);
+    setSelected(new Set());
+    refresh();
+  };
+
+  const bulkSendNow = async () => {
+    const targets = selectedRows.filter((r) => r.status === "pending" || r.status === "approved");
+    if (!targets.length) return toast.info("Nothing sendable selected");
+    if (!confirm(`Send ${targets.length} email(s) now?`)) return;
+    setBusy(true);
+    let sent = 0, failed = 0;
+    // throttle ~4/sec to respect Resend cap
+    for (const r of targets) {
+      try {
+        const { data, error } = await supabase.functions.invoke("send-email", {
+          body: { to: r.to_email, to_name: r.to_name, subject: r.subject, html: r.body_html,
+            logged_by: user?.id, related_attendee_id: r.attendee_id },
+        });
+        if (error || (data as any)?.error) throw new Error(error?.message || (data as any)?.error);
+        await update(r.id, { status: "sent", sent_at: new Date().toISOString(), error: null });
+        sent++;
+      } catch (e: any) {
+        await update(r.id, { status: "failed", error: e.message });
+        failed++;
+      }
+      await new Promise((res) => setTimeout(res, 250));
+    }
+    setBusy(false);
+    toast[failed ? "warning" : "success"](`Sent ${sent}, failed ${failed}`);
+    setSelected(new Set());
+  };
+
+  const openBulkEdit = () => {
+    if (!selectedRows.length) return;
+    setBulkReschedule("");
+    setBulkSubject("");
+    setBulkNotes("");
+    setBulkEditOpen(true);
+  };
+
+  const applyBulkEdit = async () => {
+    const ids = selectedRows.map((r) => r.id);
+    const patch: Partial<Row> = {};
+    if (bulkReschedule) patch.scheduled_for = new Date(bulkReschedule).toISOString();
+    if (bulkSubject.trim()) patch.subject = bulkSubject.trim();
+    if (bulkNotes.trim()) patch.notes = bulkNotes.trim();
+    if (!Object.keys(patch).length) { toast.info("Nothing to change"); return; }
+    const ok = await bulkUpdate(ids, patch);
+    if (ok) {
+      toast.success(`Updated ${ids.length}`);
+      setBulkEditOpen(false);
+      setSelected(new Set());
+    }
+  };
+
   const statusBadge = (s: string) => {
     const map: Record<string, any> = {
       pending: "secondary", approved: "default", sent: "default",
@@ -103,7 +217,7 @@ export default function PendingEmailsPanel() {
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" /> Pending Email Approvals
           </CardTitle>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setSelected(new Set()); }}>
             <SelectTrigger className="w-[160px] h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="pending">Pending</SelectItem>
@@ -120,6 +234,27 @@ export default function PendingEmailsPanel() {
         </p>
       </CardHeader>
       <CardContent>
+        {selected.size > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-2">
+            <span className="text-sm font-medium px-2">{selected.size} selected</span>
+            <Button size="sm" variant="outline" onClick={openBulkEdit}>
+              <Pencil className="h-4 w-4 mr-1" /> Bulk edit
+            </Button>
+            <Button size="sm" variant="outline" onClick={bulkApprove}>
+              <Check className="h-4 w-4 mr-1" /> Approve
+            </Button>
+            <Button size="sm" variant="outline" onClick={bulkSendNow} disabled={busy}>
+              <Send className="h-4 w-4 mr-1" /> Send now
+            </Button>
+            <Button size="sm" variant="outline" onClick={bulkCancel}>
+              <X className="h-4 w-4 mr-1" /> Cancel
+            </Button>
+            <Button size="sm" variant="destructive" onClick={bulkDelete}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+          </div>
+        )}
         {isLoading ? (
           <p className="text-muted-foreground text-center py-8">Loading...</p>
         ) : !rows?.length ? (
@@ -128,6 +263,13 @@ export default function PendingEmailsPanel() {
           <div className="rounded-md border overflow-auto">
             <Table>
               <TableHeader><TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={allChecked || (someChecked ? "indeterminate" : false)}
+                    onCheckedChange={(v) => toggleAll(!!v)}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Scheduled</TableHead>
                 <TableHead>To</TableHead>
                 <TableHead>Subject</TableHead>
@@ -136,7 +278,14 @@ export default function PendingEmailsPanel() {
               </TableRow></TableHeader>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.id} className={r.status === "failed" ? "bg-destructive/5" : ""}>
+                  <TableRow key={r.id} className={r.status === "failed" ? "bg-destructive/5" : selected.has(r.id) ? "bg-muted/40" : ""}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selected.has(r.id)}
+                        onCheckedChange={(v) => toggleOne(r.id, !!v)}
+                        aria-label="Select row"
+                      />
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {format(new Date(r.scheduled_for), "MMM d, yyyy h:mm a")}
                     </TableCell>
@@ -224,6 +373,33 @@ export default function PendingEmailsPanel() {
                 <Check className="h-4 w-4 mr-1" /> Save & approve
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CalendarClock className="h-5 w-5" /> Bulk edit {selected.size} email(s)</DialogTitle>
+            <DialogDescription>Leave a field blank to keep its current value on each row.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Reschedule to</Label>
+              <Input type="datetime-local" value={bulkReschedule} onChange={(e) => setBulkReschedule(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Replace subject</Label>
+              <Input value={bulkSubject} onChange={(e) => setBulkSubject(e.target.value)} placeholder="(leave blank to keep)" />
+            </div>
+            <div className="space-y-1">
+              <Label>Set internal note</Label>
+              <Textarea rows={3} value={bulkNotes} onChange={(e) => setBulkNotes(e.target.value)} placeholder="(leave blank to keep)" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkEditOpen(false)}>Cancel</Button>
+            <Button onClick={applyBulkEdit}>Apply to {selected.size}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
