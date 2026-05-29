@@ -164,8 +164,32 @@ Deno.serve(async (req) => {
       const scheduled_for = computeScheduledFor(seq.anchor, anchorDate, seq.offset_days, churchTz);
       const dueAt = new Date(scheduled_for).getTime();
 
+      // Stale guard: if scheduled date has already passed beyond grace window,
+      // record as skipped so late-added records don't trigger obsolete reminders.
+      const graceDays = seq.anchor === "event_date"
+        ? (seq.offset_days < 0 ? 0 : 1)
+        : 1;
+      const staleCutoff = dueAt + graceDays * 86400000;
+      if (Date.now() > staleCutoff) {
+        await insertRun(supabase, {
+          external_record_id: rec.id,
+          sequence_id: seq.id,
+          status: "skipped",
+          detail: "stale: scheduled date already passed",
+          subject: null,
+          body: null,
+          recipient: null,
+          channel: seq.channel,
+          scheduled_for,
+        });
+        skipped++;
+        continue;
+      }
+
       // Non-approval steps only act once due
       if (!seq.requires_approval && Date.now() < dueAt) continue;
+
+
 
       const baseTpl = renderTemplate(seq.template_slug, {
         first_name: attendee?.first_name || "",
