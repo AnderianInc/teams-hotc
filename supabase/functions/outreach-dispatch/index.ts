@@ -138,6 +138,31 @@ Deno.serve(async (req) => {
   let queued = 0;
   let dispatched = 0;
   let skipped = 0;
+  let expired = 0;
+
+  const computeGraceDays = (anchor: string, offsetDays: number) =>
+    anchor === "event_date" ? (offsetDays < 0 ? 0 : 1) : 1;
+
+  // === Pass 0: expire stale pending_approval runs ===
+  const { data: pendingRuns = [] } = await supabase
+    .from("outreach_sequence_runs")
+    .select("id, scheduled_for, outreach_sequences!inner(anchor, offset_days)")
+    .eq("status", "pending_approval");
+
+  for (const r of (pendingRuns as any[]) || []) {
+    if (!r.scheduled_for) continue;
+    const seq = r.outreach_sequences;
+    if (!seq) continue;
+    const grace = computeGraceDays(seq.anchor, seq.offset_days);
+    const staleCutoff = new Date(r.scheduled_for).getTime() + grace * 86400000;
+    if (Date.now() > staleCutoff) {
+      await supabase.from("outreach_sequence_runs").update({
+        status: "skipped",
+        detail: "stale: scheduled date passed before approval",
+      }).eq("id", r.id);
+      expired++;
+    }
+  }
 
   // === Pass 1: queue new rows / send non-approval steps that are due ===
   for (const rec of records || []) {
@@ -348,7 +373,7 @@ Deno.serve(async (req) => {
     if (status === "sent") dispatched++;
   }
 
-  return new Response(JSON.stringify({ ok: true, queued, dispatched, skipped }), {
+  return new Response(JSON.stringify({ ok: true, queued, dispatched, skipped, expired }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
