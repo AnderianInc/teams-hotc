@@ -373,7 +373,7 @@ Deno.serve(async (req) => {
     if (status === "sent") dispatched++;
   }
 
-  return new Response(JSON.stringify({ ok: true, queued, dispatched, skipped }), {
+  return new Response(JSON.stringify({ ok: true, queued, dispatched, skipped, expired }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
