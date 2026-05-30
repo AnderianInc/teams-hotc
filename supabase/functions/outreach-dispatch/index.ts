@@ -83,22 +83,47 @@ function renderTemplate(slug: string | null, ctx: Record<string, string>): { sub
   return map[slug || ""] || { subject: "HOTC update", body: `Hi ${name}` };
 }
 
-async function sendRun(supabase: any, run: any, attendeeId: string | null) {
+async function sendRun(supabase: any, run: any, attendeeId: string | null, loggedBy: string | null) {
   let status: "sent" | "failed" = "sent";
   let detail: string | null = null;
   try {
+    let res: any;
     if (run.channel === "email") {
-      await supabase.functions.invoke("send-email", {
-        body: { to: run.recipient, subject: run.subject, html: (run.body || "").replace(/\n/g, "<br/>"), related_attendee_id: attendeeId },
+      res = await supabase.functions.invoke("send-email", {
+        body: {
+          to: run.recipient,
+          subject: run.subject,
+          html: (run.body || "").replace(/\n/g, "<br/>"),
+          related_attendee_id: attendeeId,
+          logged_by: loggedBy,
+        },
       });
     } else if (run.channel === "sms") {
-      await supabase.functions.invoke("send-sms", {
-        body: { to: run.recipient, body: run.body, related_attendee_id: attendeeId },
+      res = await supabase.functions.invoke("send-sms", {
+        body: {
+          to: run.recipient,
+          body: run.body,
+          related_attendee_id: attendeeId,
+          logged_by: loggedBy,
+        },
       });
+    } else {
+      return { status: "failed" as const, detail: `unsupported channel: ${run.channel}` };
+    }
+    // invoke() only throws on transport errors; HTTP 4xx returns normally with res.error
+    // or a JSON body containing { error: ... }. Inspect both before claiming success.
+    const transportErr = res?.error;
+    const bodyErr = res?.data?.error;
+    if (transportErr || bodyErr) {
+      status = "failed";
+      const msg = (typeof transportErr === "string" ? transportErr : transportErr?.message)
+        || (typeof bodyErr === "string" ? bodyErr : bodyErr?.message)
+        || "send failed";
+      detail = String(msg).slice(0, 500);
     }
   } catch (err) {
     status = "failed";
-    detail = err instanceof Error ? err.message : String(err);
+    detail = (err instanceof Error ? err.message : String(err)).slice(0, 500);
   }
   return { status, detail };
 }
@@ -312,6 +337,7 @@ Deno.serve(async (req) => {
         supabase,
         { channel: seq.channel, recipient, subject: tpl.subject, body: tpl.body },
         attendee?.id || null,
+        null,
       );
       await insertRun(supabase, {
         external_record_id: rec.id,
@@ -323,6 +349,7 @@ Deno.serve(async (req) => {
         recipient,
         channel: seq.channel,
         scheduled_for,
+        sent_at: status === "sent" ? new Date().toISOString() : null,
       });
 
       if (status === "sent" && seq.audience === "requester" && attendee?.id) {
@@ -343,19 +370,22 @@ Deno.serve(async (req) => {
   }
 
   // === Pass 2: send previously approved rows whose scheduled_for has arrived ===
+  // Filter out anything that's already been sent — protects against re-approval bugs
+  // that would otherwise resend a message that already shipped.
   const { data: approvedDue = [] } = await supabase
     .from("outreach_sequence_runs")
     .select("*, external_records!inner(source, attendee_id)")
     .eq("status", "approved")
+    .is("sent_at", null)
     .lte("scheduled_for", new Date().toISOString());
 
   for (const r of approvedDue as any[]) {
     const attendeeId = r.external_records?.attendee_id || null;
-    const { status, detail } = await sendRun(supabase, r, attendeeId);
+    const { status, detail } = await sendRun(supabase, r, attendeeId, r.approved_by || null);
     await supabase.from("outreach_sequence_runs").update({
       status,
       detail,
-      sent_at: new Date().toISOString(),
+      sent_at: status === "sent" ? new Date().toISOString() : null,
     }).eq("id", r.id);
     if (status === "sent" && attendeeId) {
       try {
