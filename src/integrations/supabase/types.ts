@@ -838,7 +838,7 @@ export type Database = {
           id: string
           recipient: string | null
           scheduled_for: string | null
-          sent_at: string
+          sent_at: string | null
           sequence_id: string
           status: string
           subject: string | null
@@ -853,7 +853,7 @@ export type Database = {
           id?: string
           recipient?: string | null
           scheduled_for?: string | null
-          sent_at?: string
+          sent_at?: string | null
           sequence_id: string
           status?: string
           subject?: string | null
@@ -868,7 +868,7 @@ export type Database = {
           id?: string
           recipient?: string | null
           scheduled_for?: string | null
-          sent_at?: string
+          sent_at?: string | null
           sequence_id?: string
           status?: string
           subject?: string | null
