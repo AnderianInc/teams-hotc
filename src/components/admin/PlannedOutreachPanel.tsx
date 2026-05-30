@@ -629,7 +629,7 @@ export default function PlannedOutreachPanel() {
                               }}
                             />
                           </TableCell>
-                          <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer" onClick={() => toggleGroup(key)}>
+                          <TableCell colSpan={5} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer" onClick={() => toggleGroup(key)}>
                             <span className="inline-flex items-center gap-1.5">
                               {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                               {g.name}
@@ -638,7 +638,22 @@ export default function PlannedOutreachPanel() {
                               </span>
                             </span>
                           </TableCell>
-                        </TableRow>,
+                          <TableCell className="py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={stopPipeline.isPending}
+                              onClick={() => {
+                                if (!confirm(`Stop all automated outreach for ${g.name}? Remaining queued messages will be cancelled.`)) return;
+                                const recIds = Array.from(new Set(g.rows.map((r) => r.external_record_id)));
+                                recIds.forEach((id) => stopPipeline.mutate(id));
+                              }}
+                              title="Cancel remaining queued messages for this person"
+                            >
+                              <Ban className="h-3.5 w-3.5 mr-1" /> Stop pipeline
+                            </Button>
+                          </TableCell>
                         ...(collapsed ? [] : g.rows.map((r) => {
                           const seq = seqById.get(r.sequence_id);
                           const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
