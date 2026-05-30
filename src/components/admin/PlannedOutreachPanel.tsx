@@ -951,6 +951,16 @@ export default function PlannedOutreachPanel() {
                     </Button>
                   </DialogFooter>
                 )}
+                {activeRun.status === "failed" && (
+                  <DialogFooter className="gap-2">
+                    <Button
+                      onClick={() => decide.mutate({ run_id: activeRun.id, action: "approve", mode: "now" })}
+                      disabled={decide.isPending}
+                    >
+                      <Send className="h-4 w-4 mr-1" /> Retry send now
+                    </Button>
+                  </DialogFooter>
+                )}
               </>
             );
           })()}
