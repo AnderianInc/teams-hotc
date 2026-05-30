@@ -748,6 +748,22 @@ export default function PlannedOutreachPanel() {
                               {sched ? formatDistanceToNow(sched, { addSuffix: true }) : "—"}
                             </TableCell>
                             <TableCell>{statusBadge(r.status)}</TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                disabled={stopPipeline.isPending}
+                                onClick={() => {
+                                  const name = rec?.payload?.name || r.recipient || "this recipient";
+                                  if (!confirm(`Stop all automated outreach for ${name}? Remaining queued messages will be cancelled.`)) return;
+                                  stopPipeline.mutate(r.external_record_id);
+                                }}
+                                title="Cancel remaining queued messages for this person"
+                              >
+                                <Ban className="h-3.5 w-3.5 mr-1" /> Stop
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
