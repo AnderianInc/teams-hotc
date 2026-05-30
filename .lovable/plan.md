@@ -1,30 +1,80 @@
-## Problem
+## Two real bugs
 
-The new stale-step guard only fires when a sequence step is **first** evaluated for a record. Steps that were already queued as `pending_approval` (waiting for a reviewer to approve/reject) are not re-checked. So the Pending Approvals queue keeps showing obsolete items like "1 week before reminder" for events that already happened.
+### A. Approved-scheduled rows are invisible in the UI
+
+`src/components/admin/PlannedOutreachPanel.tsx` Upcoming tab:
+
+- The count is `upcoming.length + approvedScheduled.length` (line 540).
+- The green banner says "180 approved messages are scheduled…" (line 683).
+- But the table only iterates `list = upcoming` (line 672/699). `approvedScheduled` rows are never rendered.
+
+That's why you see the count but can't find the rows.
+
+### B. The dispatcher silently fakes successful sends
+
+`supabase/functions/outreach-dispatch/index.ts` → `sendRun()`:
+
+```ts
+await supabase.functions.invoke("send-email", { body: { ... } });
+```
+
+It never inspects the response. `invoke()` only throws on transport errors, so a 400/403 from `send-email` (e.g. `DO_NOT_CONTACT`, Resend rate-limit, missing field) returns normally and the run is marked `sent`. It also never passes `logged_by`, so `send-email` skips writing to `email_log`.
+
+Evidence: 56 outreach runs flipped to `sent` on 2026-05-29, but `email_log` has 0 entries for that day. The dispatcher is lying.
+
+Same pattern in `supabase/functions/outreach-approve/index.ts` immediate-send branch.
 
 ## Fix
 
-In `supabase/functions/outreach-dispatch/index.ts`, add a **Pass 0** (runs before Pass 1) that sweeps `outreach_sequence_runs` rows with `status = 'pending_approval'` and marks any whose `scheduled_for` is past the same grace window as stale.
+### 1. UI — render the missing rows
 
-Steps:
+`src/components/admin/PlannedOutreachPanel.tsx`:
 
-1. Query all `outreach_sequence_runs` joined with their `outreach_sequences` parent where `status = 'pending_approval'`.
-2. For each row, compute `staleCutoff = scheduled_for + graceDays * 86400000` using the same rule already in Pass 1:
-   - `event_date` anchor + `offset_days < 0` → 0 days grace
-   - `event_date` anchor + `offset_days >= 0` → 1 day grace
-   - `received` anchor → 1 day grace
-3. If `Date.now() > staleCutoff`, update the run to `status = 'skipped'`, `detail = 'stale: scheduled date passed before approval'`, and increment a `expired` counter returned in the response.
-4. Leave Pass 1 and Pass 2 unchanged.
+- In the Upcoming tab, render `approvedScheduled` runs as their own grouped section above the existing `upcoming` table (or interleave them). Columns: Source, Recipient, Subject, Scheduled send, Status badge ("approved · scheduled"). Reuse `renderPlannedRow` via a `runs`-based variant, or render inline using the existing run-row markup from the Pending tab.
+- Clicking a row opens the same review drawer (`setReviewRunId(r.id)`).
+- Keep the green banner, but only show it when at least one approved row is actually rendered.
+- Add an "Unschedule" / "Send now" / "Skip" action menu in the run review drawer for `approved` status rows so admins can manage stale items.
 
-This auto-cleans the approval queue every hour with no UI changes and no schema changes. Already-approved-but-future rows (Pass 2 territory) are untouched — those are intentional.
+### 2. Edge functions — actually check send results
 
-## Technical details
+`supabase/functions/outreach-dispatch/index.ts`:
 
-File: `supabase/functions/outreach-dispatch/index.ts`
+- Rewrite `sendRun()` to check `error` and `data?.error` on the invoke response and throw with the upstream message; set `status='failed'` with the real `detail` (truncated to 500 chars).
+- Pass `logged_by: rec.approved_by ?? null` (or a designated system user UUID from `app_settings.system_actor_id` if present) so every dispatcher send writes an `email_log` row.
+- Pass 2 SELECT: add `.is("sent_at", null)` to skip rows already sent in a prior run.
 
-- Add a helper `isStale(scheduledForIso, anchorKind, offsetDays)` (or inline the same math already used in Pass 1) so the grace-window logic lives in one place.
-- Insert a "Pass 0: expire stale pending approvals" block right after the sequences/records are loaded and before Pass 1 begins. Use a single `select` that pulls `id, scheduled_for, sequences:outreach_sequences(anchor, offset_days)` filtered by `status.eq('pending_approval')`.
-- Iterate, compute stale, and `update` each stale row by id. (Volume is small — single-row updates keep the audit trail per row.)
-- Return `{ ok, queued, dispatched, skipped, expired }` so the cron run logs show how many were cleaned.
+`supabase/functions/outreach-approve/index.ts`:
 
-No DB migration. No frontend changes — `PendingEmailsPanel` and the FI approvals UI already filter by `status = 'pending_approval'`, so expired rows disappear from those views automatically.
+- Same response-checking fix in the immediate-send branch.
+- Pass `logged_by: userId`.
+- Allow `action="approve"` against `status="failed"` rows as a retry (resets `sent_at=null`, then re-runs the send or re-queues based on `mode`).
+
+### 3. Retry button in the UI
+
+`PlannedOutreachPanel.tsx` run review drawer (~line 860): when `activeRun.status === "failed"`, show a Retry button that calls `outreach-approve` with `{ action: "approve", mode: "now" }`. Show `activeRun.detail` under the status badge so failures are diagnosable.
+
+### 4. Cleanup migration for the 180 stale rows
+
+These were all sent on 2026-05-17, then re-marked `approved` on 2026-05-27 with future `scheduled_for`. With fix #2 in place they'd resend on 2026-05-31. Mark them harmless:
+
+```sql
+UPDATE public.outreach_sequence_runs
+SET status = 'skipped',
+    detail = COALESCE(detail,'') || ' | auto-skip: already sent on ' || sent_at::date
+WHERE status = 'approved' AND sent_at IS NOT NULL;
+```
+
+### 5. Verify after deploy
+
+- `curl_edge_functions` invoke of `outreach-dispatch` returns a sane summary.
+- `SELECT count(*) FROM outreach_sequence_runs WHERE status='approved' AND scheduled_for <= now()` = 0 after cleanup.
+- After the next genuine send window: row counts for `status='sent' AND sent_at > now() - interval '1 hour'` in `outreach_sequence_runs` should match new `email_log.sent_at` rows in the same window.
+
+## Files touched
+
+- `supabase/functions/outreach-dispatch/index.ts`
+- `supabase/functions/outreach-approve/index.ts`
+- `src/components/admin/PlannedOutreachPanel.tsx` (render approved-scheduled, retry button, failure detail)
+- New migration to skip the 180 stale rows
+
+No schema changes.
