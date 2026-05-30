@@ -49,7 +49,12 @@ Deno.serve(async (req) => {
     .eq("id", run_id)
     .maybeSingle();
   if (!run) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: corsHeaders });
-  if (run.status !== "pending_approval") {
+  // Allow approve against pending_approval OR failed (retry).
+  // Reject only meaningful against pending_approval.
+  if (action === "reject" && run.status !== "pending_approval") {
+    return new Response(JSON.stringify({ error: "Already actioned" }), { status: 409, headers: corsHeaders });
+  }
+  if (action === "approve" && !["pending_approval", "failed"].includes(run.status)) {
     return new Response(JSON.stringify({ error: "Already actioned" }), { status: 409, headers: corsHeaders });
   }
 
@@ -77,6 +82,7 @@ Deno.serve(async (req) => {
     await admin.from("outreach_sequence_runs").update({
       status: "approved",
       detail: null,
+      sent_at: null,
       approved_by: userId,
       approved_at: new Date().toISOString(),
     }).eq("id", run_id);
@@ -87,24 +93,47 @@ Deno.serve(async (req) => {
 
   let sendErr: string | null = null;
   try {
+    let res: any;
     if (run.channel === "email") {
-      await admin.functions.invoke("send-email", {
-        body: { to: run.recipient, subject: run.subject, html: (run.body || "").replace(/\n/g, "<br/>"), related_attendee_id: rec?.attendee_id },
+      res = await admin.functions.invoke("send-email", {
+        body: {
+          to: run.recipient,
+          subject: run.subject,
+          html: (run.body || "").replace(/\n/g, "<br/>"),
+          related_attendee_id: rec?.attendee_id,
+          logged_by: userId,
+        },
       });
     } else if (run.channel === "sms") {
-      await admin.functions.invoke("send-sms", {
-        body: { to: run.recipient, body: run.body, related_attendee_id: rec?.attendee_id },
+      res = await admin.functions.invoke("send-sms", {
+        body: {
+          to: run.recipient,
+          body: run.body,
+          related_attendee_id: rec?.attendee_id,
+          logged_by: userId,
+        },
       });
     } else {
       sendErr = "unsupported channel";
     }
+    if (!sendErr) {
+      const transportErr = res?.error;
+      const bodyErr = res?.data?.error;
+      if (transportErr || bodyErr) {
+        const msg = (typeof transportErr === "string" ? transportErr : transportErr?.message)
+          || (typeof bodyErr === "string" ? bodyErr : bodyErr?.message)
+          || "send failed";
+        sendErr = String(msg).slice(0, 500);
+      }
+    }
   } catch (e) {
-    sendErr = e instanceof Error ? e.message : String(e);
+    sendErr = (e instanceof Error ? e.message : String(e)).slice(0, 500);
   }
 
   await admin.from("outreach_sequence_runs").update({
     status: sendErr ? "failed" : "sent",
     detail: sendErr,
+    sent_at: sendErr ? null : new Date().toISOString(),
     approved_by: userId,
     approved_at: new Date().toISOString(),
   }).eq("id", run_id);
