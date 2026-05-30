@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cancelOutreachForAttendee } from "@/lib/outreachPipeline";
 import {
   AlertDialog,
   AlertDialogAction,
