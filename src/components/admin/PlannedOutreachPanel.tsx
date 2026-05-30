@@ -380,6 +380,18 @@ export default function PlannedOutreachPanel() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const stopPipeline = useMutation({
+    mutationFn: async (recordId: string) => {
+      await cancelOutreachForRecord(recordId);
+    },
+    onSuccess: () => {
+      toast.success("Removed from automated pipeline");
+      qc.invalidateQueries({ queryKey: ["outreach-runs"] });
+      qc.invalidateQueries({ queryKey: ["external-records-active"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const seqById = useMemo(() => new Map(sequences.map((s) => [s.id, s])), [sequences]);
   const recById = useMemo(() => new Map((records as any[]).map((r) => [r.id, r])), [records]);
   const activeRun = reviewRunId ? runs.find((r) => r.id === reviewRunId) : null;
