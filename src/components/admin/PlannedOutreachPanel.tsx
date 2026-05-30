@@ -723,6 +723,7 @@ export default function PlannedOutreachPanel() {
                         <TableHead>{key === "completed" ? "Sent" : "Scheduled"}</TableHead>
                         {key === "upcoming" && <TableHead>Sends in</TableHead>}
                         <TableHead>Status</TableHead>
+                        {key === "upcoming" && <TableHead></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
