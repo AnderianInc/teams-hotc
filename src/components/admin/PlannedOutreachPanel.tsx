@@ -22,7 +22,8 @@ import { useTableFilters } from "@/hooks/useTableFilters";
 import { FilterChips } from "@/components/filters/FilterChips";
 import { FilterPopover } from "@/components/filters/FilterPopover";
 import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
-import { Search } from "lucide-react";
+import { Search, Ban } from "lucide-react";
+import { cancelOutreachForRecord } from "@/lib/outreachPipeline";
 
 const SOURCE_OPTIONS = [
   { value: "all", label: "All sources" },
