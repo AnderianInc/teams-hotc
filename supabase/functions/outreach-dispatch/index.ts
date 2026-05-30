@@ -370,19 +370,22 @@ Deno.serve(async (req) => {
   }
 
   // === Pass 2: send previously approved rows whose scheduled_for has arrived ===
+  // Filter out anything that's already been sent — protects against re-approval bugs
+  // that would otherwise resend a message that already shipped.
   const { data: approvedDue = [] } = await supabase
     .from("outreach_sequence_runs")
     .select("*, external_records!inner(source, attendee_id)")
     .eq("status", "approved")
+    .is("sent_at", null)
     .lte("scheduled_for", new Date().toISOString());
 
   for (const r of approvedDue as any[]) {
     const attendeeId = r.external_records?.attendee_id || null;
-    const { status, detail } = await sendRun(supabase, r, attendeeId);
+    const { status, detail } = await sendRun(supabase, r, attendeeId, r.approved_by || null);
     await supabase.from("outreach_sequence_runs").update({
       status,
       detail,
-      sent_at: new Date().toISOString(),
+      sent_at: status === "sent" ? new Date().toISOString() : null,
     }).eq("id", r.id);
     if (status === "sent" && attendeeId) {
       try {
