@@ -83,43 +83,61 @@ function renderTemplate(slug: string | null, ctx: Record<string, string>): { sub
   return map[slug || ""] || { subject: "HOTC update", body: `Hi ${name}` };
 }
 
-async function sendRun(supabase: any, run: any, attendeeId: string | null, loggedBy: string | null) {
+async function sendRun(_supabase: any, run: any, attendeeId: string | null, loggedBy: string | null) {
   let status: "sent" | "failed" = "sent";
   let detail: string | null = null;
   try {
-    let res: any;
-    if (run.channel === "email") {
-      res = await supabase.functions.invoke("send-email", {
-        body: {
+    const fnName = run.channel === "email" ? "send-email"
+      : run.channel === "sms" ? "send-sms"
+      : null;
+    if (!fnName) return { status: "failed" as const, detail: `unsupported channel: ${run.channel}` };
+
+    const body = run.channel === "email"
+      ? {
           to: run.recipient,
           subject: run.subject,
           html: (run.body || "").replace(/\n/g, "<br/>"),
           related_attendee_id: attendeeId,
           logged_by: loggedBy,
-        },
-      });
-    } else if (run.channel === "sms") {
-      res = await supabase.functions.invoke("send-sms", {
-        body: {
+        }
+      : {
           to: run.recipient,
           body: run.body,
           related_attendee_id: attendeeId,
           logged_by: loggedBy,
+        };
+
+    // Direct fetch is more reliable than supabase.functions.invoke from inside an edge function
+    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/${fnName}`;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    let resp: Response;
+    try {
+      resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+          "apikey": serviceKey,
         },
+        body: JSON.stringify(body),
+        signal: controller.signal,
       });
-    } else {
-      return { status: "failed" as const, detail: `unsupported channel: ${run.channel}` };
+    } finally {
+      clearTimeout(timeoutId);
     }
-    // invoke() only throws on transport errors; HTTP 4xx returns normally with res.error
-    // or a JSON body containing { error: ... }. Inspect both before claiming success.
-    const transportErr = res?.error;
-    const bodyErr = res?.data?.error;
-    if (transportErr || bodyErr) {
+
+    if (!resp.ok) {
       status = "failed";
-      const msg = (typeof transportErr === "string" ? transportErr : transportErr?.message)
-        || (typeof bodyErr === "string" ? bodyErr : bodyErr?.message)
-        || "send failed";
-      detail = String(msg).slice(0, 500);
+      const text = await resp.text().catch(() => "");
+      detail = `HTTP ${resp.status}: ${text}`.slice(0, 500);
+    } else {
+      const json = await resp.json().catch(() => ({}));
+      if (json?.error) {
+        status = "failed";
+        detail = String(json.error).slice(0, 500);
+      }
     }
   } catch (err) {
     status = "failed";
