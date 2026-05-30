@@ -680,7 +680,7 @@ export default function PlannedOutreachPanel() {
                   )}
                   {key === "upcoming" && approvedScheduled.length > 0 && (
                     <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs">
-                      <strong>{approvedScheduled.length}</strong> approved message{approvedScheduled.length === 1 ? " is" : "s are"} scheduled and will send automatically at the planned time.
+                      <strong>{approvedScheduled.length}</strong> approved message{approvedScheduled.length === 1 ? " is" : "s are"} scheduled and will send automatically at the planned time. They are listed at the top of the table below.
                     </div>
                   )}
                   <Table>
@@ -696,8 +696,37 @@ export default function PlannedOutreachPanel() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
+                      {key === "upcoming" && approvedScheduled.map((r) => {
+                        const seq = seqById.get(r.sequence_id);
+                        const rec: any = recById.get(r.external_record_id);
+                        const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
+                        return (
+                          <TableRow key={`appr-${r.id}`} className="cursor-pointer hover:bg-muted/50 bg-emerald-50/40 dark:bg-emerald-950/10" onClick={() => setReviewRunId(r.id)}>
+                            <TableCell><Badge variant="outline">{SRC_LABEL[seq?.source || ""] || seq?.source || "—"}</Badge></TableCell>
+                            <TableCell className="font-medium">
+                              {rec?.payload?.name || "—"}
+                              <div className="text-xs text-muted-foreground">{r.recipient || "no recipient"}</div>
+                            </TableCell>
+                            <TableCell className="text-xs">{seq?.description || seq?.template_slug || "—"}</TableCell>
+                            <TableCell><Badge variant="secondary" className="text-xs">{r.channel || seq?.channel}</Badge></TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{seq?.audience || "—"}</TableCell>
+                            <TableCell className="text-xs">
+                              {sched ? (
+                                <>
+                                  {formatInChurchTz(sched, "MMM d, h:mm a", churchTz)}
+                                  <div className="text-muted-foreground">{formatDistanceToNow(sched, { addSuffix: true })}</div>
+                                </>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell>{statusBadge(r.status)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {list.slice(0, 200).map(renderPlannedRow)}
-                      {list.length === 0 && (
+                      {list.length === 0 && approvedScheduled.length === 0 && key === "upcoming" && (
+                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
+                      )}
+                      {list.length === 0 && key !== "upcoming" && (
                         <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
                       )}
                     </TableBody>
