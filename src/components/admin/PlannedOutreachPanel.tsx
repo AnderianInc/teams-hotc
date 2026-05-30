@@ -768,7 +768,7 @@ export default function PlannedOutreachPanel() {
                             <TableCell><Badge variant="secondary" className="text-xs">{r.channel || seq?.channel}</Badge></TableCell>
                             <TableCell className="text-xs">{seq?.description || seq?.template_slug || "—"}</TableCell>
                             <TableCell className="text-xs max-w-[320px] truncate">{r.detail || "—"}</TableCell>
-                            <TableCell className="text-xs">{formatDistanceToNow(new Date(r.sent_at), { addSuffix: true })}</TableCell>
+                            <TableCell className="text-xs">{(() => { const ts = r.sent_at || r.scheduled_for; return ts ? formatDistanceToNow(new Date(ts), { addSuffix: true }) : "—"; })()}</TableCell>
                           </TableRow>
                         );
                       })}
