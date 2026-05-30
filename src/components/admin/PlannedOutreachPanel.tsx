@@ -692,6 +692,7 @@ export default function PlannedOutreachPanel() {
                         <TableHead>Channel</TableHead>
                         <TableHead>Audience</TableHead>
                         <TableHead>{key === "completed" ? "Sent" : "Scheduled"}</TableHead>
+                        {key === "upcoming" && <TableHead>Sends in</TableHead>}
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -711,12 +712,10 @@ export default function PlannedOutreachPanel() {
                             <TableCell><Badge variant="secondary" className="text-xs">{r.channel || seq?.channel}</Badge></TableCell>
                             <TableCell className="text-xs text-muted-foreground">{seq?.audience || "—"}</TableCell>
                             <TableCell className="text-xs">
-                              {sched ? (
-                                <>
-                                  {formatInChurchTz(sched, "MMM d, h:mm a", churchTz)}
-                                  <div className="text-muted-foreground">{formatDistanceToNow(sched, { addSuffix: true })}</div>
-                                </>
-                              ) : "—"}
+                              {sched ? formatInChurchTz(sched, "MMM d, h:mm a", churchTz) : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs font-medium text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                              {sched ? formatDistanceToNow(sched, { addSuffix: true }) : "—"}
                             </TableCell>
                             <TableCell>{statusBadge(r.status)}</TableCell>
                           </TableRow>
@@ -724,7 +723,7 @@ export default function PlannedOutreachPanel() {
                       })}
                       {list.slice(0, 200).map(renderPlannedRow)}
                       {list.length === 0 && approvedScheduled.length === 0 && key === "upcoming" && (
-                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
                       )}
                       {list.length === 0 && key !== "upcoming" && (
                         <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
