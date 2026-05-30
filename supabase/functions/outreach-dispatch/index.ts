@@ -337,6 +337,7 @@ Deno.serve(async (req) => {
         supabase,
         { channel: seq.channel, recipient, subject: tpl.subject, body: tpl.body },
         attendee?.id || null,
+        null,
       );
       await insertRun(supabase, {
         external_record_id: rec.id,
@@ -348,6 +349,7 @@ Deno.serve(async (req) => {
         recipient,
         channel: seq.channel,
         scheduled_for,
+        sent_at: status === "sent" ? new Date().toISOString() : null,
       });
 
       if (status === "sent" && seq.audience === "requester" && attendee?.id) {
