@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 export async function cancelOutreachForRecord(recordId: string, reason = "Cancelled by admin") {
   const { error: recErr } = await supabase
     .from("external_records")
-    .update({ status: "cancelled" })
+    .update({ status: "ignored" })
     .eq("id", recordId);
   if (recErr) throw recErr;
 
@@ -37,7 +37,7 @@ export async function cancelOutreachForAttendee(attendeeId: string, reason = "Re
   if (ids.length) {
     await supabase
       .from("external_records")
-      .update({ status: "cancelled" })
+      .update({ status: "ignored" })
       .in("id", ids);
     await supabase
       .from("outreach_sequence_runs")
@@ -48,7 +48,7 @@ export async function cancelOutreachForAttendee(attendeeId: string, reason = "Re
 
   await supabase
     .from("pending_email_approvals")
-    .update({ status: "cancelled", notes: reason })
+    .update({ status: "ignored", notes: reason })
     .eq("attendee_id", attendeeId)
     .eq("status", "pending");
 }
