@@ -769,7 +769,7 @@ export default function PlannedOutreachPanel() {
                       })}
                       {list.slice(0, 200).map(renderPlannedRow)}
                       {list.length === 0 && approvedScheduled.length === 0 && key === "upcoming" && (
-                        <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
                       )}
                       {list.length === 0 && key !== "upcoming" && (
                         <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
