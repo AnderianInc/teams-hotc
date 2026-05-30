@@ -22,7 +22,8 @@ import { useTableFilters } from "@/hooks/useTableFilters";
 import { FilterChips } from "@/components/filters/FilterChips";
 import { FilterPopover } from "@/components/filters/FilterPopover";
 import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
-import { Search } from "lucide-react";
+import { Search, Ban } from "lucide-react";
+import { cancelOutreachForRecord } from "@/lib/outreachPipeline";
 
 const SOURCE_OPTIONS = [
   { value: "all", label: "All sources" },
@@ -379,6 +380,18 @@ export default function PlannedOutreachPanel() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const stopPipeline = useMutation({
+    mutationFn: async (recordId: string) => {
+      await cancelOutreachForRecord(recordId);
+    },
+    onSuccess: () => {
+      toast.success("Removed from automated pipeline");
+      qc.invalidateQueries({ queryKey: ["outreach-runs"] });
+      qc.invalidateQueries({ queryKey: ["external-records-active"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const seqById = useMemo(() => new Map(sequences.map((s) => [s.id, s])), [sequences]);
   const recById = useMemo(() => new Map((records as any[]).map((r) => [r.id, r])), [records]);
   const activeRun = reviewRunId ? runs.find((r) => r.id === reviewRunId) : null;
@@ -616,7 +629,7 @@ export default function PlannedOutreachPanel() {
                               }}
                             />
                           </TableCell>
-                          <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer" onClick={() => toggleGroup(key)}>
+                          <TableCell colSpan={5} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer" onClick={() => toggleGroup(key)}>
                             <span className="inline-flex items-center gap-1.5">
                               {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                               {g.name}
@@ -624,6 +637,22 @@ export default function PlannedOutreachPanel() {
                                 ({g.rows.length} message{g.rows.length === 1 ? "" : "s"})
                               </span>
                             </span>
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={stopPipeline.isPending}
+                              onClick={() => {
+                                if (!confirm(`Stop all automated outreach for ${g.name}? Remaining queued messages will be cancelled.`)) return;
+                                const recIds = Array.from(new Set(g.rows.map((r) => r.external_record_id)));
+                                recIds.forEach((id) => stopPipeline.mutate(id));
+                              }}
+                              title="Cancel remaining queued messages for this person"
+                            >
+                              <Ban className="h-3.5 w-3.5 mr-1" /> Stop pipeline
+                            </Button>
                           </TableCell>
                         </TableRow>,
                         ...(collapsed ? [] : g.rows.map((r) => {
@@ -694,6 +723,7 @@ export default function PlannedOutreachPanel() {
                         <TableHead>{key === "completed" ? "Sent" : "Scheduled"}</TableHead>
                         {key === "upcoming" && <TableHead>Sends in</TableHead>}
                         <TableHead>Status</TableHead>
+                        {key === "upcoming" && <TableHead></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -718,12 +748,28 @@ export default function PlannedOutreachPanel() {
                               {sched ? formatDistanceToNow(sched, { addSuffix: true }) : "—"}
                             </TableCell>
                             <TableCell>{statusBadge(r.status)}</TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                disabled={stopPipeline.isPending}
+                                onClick={() => {
+                                  const name = rec?.payload?.name || r.recipient || "this recipient";
+                                  if (!confirm(`Stop all automated outreach for ${name}? Remaining queued messages will be cancelled.`)) return;
+                                  stopPipeline.mutate(r.external_record_id);
+                                }}
+                                title="Cancel remaining queued messages for this person"
+                              >
+                                <Ban className="h-3.5 w-3.5 mr-1" /> Stop
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
                       {list.slice(0, 200).map(renderPlannedRow)}
                       {list.length === 0 && approvedScheduled.length === 0 && key === "upcoming" && (
-                        <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
                       )}
                       {list.length === 0 && key !== "upcoming" && (
                         <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cancelOutreachForAttendee } from "@/lib/outreachPipeline";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,9 @@ export default function DirectoryDeleteButton({ entryId, entryName, isVolunteerO
         const { error } = await supabase.from("profiles").delete().eq("user_id", entryId);
         if (error) throw error;
       } else {
+        // Cancel any automated outreach so they don't keep getting messages
+        await cancelOutreachForAttendee(entryId);
+
         // For attendees: also clean up linked profile & team memberships
         const { data: profile } = await supabase
           .from("profiles")
