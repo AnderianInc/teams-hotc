@@ -654,6 +654,7 @@ export default function PlannedOutreachPanel() {
                               <Ban className="h-3.5 w-3.5 mr-1" /> Stop pipeline
                             </Button>
                           </TableCell>
+                        </TableRow>,
                         ...(collapsed ? [] : g.rows.map((r) => {
                           const seq = seqById.get(r.sequence_id);
                           const sched = r.scheduled_for ? new Date(r.scheduled_for) : null;
