@@ -83,22 +83,47 @@ function renderTemplate(slug: string | null, ctx: Record<string, string>): { sub
   return map[slug || ""] || { subject: "HOTC update", body: `Hi ${name}` };
 }
 
-async function sendRun(supabase: any, run: any, attendeeId: string | null) {
+async function sendRun(supabase: any, run: any, attendeeId: string | null, loggedBy: string | null) {
   let status: "sent" | "failed" = "sent";
   let detail: string | null = null;
   try {
+    let res: any;
     if (run.channel === "email") {
-      await supabase.functions.invoke("send-email", {
-        body: { to: run.recipient, subject: run.subject, html: (run.body || "").replace(/\n/g, "<br/>"), related_attendee_id: attendeeId },
+      res = await supabase.functions.invoke("send-email", {
+        body: {
+          to: run.recipient,
+          subject: run.subject,
+          html: (run.body || "").replace(/\n/g, "<br/>"),
+          related_attendee_id: attendeeId,
+          logged_by: loggedBy,
+        },
       });
     } else if (run.channel === "sms") {
-      await supabase.functions.invoke("send-sms", {
-        body: { to: run.recipient, body: run.body, related_attendee_id: attendeeId },
+      res = await supabase.functions.invoke("send-sms", {
+        body: {
+          to: run.recipient,
+          body: run.body,
+          related_attendee_id: attendeeId,
+          logged_by: loggedBy,
+        },
       });
+    } else {
+      return { status: "failed" as const, detail: `unsupported channel: ${run.channel}` };
+    }
+    // invoke() only throws on transport errors; HTTP 4xx returns normally with res.error
+    // or a JSON body containing { error: ... }. Inspect both before claiming success.
+    const transportErr = res?.error;
+    const bodyErr = res?.data?.error;
+    if (transportErr || bodyErr) {
+      status = "failed";
+      const msg = (typeof transportErr === "string" ? transportErr : transportErr?.message)
+        || (typeof bodyErr === "string" ? bodyErr : bodyErr?.message)
+        || "send failed";
+      detail = String(msg).slice(0, 500);
     }
   } catch (err) {
     status = "failed";
-    detail = err instanceof Error ? err.message : String(err);
+    detail = (err instanceof Error ? err.message : String(err)).slice(0, 500);
   }
   return { status, detail };
 }
