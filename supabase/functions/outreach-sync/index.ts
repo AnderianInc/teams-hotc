@@ -87,6 +87,34 @@ Deno.serve(async (req) => {
         });
 
         for (const r of page.data) {
+          const externalId = String(r.id);
+          const eventDate = r.event_date || r.scheduled_for || r.meeting_date || r.preferred_date || null;
+
+          const { data: existingRecord, error: existingRecordErr } = await supabase
+            .from("external_records")
+            .select("id, status")
+            .eq("source", src.key)
+            .eq("external_id", externalId)
+            .maybeSingle();
+
+          if (existingRecordErr) {
+            console.error("lookup external record failed", existingRecordErr);
+            continue;
+          }
+
+          if (existingRecord?.status === "ignored") {
+            await supabase
+              .from("external_records")
+              .update({
+                payload: r,
+                event_date: eventDate,
+                processed_at: new Date().toISOString(),
+              })
+              .eq("id", existingRecord.id);
+            imported++;
+            continue;
+          }
+
           const email = (r.email || "").toLowerCase() || null;
           const phoneNorm = normalizePhone(r.phone);
           let attendeeId: string | null = null;
@@ -142,12 +170,10 @@ Deno.serve(async (req) => {
             }
           }
 
-          const eventDate = r.event_date || r.scheduled_for || r.meeting_date || r.preferred_date || null;
-
           await supabase.from("external_records").upsert(
             {
               source: src.key,
-              external_id: String(r.id),
+              external_id: externalId,
               payload: r,
               status,
               attendee_id: attendeeId,
