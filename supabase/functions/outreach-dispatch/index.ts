@@ -225,7 +225,29 @@ Deno.serve(async (req) => {
     }
   }
 
+  // === Pass 0b: revive previously-failed runs with retriable errors ===
+  // Resend "Rate limit exceeded" and similar transient errors are retried on the
+  // next dispatcher tick by flipping them back to 'approved' with a backoff.
+  const { data: failedRuns = [] } = await supabase
+    .from("outreach_sequence_runs")
+    .select("id, detail, attempt_count, scheduled_for")
+    .eq("status", "failed");
+  let revived = 0;
+  for (const r of (failedRuns as any[]) || []) {
+    const attemptsSoFar = Number(r.attempt_count) || 0;
+    if (attemptsSoFar >= MAX_SEND_ATTEMPTS) continue;
+    if (!isRetriableFailure(r.detail)) continue;
+    const nextSched = new Date(Date.now() + retryBackoffSeconds(attemptsSoFar + 1) * 1000).toISOString();
+    await supabase.from("outreach_sequence_runs").update({
+      status: "approved",
+      scheduled_for: nextSched,
+      detail: `retry queued after: ${String(r.detail).slice(0, 200)}`,
+    }).eq("id", r.id);
+    revived++;
+  }
+
   // === Pass 1: queue new rows / send non-approval steps that are due ===
+
   for (const rec of records || []) {
     const seqs = (sequences as Seq[]).filter((s) => s.source === rec.source);
 
