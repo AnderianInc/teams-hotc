@@ -831,6 +831,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          attempt_count: number
           body: string | null
           channel: string | null
           detail: string | null
@@ -846,6 +847,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          attempt_count?: number
           body?: string | null
           channel?: string | null
           detail?: string | null
@@ -861,6 +863,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          attempt_count?: number
           body?: string | null
           channel?: string | null
           detail?: string | null

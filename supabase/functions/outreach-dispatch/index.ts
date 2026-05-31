@@ -111,7 +111,7 @@ async function sendRun(_supabase: any, run: any, attendeeId: string | null, logg
     const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/${fnName}`;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     let resp: Response;
     try {
       resp = await fetch(url, {
@@ -127,6 +127,7 @@ async function sendRun(_supabase: any, run: any, attendeeId: string | null, logg
     } finally {
       clearTimeout(timeoutId);
     }
+
 
     if (!resp.ok) {
       status = "failed";
@@ -151,8 +152,25 @@ async function insertRun(supabase: any, values: Record<string, unknown>) {
   if (error) throw new Error(`Could not save outreach run: ${error.message}`);
 }
 
+// Maximum send attempts before giving up on a retriable failure.
+const MAX_SEND_ATTEMPTS = 5;
+
+function isRetriableFailure(detail: string | null | undefined): boolean {
+  if (!detail) return false;
+  return /rate.?limit/i.test(detail)
+    || /\b429\b/.test(detail)
+    || /HTTP 5\d\d/.test(detail)
+    || /timeout|timed out|aborted|network|ECONN|ENOTFOUND|fetch failed/i.test(detail);
+}
+
+// Exponential backoff in seconds: 5m, 10m, 20m, 40m, 60m (capped).
+function retryBackoffSeconds(attempt: number): number {
+  return Math.min(3600, 300 * Math.pow(2, Math.max(0, attempt - 1)));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -207,7 +225,29 @@ Deno.serve(async (req) => {
     }
   }
 
+  // === Pass 0b: revive previously-failed runs with retriable errors ===
+  // Resend "Rate limit exceeded" and similar transient errors are retried on the
+  // next dispatcher tick by flipping them back to 'approved' with a backoff.
+  const { data: failedRuns = [] } = await supabase
+    .from("outreach_sequence_runs")
+    .select("id, detail, attempt_count, scheduled_for")
+    .eq("status", "failed");
+  let revived = 0;
+  for (const r of (failedRuns as any[]) || []) {
+    const attemptsSoFar = Number(r.attempt_count) || 0;
+    if (attemptsSoFar >= MAX_SEND_ATTEMPTS) continue;
+    if (!isRetriableFailure(r.detail)) continue;
+    const nextSched = new Date(Date.now() + retryBackoffSeconds(attemptsSoFar + 1) * 1000).toISOString();
+    await supabase.from("outreach_sequence_runs").update({
+      status: "approved",
+      scheduled_for: nextSched,
+      detail: `retry queued after: ${String(r.detail).slice(0, 200)}`,
+    }).eq("id", r.id);
+    revived++;
+  }
+
   // === Pass 1: queue new rows / send non-approval steps that are due ===
+
   for (const rec of records || []) {
     const seqs = (sequences as Seq[]).filter((s) => s.source === rec.source);
 
@@ -357,18 +397,28 @@ Deno.serve(async (req) => {
         attendee?.id || null,
         null,
       );
+      const attemptCount = 1;
+      let storeStatus: string = status;
+      let storeScheduled = scheduled_for;
+      if (status === "failed" && isRetriableFailure(detail) && attemptCount < MAX_SEND_ATTEMPTS) {
+        storeStatus = "approved";
+        storeScheduled = new Date(Date.now() + retryBackoffSeconds(attemptCount) * 1000).toISOString();
+        console.log(`outreach-dispatch: retriable failure for ${seq.id}/${rec.id}, scheduling retry attempt ${attemptCount + 1}`);
+      }
       await insertRun(supabase, {
         external_record_id: rec.id,
         sequence_id: seq.id,
-        status,
+        status: storeStatus,
         detail,
         subject: tpl.subject,
         body: tpl.body,
         recipient,
         channel: seq.channel,
-        scheduled_for,
+        scheduled_for: storeScheduled,
+        attempt_count: attemptCount,
         sent_at: status === "sent" ? new Date().toISOString() : null,
       });
+
 
       if (status === "sent" && seq.audience === "requester" && attendee?.id) {
         try {
@@ -400,11 +450,20 @@ Deno.serve(async (req) => {
   for (const r of approvedDue as any[]) {
     const attendeeId = r.external_records?.attendee_id || null;
     const { status, detail } = await sendRun(supabase, r, attendeeId, r.approved_by || null);
-    await supabase.from("outreach_sequence_runs").update({
+    const nextAttempt = (Number(r.attempt_count) || 0) + 1;
+    const update: Record<string, unknown> = {
       status,
       detail,
+      attempt_count: nextAttempt,
       sent_at: status === "sent" ? new Date().toISOString() : null,
-    }).eq("id", r.id);
+    };
+    if (status === "failed" && isRetriableFailure(detail) && nextAttempt < MAX_SEND_ATTEMPTS) {
+      update.status = "approved";
+      update.scheduled_for = new Date(Date.now() + retryBackoffSeconds(nextAttempt) * 1000).toISOString();
+      console.log(`outreach-dispatch: retriable failure on run ${r.id}, scheduling retry attempt ${nextAttempt + 1}`);
+    }
+    await supabase.from("outreach_sequence_runs").update(update).eq("id", r.id);
+
     if (status === "sent" && attendeeId) {
       try {
         await supabase
@@ -421,7 +480,7 @@ Deno.serve(async (req) => {
     if (status === "sent") dispatched++;
   }
 
-  return new Response(JSON.stringify({ ok: true, queued, dispatched, skipped, expired }), {
+  return new Response(JSON.stringify({ ok: true, queued, dispatched, skipped, expired, revived }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

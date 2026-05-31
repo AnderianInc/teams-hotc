@@ -158,21 +158,49 @@ serve(async (req) => {
       headersExtra["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
     }
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "HOTC <community@hotc.life>",
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        html: finalHtml,
-        text: text || undefined,
-        reply_to: "community@hotc.life",
-        headers: Object.keys(headersExtra).length ? headersExtra : undefined,
-      }),
+    const payload = JSON.stringify({
+      from: "HOTC <community@hotc.life>",
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html: finalHtml,
+      text: text || undefined,
+      reply_to: "community@hotc.life",
+      headers: Object.keys(headersExtra).length ? headersExtra : undefined,
     });
 
-    const result = await res.json();
+    // Retry with exponential backoff on rate limit (429) or transient 5xx errors.
+    // Honors Resend's "Retry after Xms" hint when present.
+    const MAX_ATTEMPTS = 5;
+    let res: Response;
+    let result: any = {};
+    let attempt = 0;
+    while (true) {
+      attempt++;
+      res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+        body: payload,
+      });
+      result = await res.json().catch(() => ({}));
+      const msgStr = String(result?.message || "");
+      const rateLimited = res.status === 429 || /rate limit/i.test(msgStr);
+      const retriable = rateLimited || (res.status >= 500 && res.status < 600);
+      if (res.ok || !retriable || attempt >= MAX_ATTEMPTS) break;
+
+      let delayMs = 0;
+      const retryAfterHeader = res.headers.get("retry-after");
+      if (retryAfterHeader) {
+        const n = Number(retryAfterHeader);
+        if (!isNaN(n)) delayMs = n * 1000;
+      }
+      const m = msgStr.match(/Retry after (\d+)\s*ms/i);
+      if (m) delayMs = Math.max(delayMs, Number(m[1]));
+      if (!delayMs) delayMs = Math.min(30000, 1000 * Math.pow(2, attempt - 1));
+      delayMs = Math.min(delayMs, 45000) + Math.floor(Math.random() * 500);
+      console.log(`send-email: status ${res.status} attempt ${attempt}, retrying in ${delayMs}ms (${msgStr.slice(0, 120)})`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+
     if (!res.ok) {
       const errMsg = result.message || JSON.stringify(result);
       if (logged_by) {
