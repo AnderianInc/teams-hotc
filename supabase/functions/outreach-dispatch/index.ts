@@ -152,8 +152,25 @@ async function insertRun(supabase: any, values: Record<string, unknown>) {
   if (error) throw new Error(`Could not save outreach run: ${error.message}`);
 }
 
+// Maximum send attempts before giving up on a retriable failure.
+const MAX_SEND_ATTEMPTS = 5;
+
+function isRetriableFailure(detail: string | null | undefined): boolean {
+  if (!detail) return false;
+  return /rate.?limit/i.test(detail)
+    || /\b429\b/.test(detail)
+    || /HTTP 5\d\d/.test(detail)
+    || /timeout|timed out|aborted|network|ECONN|ENOTFOUND|fetch failed/i.test(detail);
+}
+
+// Exponential backoff in seconds: 5m, 10m, 20m, 40m, 60m (capped).
+function retryBackoffSeconds(attempt: number): number {
+  return Math.min(3600, 300 * Math.pow(2, Math.max(0, attempt - 1)));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
