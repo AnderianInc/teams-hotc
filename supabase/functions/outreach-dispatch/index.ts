@@ -111,7 +111,7 @@ async function sendRun(_supabase: any, run: any, attendeeId: string | null, logg
     const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/${fnName}`;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     let resp: Response;
     try {
       resp = await fetch(url, {
@@ -127,6 +127,7 @@ async function sendRun(_supabase: any, run: any, attendeeId: string | null, logg
     } finally {
       clearTimeout(timeoutId);
     }
+
 
     if (!resp.ok) {
       status = "failed";
