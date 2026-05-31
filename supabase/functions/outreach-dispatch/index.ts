@@ -375,18 +375,28 @@ Deno.serve(async (req) => {
         attendee?.id || null,
         null,
       );
+      const attemptCount = 1;
+      let storeStatus: string = status;
+      let storeScheduled = scheduled_for;
+      if (status === "failed" && isRetriableFailure(detail) && attemptCount < MAX_SEND_ATTEMPTS) {
+        storeStatus = "approved";
+        storeScheduled = new Date(Date.now() + retryBackoffSeconds(attemptCount) * 1000).toISOString();
+        console.log(`outreach-dispatch: retriable failure for ${seq.id}/${rec.id}, scheduling retry attempt ${attemptCount + 1}`);
+      }
       await insertRun(supabase, {
         external_record_id: rec.id,
         sequence_id: seq.id,
-        status,
+        status: storeStatus,
         detail,
         subject: tpl.subject,
         body: tpl.body,
         recipient,
         channel: seq.channel,
-        scheduled_for,
+        scheduled_for: storeScheduled,
+        attempt_count: attemptCount,
         sent_at: status === "sent" ? new Date().toISOString() : null,
       });
+
 
       if (status === "sent" && seq.audience === "requester" && attendee?.id) {
         try {
