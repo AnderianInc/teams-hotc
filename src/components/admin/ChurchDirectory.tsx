@@ -130,6 +130,14 @@ export default function ChurchDirectory() {
     const children = childrenRes.data || [];
     const staffRoleMap = new Map<string, string>(((staffRolesRes.data as any[]) || []).map((r) => [r.id, r.name]));
 
+    // Latest pipeline stage per attendee (rows already ordered desc by updated_at)
+    const pipelineByAttendee = new Map<string, PipelineStage>();
+    ((followUpsRes.data as any[]) || []).forEach((fu) => {
+      if (fu.attendee_id && !pipelineByAttendee.has(fu.attendee_id)) {
+        pipelineByAttendee.set(fu.attendee_id, fu.prospect_pipeline_stage as PipelineStage);
+      }
+    });
+
     // Build team map
     const userTeamMap = new Map<string, string[]>();
     const usersWithTeams = new Set<string>();
@@ -160,6 +168,8 @@ export default function ChurchDirectory() {
         isStaff: !!profile?.is_staff,
         staffTitle: profile?.staff_title || (profile?.staff_role_id ? staffRoleMap.get(profile.staff_role_id) : null) || null,
         smsOptIn: !!(a.sms_opt_in || profile?.sms_opt_in),
+        pipelineStage: pipelineByAttendee.get(a.id) || null,
+        hasFirstVisit: !!a.first_visit_date,
       };
     });
 
