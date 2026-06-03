@@ -20,6 +20,8 @@ import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
 import { useTableFilters } from "@/hooks/useTableFilters";
 import { formatPhoneDisplay } from "@/lib/phone";
 
+export type PipelineStage = "interested" | "invited" | "visited" | "connected" | "member";
+
 export interface DirectoryEntry {
   id: string;
   first_name: string;
@@ -37,6 +39,8 @@ export interface DirectoryEntry {
   isStaff?: boolean;
   staffTitle?: string | null;
   smsOptIn?: boolean;
+  pipelineStage?: PipelineStage | null;
+  hasFirstVisit?: boolean;
 }
 
 function DirectoryActionMenu({ entry, onRefresh }: { entry: DirectoryEntry; onRefresh: () => void }) {
