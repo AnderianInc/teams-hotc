@@ -259,7 +259,9 @@ export default function ChurchDirectory() {
       if (!hit) return false;
     }
     if (typeChip === "members" && !e.is_member) return false;
-    if (typeChip === "visitors" && (e.is_member || e.isVolunteer || e.isStaff)) return false;
+    if (typeChip === "visitors" && !(e.pipelineStage === "visited" || (e.hasFirstVisit && !e.pipelineStage && !e.is_member && !e.isVolunteer && !e.isStaff))) return false;
+    if (typeChip === "interested" && e.pipelineStage !== "interested") return false;
+    if (typeChip === "invited" && e.pipelineStage !== "invited") return false;
     if (typeChip === "volunteers" && !e.isVolunteer) return false;
     if (typeChip === "staff" && !e.isStaff) return false;
     if (selectedTeams.length > 0 && !e.teamNames.some((t) => selectedTeams.includes(t))) return false;
