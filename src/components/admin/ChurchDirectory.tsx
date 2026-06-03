@@ -319,6 +319,8 @@ export default function ChurchDirectory() {
               { value: "all", label: "All" },
               { value: "members", label: "Members" },
               { value: "visitors", label: "Visitors" },
+              { value: "interested", label: "Interested" },
+              { value: "invited", label: "Invited" },
               { value: "volunteers", label: "Volunteers" },
               { value: "staff", label: "Staff" },
             ]}
