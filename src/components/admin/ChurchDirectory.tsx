@@ -20,6 +20,8 @@ import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
 import { useTableFilters } from "@/hooks/useTableFilters";
 import { formatPhoneDisplay } from "@/lib/phone";
 
+export type PipelineStage = "interested" | "invited" | "visited" | "connected" | "member";
+
 export interface DirectoryEntry {
   id: string;
   first_name: string;
@@ -37,6 +39,8 @@ export interface DirectoryEntry {
   isStaff?: boolean;
   staffTitle?: string | null;
   smsOptIn?: boolean;
+  pipelineStage?: PipelineStage | null;
+  hasFirstVisit?: boolean;
 }
 
 function DirectoryActionMenu({ entry, onRefresh }: { entry: DirectoryEntry; onRefresh: () => void }) {
@@ -109,13 +113,14 @@ export default function ChurchDirectory() {
     setLoading(true);
 
     // Fetch attendees, profiles, team members, AND families+children in parallel
-    const [attendeesRes, profilesRes, teamMembersRes, familiesRes, childrenRes, staffRolesRes] = await Promise.all([
-      supabase.from("attendees").select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth, sms_opt_in").order("last_name"),
+    const [attendeesRes, profilesRes, teamMembersRes, familiesRes, childrenRes, staffRolesRes, followUpsRes] = await Promise.all([
+      supabase.from("attendees").select("id, first_name, last_name, email, phone, is_member, tags, date_of_birth, sms_opt_in, first_visit_date").order("last_name"),
       supabase.from("profiles").select("attendee_id, user_id, full_name, email, is_staff, staff_role_id, staff_title, sms_opt_in"),
       supabase.from("team_members").select("user_id, teams:teams(name)"),
       supabase.from("families").select("id, family_name, parent1_name, parent1_phone"),
       supabase.from("children").select("id, first_name, last_name, family_id, date_of_birth"),
       supabase.from("staff_roles" as any).select("id, name"),
+      supabase.from("follow_ups").select("attendee_id, prospect_pipeline_stage, updated_at").eq("type", "outreach").not("prospect_pipeline_stage", "is", null).order("updated_at", { ascending: false }),
     ]);
 
     const attendees = attendeesRes.data || [];
@@ -124,6 +129,14 @@ export default function ChurchDirectory() {
     const families = familiesRes.data || [];
     const children = childrenRes.data || [];
     const staffRoleMap = new Map<string, string>(((staffRolesRes.data as any[]) || []).map((r) => [r.id, r.name]));
+
+    // Latest pipeline stage per attendee (rows already ordered desc by updated_at)
+    const pipelineByAttendee = new Map<string, PipelineStage>();
+    ((followUpsRes.data as any[]) || []).forEach((fu) => {
+      if (fu.attendee_id && !pipelineByAttendee.has(fu.attendee_id)) {
+        pipelineByAttendee.set(fu.attendee_id, fu.prospect_pipeline_stage as PipelineStage);
+      }
+    });
 
     // Build team map
     const userTeamMap = new Map<string, string[]>();
@@ -155,6 +168,8 @@ export default function ChurchDirectory() {
         isStaff: !!profile?.is_staff,
         staffTitle: profile?.staff_title || (profile?.staff_role_id ? staffRoleMap.get(profile.staff_role_id) : null) || null,
         smsOptIn: !!(a.sms_opt_in || profile?.sms_opt_in),
+        pipelineStage: pipelineByAttendee.get(a.id) || null,
+        hasFirstVisit: !!a.first_visit_date,
       };
     });
 
@@ -244,7 +259,9 @@ export default function ChurchDirectory() {
       if (!hit) return false;
     }
     if (typeChip === "members" && !e.is_member) return false;
-    if (typeChip === "visitors" && (e.is_member || e.isVolunteer || e.isStaff)) return false;
+    if (typeChip === "visitors" && !(e.pipelineStage === "visited" || (e.hasFirstVisit && !e.pipelineStage && !e.is_member && !e.isVolunteer && !e.isStaff))) return false;
+    if (typeChip === "interested" && e.pipelineStage !== "interested") return false;
+    if (typeChip === "invited" && e.pipelineStage !== "invited") return false;
     if (typeChip === "volunteers" && !e.isVolunteer) return false;
     if (typeChip === "staff" && !e.isStaff) return false;
     if (selectedTeams.length > 0 && !e.teamNames.some((t) => selectedTeams.includes(t))) return false;
@@ -302,6 +319,8 @@ export default function ChurchDirectory() {
               { value: "all", label: "All" },
               { value: "members", label: "Members" },
               { value: "visitors", label: "Visitors" },
+              { value: "interested", label: "Interested" },
+              { value: "invited", label: "Invited" },
               { value: "volunteers", label: "Volunteers" },
               { value: "staff", label: "Staff" },
             ]}
@@ -390,7 +409,15 @@ export default function ChurchDirectory() {
                               )}
                               {entry.is_member && <Badge variant="default">Member</Badge>}
                               {entry.isVolunteer && <Badge variant="secondary">Volunteer</Badge>}
-                              {!entry.is_member && !entry.isVolunteer && !entry.isStaff && <Badge variant="outline">Visitor</Badge>}
+                              {!entry.is_member && !entry.isVolunteer && !entry.isStaff && (() => {
+                                const stage = entry.pipelineStage;
+                                if (stage === "interested") return <Badge variant="outline" className="border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10">Interested</Badge>;
+                                if (stage === "invited") return <Badge variant="outline" className="border-blue-500/40 text-blue-700 dark:text-blue-300 bg-blue-500/10">Invited</Badge>;
+                                if (stage === "connected") return <Badge variant="outline" className="border-green-500/40 text-green-700 dark:text-green-300 bg-green-500/10">Connected</Badge>;
+                                if (stage === "visited") return <Badge variant="outline">Visitor</Badge>;
+                                if (entry.hasFirstVisit) return <Badge variant="outline">Visitor</Badge>;
+                                return <Badge variant="outline" className="text-muted-foreground">Contact</Badge>;
+                              })()}
                               {entry.tags?.includes("first-timer") && (
                                 <Badge variant="outline" className="text-warning border-warning">First Timer</Badge>
                               )}

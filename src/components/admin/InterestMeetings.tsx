@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarDays, Pencil, Plus, Trash2, MapPin } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CalendarDays, Pencil, Plus, Trash2, MapPin, MoreHorizontal, UserPlus, ArrowRightLeft, UserMinus, ExternalLink } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { toast } from "sonner";
+import { cancelOutreachForRecord } from "@/lib/outreachPipeline";
+import InterestMeetingAutomations from "./InterestMeetingAutomations";
 
 function parseLocalDate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
@@ -39,10 +43,12 @@ const emptyForm = { meeting_date: "", title: "", location: "", notes: "" };
 
 export default function InterestMeetings() {
   const qc = useQueryClient();
-  const [editing, setEditing] = useState<{ date: string; ids: string[] } | null>(null);
+  const navigate = useNavigate();
+  const [moveDialog, setMoveDialog] = useState<{ ids: string[]; from: string } | null>(null);
   const [newDate, setNewDate] = useState("");
   const [meetingDialog, setMeetingDialog] = useState<{ mode: "create" | "edit"; meeting?: Meeting } | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [addAttendeeDialog, setAddAttendeeDialog] = useState<{ meeting_date: string } | null>(null);
 
   const { data: records = [] } = useQuery({
     queryKey: ["interest-meeting-records"],
@@ -79,7 +85,6 @@ export default function InterestMeetings() {
 
   const grouped = useMemo(() => {
     const map = new Map<string, Record[]>();
-    // seed with catalog meetings (empty groups still display)
     for (const m of meetings) map.set(m.meeting_date, []);
     for (const r of records) {
       const key = r.event_date || "unscheduled";
@@ -103,7 +108,18 @@ export default function InterestMeetings() {
     },
     onSuccess: () => {
       toast.success("Attendees updated");
-      setEditing(null);
+      setMoveDialog(null);
+      qc.invalidateQueries({ queryKey: ["interest-meeting-records"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeAttendee = useMutation({
+    mutationFn: async (recordId: string) => {
+      await cancelOutreachForRecord(recordId, "Removed from interest meeting");
+    },
+    onSuccess: () => {
+      toast.success("Removed from meeting and automations stopped");
       qc.invalidateQueries({ queryKey: ["interest-meeting-records"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -125,7 +141,6 @@ export default function InterestMeetings() {
           .update(payload)
           .eq("id", meetingDialog.meeting.id);
         if (error) throw error;
-        // If the date changed, re-anchor attendees that were on the old date
         if (oldDate !== form.meeting_date) {
           await supabase
             .from("external_records")
@@ -150,7 +165,6 @@ export default function InterestMeetings() {
 
   const deleteMeeting = useMutation({
     mutationFn: async (meeting: Meeting) => {
-      // Move any attached attendees to unscheduled, then delete the catalog row
       await supabase
         .from("external_records")
         .update({ event_date: null })
@@ -170,17 +184,9 @@ export default function InterestMeetings() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openCreate = () => {
-    setForm(emptyForm);
-    setMeetingDialog({ mode: "create" });
-  };
+  const openCreate = () => { setForm(emptyForm); setMeetingDialog({ mode: "create" }); };
   const openEdit = (m: Meeting) => {
-    setForm({
-      meeting_date: m.meeting_date,
-      title: m.title || "",
-      location: m.location || "",
-      notes: m.notes || "",
-    });
+    setForm({ meeting_date: m.meeting_date, title: m.title || "", location: m.location || "", notes: m.notes || "" });
     setMeetingDialog({ mode: "edit", meeting: m });
   };
 
@@ -197,9 +203,11 @@ export default function InterestMeetings() {
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Create meeting dates here so attendees can be slotted in. Reschedule a whole meeting and outreach
-        reminders re-anchor automatically. Deleting a meeting moves its attendees back to Unscheduled.
+        Create meeting dates so attendees can be slotted in. Reschedule a meeting and outreach reminders re-anchor automatically.
+        Deleting a meeting moves its attendees back to Unscheduled.
       </p>
+
+      <InterestMeetingAutomations source="interest" />
 
       {grouped.length === 0 && (
         <Card><CardContent className="py-8 text-center text-muted-foreground">No interest meetings yet — click <strong>New Meeting</strong> to add one.</CardContent></Card>
@@ -229,8 +237,13 @@ export default function InterestMeetings() {
               </div>
               <div className="flex items-center gap-2">
                 {!isUnscheduled && (
-                  <Button size="sm" variant="outline" onClick={() => { setEditing({ date, ids: items.map((i) => i.id) }); setNewDate(date); }}>
-                    <Pencil className="h-3 w-3 mr-1" /> Move attendees
+                  <Button size="sm" variant="outline" onClick={() => setAddAttendeeDialog({ meeting_date: date })}>
+                    <UserPlus className="h-3 w-3 mr-1" /> Add attendee
+                  </Button>
+                )}
+                {!isUnscheduled && items.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={() => { setMoveDialog({ ids: items.map((i) => i.id), from: date }); setNewDate(date); }}>
+                    <ArrowRightLeft className="h-3 w-3 mr-1" /> Move all
                   </Button>
                 )}
                 {meeting && (
@@ -259,6 +272,7 @@ export default function InterestMeetings() {
                       <TableHead>Email</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Registered</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -270,6 +284,40 @@ export default function InterestMeetings() {
                         <TableCell className="text-xs text-muted-foreground">
                           {format(new Date(r.received_at), "MMM d, h:mm a")}
                         </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {r.attendee_id && (
+                                <>
+                                  <DropdownMenuItem onClick={() => navigate(`/admin/directory/${r.attendee_id}`)}>
+                                    <ExternalLink className="h-4 w-4 mr-2" /> Open attendee
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              <DropdownMenuItem onClick={() => { setMoveDialog({ ids: [r.id], from: date }); setNewDate(date); }}>
+                                <ArrowRightLeft className="h-4 w-4 mr-2" /> Move to another date
+                              </DropdownMenuItem>
+                              {!isUnscheduled && (
+                                <DropdownMenuItem onClick={() => reschedule.mutate({ ids: [r.id], date: null })}>
+                                  <CalendarDays className="h-4 w-4 mr-2" /> Move to unscheduled
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => confirm(`Remove ${r.payload?.name || "this attendee"} from the meeting and stop their automations?`) && removeAttendee.mutate(r.id)}
+                              >
+                                <UserMinus className="h-4 w-4 mr-2" /> Remove from meeting
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -280,21 +328,19 @@ export default function InterestMeetings() {
         );
       })}
 
-      {/* Reschedule attendees dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+      {/* Reschedule dialog */}
+      <Dialog open={!!moveDialog} onOpenChange={(o) => !o && setMoveDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Move attendees to a different date</DialogTitle>
-            <DialogDescription>
-              Updates {editing?.ids.length || 0} attendee{editing?.ids.length === 1 ? "" : "s"} to a new date.
-            </DialogDescription>
+            <DialogTitle>Move {moveDialog?.ids.length === 1 ? "attendee" : `${moveDialog?.ids.length} attendees`} to another date</DialogTitle>
+            <DialogDescription>Pick a new meeting date, or move to Unscheduled.</DialogDescription>
           </DialogHeader>
           <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => editing && reschedule.mutate({ ids: editing.ids, date: null })} disabled={reschedule.isPending}>
+            <Button variant="outline" onClick={() => moveDialog && reschedule.mutate({ ids: moveDialog.ids, date: null })} disabled={reschedule.isPending}>
               Move to unscheduled
             </Button>
-            <Button onClick={() => editing && newDate && reschedule.mutate({ ids: editing.ids, date: newDate })} disabled={reschedule.isPending || !newDate}>
+            <Button onClick={() => moveDialog && newDate && reschedule.mutate({ ids: moveDialog.ids, date: newDate })} disabled={reschedule.isPending || !newDate}>
               Save new date
             </Button>
           </DialogFooter>
@@ -306,9 +352,7 @@ export default function InterestMeetings() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{meetingDialog?.mode === "edit" ? "Edit meeting" : "New interest meeting"}</DialogTitle>
-            <DialogDescription>
-              Create or update a meeting date that attendees can be assigned to.
-            </DialogDescription>
+            <DialogDescription>Create or update a meeting date that attendees can be assigned to.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
@@ -336,6 +380,125 @@ export default function InterestMeetings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add attendee dialog */}
+      <AddAttendeeDialog
+        open={!!addAttendeeDialog}
+        meetingDate={addAttendeeDialog?.meeting_date || ""}
+        onClose={() => setAddAttendeeDialog(null)}
+        onAdded={() => {
+          qc.invalidateQueries({ queryKey: ["interest-meeting-records"] });
+          setAddAttendeeDialog(null);
+        }}
+      />
     </div>
+  );
+}
+
+function AddAttendeeDialog({
+  open,
+  meetingDate,
+  onClose,
+  onAdded,
+}: {
+  open: boolean;
+  meetingDate: string;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [manual, setManual] = useState({ name: "", email: "", phone: "" });
+
+  const { data: results = [] } = useQuery({
+    queryKey: ["attendee-search", search],
+    enabled: open && search.length >= 2,
+    queryFn: async () => {
+      const term = `%${search}%`;
+      const { data, error } = await supabase
+        .from("attendees")
+        .select("id, first_name, last_name, email, phone")
+        .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`)
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async (input: { attendee_id?: string; name: string; email?: string | null; phone?: string | null }) => {
+      const externalId = `manual:${crypto.randomUUID()}`;
+      const { error } = await supabase.from("external_records").insert({
+        source: "interest",
+        external_id: externalId,
+        status: input.attendee_id ? "merged" : "created",
+        attendee_id: input.attendee_id || null,
+        event_date: meetingDate,
+        payload: { name: input.name, email: input.email || null, phone: input.phone || null, manually_added: true },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Attendee added");
+      setSearch("");
+      setManual({ name: "", email: "", phone: "" });
+      onAdded();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add attendee to meeting</DialogTitle>
+          <DialogDescription>
+            Search for an existing person in the directory, or add a new attendee manually.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Search directory</Label>
+            <Input placeholder="Name, email, or phone..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            {search.length >= 2 && (
+              <div className="border rounded-md max-h-48 overflow-auto">
+                {results.length === 0 ? (
+                  <div className="p-2 text-xs text-muted-foreground">No matches</div>
+                ) : (
+                  results.map((r: any) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-0"
+                      onClick={() => add.mutate({ attendee_id: r.id, name: `${r.first_name} ${r.last_name}`.trim(), email: r.email, phone: r.phone })}
+                    >
+                      <div className="font-medium">{r.first_name} {r.last_name}</div>
+                      <div className="text-xs text-muted-foreground">{r.email || r.phone || "—"}</div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 border-t space-y-2">
+            <Label className="text-xs uppercase text-muted-foreground">Or add manually</Label>
+            <Input placeholder="Full name *" value={manual.name} onChange={(e) => setManual((m) => ({ ...m, name: e.target.value }))} />
+            <Input placeholder="Email" value={manual.email} onChange={(e) => setManual((m) => ({ ...m, email: e.target.value }))} />
+            <Input placeholder="Phone" value={manual.phone} onChange={(e) => setManual((m) => ({ ...m, phone: e.target.value }))} />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            disabled={!manual.name || add.isPending}
+            onClick={() => add.mutate({ name: manual.name, email: manual.email || null, phone: manual.phone || null })}
+          >
+            Add manually
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
