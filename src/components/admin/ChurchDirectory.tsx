@@ -409,7 +409,15 @@ export default function ChurchDirectory() {
                               )}
                               {entry.is_member && <Badge variant="default">Member</Badge>}
                               {entry.isVolunteer && <Badge variant="secondary">Volunteer</Badge>}
-                              {!entry.is_member && !entry.isVolunteer && !entry.isStaff && <Badge variant="outline">Visitor</Badge>}
+                              {!entry.is_member && !entry.isVolunteer && !entry.isStaff && (() => {
+                                const stage = entry.pipelineStage;
+                                if (stage === "interested") return <Badge variant="outline" className="border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10">Interested</Badge>;
+                                if (stage === "invited") return <Badge variant="outline" className="border-blue-500/40 text-blue-700 dark:text-blue-300 bg-blue-500/10">Invited</Badge>;
+                                if (stage === "connected") return <Badge variant="outline" className="border-green-500/40 text-green-700 dark:text-green-300 bg-green-500/10">Connected</Badge>;
+                                if (stage === "visited") return <Badge variant="outline">Visitor</Badge>;
+                                if (entry.hasFirstVisit) return <Badge variant="outline">Visitor</Badge>;
+                                return <Badge variant="outline" className="text-muted-foreground">Contact</Badge>;
+                              })()}
                               {entry.tags?.includes("first-timer") && (
                                 <Badge variant="outline" className="text-warning border-warning">First Timer</Badge>
                               )}
