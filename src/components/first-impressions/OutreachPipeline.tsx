@@ -240,6 +240,7 @@ export default function OutreachPipeline() {
         {STAGES.map((stage, idx) => {
           const items = byStage(stage.key);
           const nextStage = STAGES[idx + 1];
+          const prevStage = STAGES[idx - 1];
           return (
             <div key={stage.key} className="space-y-2">
               <div className="flex items-center justify-between">
