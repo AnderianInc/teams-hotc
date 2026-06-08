@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Users, ArrowRight, Calendar, Trash2 } from "lucide-react";
+import { Users, ArrowRight, ArrowLeft, Calendar, Trash2 } from "lucide-react";
 
 const STAGES = [
   { key: "interested", label: "Interested", color: "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800" },
