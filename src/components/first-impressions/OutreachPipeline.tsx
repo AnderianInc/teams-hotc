@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Users, ArrowRight, Calendar, Trash2 } from "lucide-react";
+import { Users, ArrowRight, ArrowLeft, Calendar, Trash2 } from "lucide-react";
 
 const STAGES = [
   { key: "interested", label: "Interested", color: "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800" },
@@ -240,6 +240,7 @@ export default function OutreachPipeline() {
         {STAGES.map((stage, idx) => {
           const items = byStage(stage.key);
           const nextStage = STAGES[idx + 1];
+          const prevStage = STAGES[idx - 1];
           return (
             <div key={stage.key} className="space-y-2">
               <div className="flex items-center justify-between">
@@ -262,6 +263,18 @@ export default function OutreachPipeline() {
                         <p className="text-xs text-muted-foreground">→ {profileMap.get(item.assigned_to)}</p>
                       )}
                       <div className="flex gap-1 mt-1">
+                        {prevStage && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-xs px-1.5"
+                            title={`Move back to ${prevStage.label}`}
+                            onClick={() => advanceStage.mutate({ id: item.id, stage: prevStage.key as Stage, attendeeId: item.attendee_id })}
+                            disabled={advanceStage.isPending}
+                          >
+                            <ArrowLeft className="h-3 w-3" />
+                          </Button>
+                        )}
                         {nextStage && (
                           <Button
                             size="sm"
