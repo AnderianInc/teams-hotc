@@ -145,7 +145,7 @@ export default function EmailTemplates({ onUseTemplate }: Props) {
                 <CardTitle className="text-base">{t.name}</CardTitle>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 row-actions">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
