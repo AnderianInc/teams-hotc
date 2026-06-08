@@ -197,14 +197,8 @@ serve(async (req) => {
             .in("user_id", Array.from(recipientIds));
           const adminEmails = (profs ?? []).map((p: any) => p.email).filter(Boolean);
           if (adminEmails.length > 0) {
-            await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                from: "HOTC <community@hotc.life>",
-                to: adminEmails,
-                subject: `New first-time visitor: ${fullName}`,
-                html: `<div style="font-family:sans-serif;max-width:520px">
+            const adminSubject = `New first-time visitor: ${fullName}`;
+            const adminHtml = `<div style="font-family:sans-serif;max-width:520px">
                   <h2>New first-time visitor 🎉</h2>
                   <p><strong>${fullName}</strong> just registered via the welcome form.</p>
                   <ul>
@@ -214,9 +208,36 @@ serve(async (req) => {
                     ${prayerRequests ? `<li>Prayer request submitted</li>` : ""}
                   </ul>
                   <p>A follow-up has been auto-scheduled${phone ? " (including a text follow-up)" : ""}. Please review in the First Impressions dashboard.</p>
-                </div>`,
-              }),
-            }).catch((e) => console.error("admin email failed", e));
+                </div>`;
+            let adminOk = false;
+            let adminErr: string | null = null;
+            try {
+              const adminRes = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  from: "HOTC <community@hotc.life>",
+                  to: adminEmails,
+                  subject: adminSubject,
+                  html: adminHtml,
+                }),
+              });
+              adminOk = adminRes.ok;
+              if (!adminOk) adminErr = await adminRes.text().catch(() => "send failed");
+            } catch (e: any) {
+              console.error("admin email failed", e);
+              adminErr = e?.message || "send failed";
+            }
+            await adminClient.from("email_log").insert(
+              adminEmails.map((to: string) => ({
+                to_email: to,
+                subject: adminSubject,
+                body_html: adminHtml,
+                related_attendee_id: attendee.id,
+                status: adminOk ? "sent" : "failed",
+                error: adminErr,
+              })),
+            );
           }
         }
 
