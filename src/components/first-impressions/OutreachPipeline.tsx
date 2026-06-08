@@ -263,6 +263,18 @@ export default function OutreachPipeline() {
                         <p className="text-xs text-muted-foreground">→ {profileMap.get(item.assigned_to)}</p>
                       )}
                       <div className="flex gap-1 mt-1">
+                        {prevStage && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-xs px-1.5"
+                            title={`Move back to ${prevStage.label}`}
+                            onClick={() => advanceStage.mutate({ id: item.id, stage: prevStage.key as Stage, attendeeId: item.attendee_id })}
+                            disabled={advanceStage.isPending}
+                          >
+                            <ArrowLeft className="h-3 w-3" />
+                          </Button>
+                        )}
                         {nextStage && (
                           <Button
                             size="sm"
