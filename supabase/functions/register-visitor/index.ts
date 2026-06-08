@@ -278,15 +278,33 @@ serve(async (req) => {
       const subject = tpl ? renderTemplate(tpl.subject, values) : "Welcome to House of Transformation Church!";
       const html = tpl ? renderTemplate(tpl.body_html, values) : `<p>Welcome, ${firstName}!</p>`;
 
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "HOTC <community@hotc.life>",
-          to: [email.trim()],
-          subject,
-          html,
-        }),
+      let welcomeOk = false;
+      let welcomeErr: string | null = null;
+      try {
+        const welcomeRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "HOTC <community@hotc.life>",
+            to: [email.trim()],
+            subject,
+            html,
+          }),
+        });
+        welcomeOk = welcomeRes.ok;
+        if (!welcomeOk) welcomeErr = await welcomeRes.text().catch(() => "send failed");
+      } catch (e: any) {
+        console.error("welcome email failed", e);
+        welcomeErr = e?.message || "send failed";
+      }
+      await adminClient.from("email_log").insert({
+        to_email: email.trim(),
+        to_name: fullName,
+        subject,
+        body_html: html,
+        related_attendee_id: attendee.id,
+        status: welcomeOk ? "sent" : "failed",
+        error: welcomeErr,
       });
     }
 
