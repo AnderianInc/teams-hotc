@@ -305,6 +305,55 @@ export default function ChurchDirectory() {
     { key: "hasPhone", label: "Has phone", options: [{ value: "yes", label: "Has phone" }, { value: "no", label: "No phone" }] },
   ];
 
+  // Bulk selection (individuals only — families are skipped)
+  const selectableFiltered = useMemo(() => filtered.filter((e) => e.source !== "family"), [filtered]);
+  const allSelectableSelected = selectableFiltered.length > 0 && selectableFiltered.every((e) => selectedIds.has(e.id));
+  const someSelectableSelected = selectableFiltered.some((e) => selectedIds.has(e.id));
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      if (allSelectableSelected) {
+        const next = new Set(prev);
+        selectableFiltered.forEach((e) => next.delete(e.id));
+        return next;
+      }
+      const next = new Set(prev);
+      selectableFiltered.forEach((e) => next.add(e.id));
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    const targets = entries
+      .filter((e) => selectedIds.has(e.id) && e.source !== "family")
+      .map((e) => ({ id: e.id, source: "attendee" as const, isVolunteerOnly: e.isVolunteerOnly }));
+    if (targets.length === 0) return;
+    setBulkDeleting(true);
+    const { succeeded, failed } = await bulkDeleteDirectoryEntries(targets);
+    setBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setBulkConfirmText("");
+    clearSelection();
+    if (failed.length === 0) {
+      toast.success(`Removed ${succeeded.length} ${succeeded.length === 1 ? "person" : "people"}`);
+    } else {
+      toast.error(`Removed ${succeeded.length}, ${failed.length} failed`);
+    }
+    fetchDirectory();
+  };
+
+
   return (
     <Card>
       <CardHeader>
