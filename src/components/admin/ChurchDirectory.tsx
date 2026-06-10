@@ -401,8 +401,20 @@ export default function ChurchDirectory() {
             activeCount={filters.activeCount}
             onClearAll={filters.clearAll}
           />
+          {isAdmin && selectedIds.size > 0 && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+              <div className="text-sm font-medium">{selectedIds.size} selected</div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={clearSelection}>Clear</Button>
+                <Button size="sm" variant="destructive" onClick={() => { setBulkConfirmText(""); setBulkDeleteOpen(true); }}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete selected
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </CardHeader>
+
       <CardContent>
         {loading ? (
           <p className="text-muted-foreground text-center py-8">Loading directory...</p>
