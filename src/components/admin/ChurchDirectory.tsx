@@ -14,11 +14,25 @@ import DirectoryEditDialog from "./DirectoryEditDialog";
 import DirectoryRelationships from "./DirectoryRelationships";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { FilterChips } from "@/components/filters/FilterChips";
 import { FilterPopover, type FacetSection } from "@/components/filters/FilterPopover";
 import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
 import { useTableFilters } from "@/hooks/useTableFilters";
 import { formatPhoneDisplay } from "@/lib/phone";
+import { bulkDeleteDirectoryEntries } from "@/lib/directoryDelete";
+
 
 export type PipelineStage = "interested" | "invited" | "visited" | "connected" | "member";
 
@@ -108,6 +122,11 @@ export default function ChurchDirectory() {
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
   const filters = useTableFilters({ initialChips: { type: "all" } });
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkConfirmText, setBulkConfirmText] = useState("");
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
 
   const fetchDirectory = useCallback(async () => {
     setLoading(true);
@@ -286,6 +305,55 @@ export default function ChurchDirectory() {
     { key: "hasPhone", label: "Has phone", options: [{ value: "yes", label: "Has phone" }, { value: "no", label: "No phone" }] },
   ];
 
+  // Bulk selection (individuals only — families are skipped)
+  const selectableFiltered = useMemo(() => filtered.filter((e) => e.source !== "family"), [filtered]);
+  const allSelectableSelected = selectableFiltered.length > 0 && selectableFiltered.every((e) => selectedIds.has(e.id));
+  const someSelectableSelected = selectableFiltered.some((e) => selectedIds.has(e.id));
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      if (allSelectableSelected) {
+        const next = new Set(prev);
+        selectableFiltered.forEach((e) => next.delete(e.id));
+        return next;
+      }
+      const next = new Set(prev);
+      selectableFiltered.forEach((e) => next.add(e.id));
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    const targets = entries
+      .filter((e) => selectedIds.has(e.id) && e.source !== "family")
+      .map((e) => ({ id: e.id, source: "attendee" as const, isVolunteerOnly: e.isVolunteerOnly }));
+    if (targets.length === 0) return;
+    setBulkDeleting(true);
+    const { succeeded, failed } = await bulkDeleteDirectoryEntries(targets);
+    setBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setBulkConfirmText("");
+    clearSelection();
+    if (failed.length === 0) {
+      toast.success(`Removed ${succeeded.length} ${succeeded.length === 1 ? "person" : "people"}`);
+    } else {
+      toast.error(`Removed ${succeeded.length}, ${failed.length} failed`);
+    }
+    fetchDirectory();
+  };
+
+
   return (
     <Card>
       <CardHeader>
@@ -333,8 +401,20 @@ export default function ChurchDirectory() {
             activeCount={filters.activeCount}
             onClearAll={filters.clearAll}
           />
+          {isAdmin && selectedIds.size > 0 && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+              <div className="text-sm font-medium">{selectedIds.size} selected</div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={clearSelection}>Clear</Button>
+                <Button size="sm" variant="destructive" onClick={() => { setBulkConfirmText(""); setBulkDeleteOpen(true); }}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete selected
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </CardHeader>
+
       <CardContent>
         {loading ? (
           <p className="text-muted-foreground text-center py-8">Loading directory...</p>
@@ -343,6 +423,16 @@ export default function ChurchDirectory() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allSelectableSelected ? true : someSelectableSelected ? "indeterminate" : false}
+                        onCheckedChange={() => toggleAll()}
+                        aria-label="Select all"
+                        disabled={selectableFiltered.length === 0}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
@@ -356,7 +446,7 @@ export default function ChurchDirectory() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={isAdmin ? 9 : 7} className="text-center text-muted-foreground py-8">
                       No members found
                     </TableCell>
                   </TableRow>
@@ -370,6 +460,17 @@ export default function ChurchDirectory() {
                         else if (!entry.isVolunteerOnly) navigate(`/admin/directory/${entry.id}`);
                       }}
                     >
+                      {isAdmin && (
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {entry.source === "family" ? null : (
+                            <Checkbox
+                              checked={selectedIds.has(entry.id)}
+                              onCheckedChange={() => toggleOne(entry.id)}
+                              aria-label={`Select ${entry.first_name} ${entry.last_name}`}
+                            />
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">
                         {entry.source === "family" ? (
                           <div>
@@ -447,6 +548,34 @@ export default function ChurchDirectory() {
           </div>
         )}
       </CardContent>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(o) => { setBulkDeleteOpen(o); if (!o) setBulkConfirmText(""); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} {selectedIds.size === 1 ? "person" : "people"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the selected people from the directory and any team memberships. This action cannot be undone.
+              Type <span className="font-mono font-semibold">DELETE</span> to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            autoFocus
+            value={bulkConfirmText}
+            onChange={(e) => setBulkConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting || bulkConfirmText !== "DELETE"}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
+
