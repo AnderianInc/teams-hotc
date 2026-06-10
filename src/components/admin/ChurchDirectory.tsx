@@ -423,6 +423,16 @@ export default function ChurchDirectory() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allSelectableSelected ? true : someSelectableSelected ? "indeterminate" : false}
+                        onCheckedChange={() => toggleAll()}
+                        aria-label="Select all"
+                        disabled={selectableFiltered.length === 0}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
@@ -436,7 +446,7 @@ export default function ChurchDirectory() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={isAdmin ? 9 : 7} className="text-center text-muted-foreground py-8">
                       No members found
                     </TableCell>
                   </TableRow>
@@ -450,6 +460,17 @@ export default function ChurchDirectory() {
                         else if (!entry.isVolunteerOnly) navigate(`/admin/directory/${entry.id}`);
                       }}
                     >
+                      {isAdmin && (
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {entry.source === "family" ? null : (
+                            <Checkbox
+                              checked={selectedIds.has(entry.id)}
+                              onCheckedChange={() => toggleOne(entry.id)}
+                              aria-label={`Select ${entry.first_name} ${entry.last_name}`}
+                            />
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">
                         {entry.source === "family" ? (
                           <div>
