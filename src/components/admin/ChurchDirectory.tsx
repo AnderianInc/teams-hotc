@@ -548,6 +548,34 @@ export default function ChurchDirectory() {
           </div>
         )}
       </CardContent>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(o) => { setBulkDeleteOpen(o); if (!o) setBulkConfirmText(""); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} {selectedIds.size === 1 ? "person" : "people"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the selected people from the directory and any team memberships. This action cannot be undone.
+              Type <span className="font-mono font-semibold">DELETE</span> to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            autoFocus
+            value={bulkConfirmText}
+            onChange={(e) => setBulkConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting || bulkConfirmText !== "DELETE"}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
+
