@@ -122,6 +122,11 @@ export default function ChurchDirectory() {
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
   const filters = useTableFilters({ initialChips: { type: "all" } });
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkConfirmText, setBulkConfirmText] = useState("");
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
 
   const fetchDirectory = useCallback(async () => {
     setLoading(true);
