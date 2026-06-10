@@ -14,11 +14,25 @@ import DirectoryEditDialog from "./DirectoryEditDialog";
 import DirectoryRelationships from "./DirectoryRelationships";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { FilterChips } from "@/components/filters/FilterChips";
 import { FilterPopover, type FacetSection } from "@/components/filters/FilterPopover";
 import { ActiveFilterBar } from "@/components/filters/ActiveFilterBar";
 import { useTableFilters } from "@/hooks/useTableFilters";
 import { formatPhoneDisplay } from "@/lib/phone";
+import { bulkDeleteDirectoryEntries } from "@/lib/directoryDelete";
+
 
 export type PipelineStage = "interested" | "invited" | "visited" | "connected" | "member";
 
