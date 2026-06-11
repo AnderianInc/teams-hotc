@@ -761,36 +761,6 @@ export type Database = {
         }
         Relationships: []
       }
-      interest_meetings: {
-        Row: {
-          created_at: string
-          id: string
-          location: string | null
-          meeting_date: string
-          notes: string | null
-          title: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          location?: string | null
-          meeting_date: string
-          notes?: string | null
-          title?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          location?: string | null
-          meeting_date?: string
-          notes?: string | null
-          title?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       notifications: {
         Row: {
           body: string | null
@@ -1688,6 +1658,53 @@ export type Database = {
         }
         Relationships: []
       }
+      volunteer_onboarding: {
+        Row: {
+          assigned_to: string | null
+          attendee_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          preferred_team_ids: string[]
+          source: string
+          stage: Database["public"]["Enums"]["volunteer_onboarding_stage"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          attendee_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          preferred_team_ids?: string[]
+          source?: string
+          stage?: Database["public"]["Enums"]["volunteer_onboarding_stage"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          attendee_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          preferred_team_ids?: string[]
+          source?: string
+          stage?: Database["public"]["Enums"]["volunteer_onboarding_stage"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_onboarding_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_attendance: {
         Row: {
           attendee_id: string | null
@@ -1752,10 +1769,6 @@ export type Database = {
       }
     }
     Functions: {
-      advance_interest_pipeline: {
-        Args: { _attendee_id: string }
-        Returns: undefined
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1801,6 +1814,7 @@ export type Database = {
         | "connected"
         | "no_response"
         | "closed"
+      volunteer_onboarding_stage: "interested" | "training" | "volunteer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1936,6 +1950,7 @@ export const Constants = {
         "no_response",
         "closed",
       ],
+      volunteer_onboarding_stage: ["interested", "training", "volunteer"],
     },
   },
 } as const
