@@ -20,7 +20,7 @@ import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
-import InterestMeetings from "@/components/admin/InterestMeetings";
+import VolunteerOnboardingPipeline from "@/components/admin/VolunteerOnboardingPipeline";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 
 type SubTab = { value: string; label: string };
