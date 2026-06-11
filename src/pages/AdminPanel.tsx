@@ -50,7 +50,7 @@ const GROUPS: Record<string, Group> = {
       { value: "dir-groups", label: "Groups" },
       { value: "dir-birthdays", label: "Birthdays" },
       { value: "dir-inreach", label: "Inreach" },
-      { value: "dir-meetings", label: "Interest Meetings" },
+      { value: "dir-onboarding", label: "Volunteer Onboarding" },
       { value: "dir-outreach", label: "Planned Outreach" },
     ],
   },
