@@ -10,6 +10,7 @@ import Login from "@/pages/Login";
 import ResetPassword from "@/pages/ResetPassword";
 import CompleteProfile from "@/pages/CompleteProfile";
 import Welcome from "@/pages/Welcome";
+import JoinTeam from "@/pages/JoinTeam";
 import Dashboard from "@/pages/Dashboard";
 import TeamDashboard from "@/pages/TeamDashboard";
 import AdminPanel from "@/pages/AdminPanel";
