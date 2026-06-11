@@ -149,9 +149,7 @@ Deno.serve(async (req) => {
         .eq("status", "pending");
     } catch (e) { console.error("follow_up status update failed", e); }
 
-    if (rec.source === "interest") {
-      try { await admin.rpc("advance_interest_pipeline", { _attendee_id: rec.attendee_id }); } catch (e) { console.error(e); }
-    }
+    // Legacy "interest" pipeline removed — volunteer interest now flows through volunteer_onboarding.
   }
 
   return new Response(JSON.stringify({ ok: !sendErr, status: sendErr ? "failed" : "sent", error: sendErr }), {

@@ -429,9 +429,7 @@ Deno.serve(async (req) => {
             .eq("type", "outreach")
             .eq("status", "pending");
         } catch (e) { console.error("follow_up status update failed", e); }
-        if (rec.source === "interest") {
-          try { await supabase.rpc("advance_interest_pipeline", { _attendee_id: attendee.id }); } catch (e) { console.error(e); }
-        }
+        // Note: legacy "interest" pipeline removed; new volunteer onboarding lives in volunteer_onboarding table.
       }
       dispatched++;
     }
@@ -473,9 +471,7 @@ Deno.serve(async (req) => {
           .eq("type", "outreach")
           .eq("status", "pending");
       } catch (e) { console.error("follow_up status update failed", e); }
-      if (r.external_records?.source === "interest") {
-        try { await supabase.rpc("advance_interest_pipeline", { _attendee_id: attendeeId }); } catch (e) { console.error(e); }
-      }
+      // Legacy "interest" pipeline removed.
     }
     if (status === "sent") dispatched++;
   }

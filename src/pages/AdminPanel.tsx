@@ -20,7 +20,7 @@ import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
-import InterestMeetings from "@/components/admin/InterestMeetings";
+import VolunteerOnboardingPipeline from "@/components/admin/VolunteerOnboardingPipeline";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 
 type SubTab = { value: string; label: string };
@@ -50,7 +50,7 @@ const GROUPS: Record<string, Group> = {
       { value: "dir-groups", label: "Groups" },
       { value: "dir-birthdays", label: "Birthdays" },
       { value: "dir-inreach", label: "Inreach" },
-      { value: "dir-meetings", label: "Interest Meetings" },
+      { value: "dir-onboarding", label: "Volunteer Onboarding" },
       { value: "dir-outreach", label: "Planned Outreach" },
     ],
   },
@@ -142,7 +142,7 @@ export default function AdminPanel() {
             <TabsContent value="dir-groups"><GroupsManagement /></TabsContent>
             <TabsContent value="dir-birthdays"><BirthdaysPanel /></TabsContent>
             <TabsContent value="dir-inreach"><InreachDashboard /></TabsContent>
-            <TabsContent value="dir-meetings"><InterestMeetings /></TabsContent>
+            <TabsContent value="dir-onboarding"><VolunteerOnboardingPipeline /></TabsContent>
             <TabsContent value="dir-outreach"><PlannedOutreachPanel /></TabsContent>
           </Tabs>
         </TabsContent>
