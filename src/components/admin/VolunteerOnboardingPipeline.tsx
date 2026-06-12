@@ -4,9 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Trash2, Users, QrCode } from "lucide-react";
+import { ArrowLeft, ArrowRight, Trash2, Users, QrCode, Plus, Search } from "lucide-react";
 
 const STAGES = [
   { key: "interested", label: "Interested", color: "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800" },
@@ -21,6 +26,12 @@ const JOIN_URL = "https://teams.hotc.life/join-team";
 export default function VolunteerOnboardingPipeline() {
   const qc = useQueryClient();
   const [showQr, setShowQr] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selectedAttendee, setSelectedAttendee] = useState<any | null>(null);
+  const [addStage, setAddStage] = useState<Stage>("interested");
+  const [addTeams, setAddTeams] = useState<string[]>([]);
+  const [addNotes, setAddNotes] = useState("");
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["volunteer-onboarding"],
