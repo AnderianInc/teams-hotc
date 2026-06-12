@@ -135,6 +135,44 @@ serve(async (req) => {
 
     const fullName = `${firstName} ${lastName}`;
 
+    // Send invitation/confirmation email to the volunteer
+    if (resendApiKey && email) {
+      try {
+        const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
+        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnon}`,
+            "apikey": supabaseAnon,
+          },
+          body: JSON.stringify({
+            to: email,
+            to_name: fullName,
+            related_attendee_id: attendeeId,
+            subject: "Welcome to the HOTC team onboarding",
+            html: `
+              <h1>Thanks for stepping up, ${firstName}!</h1>
+              <p>We've received your request to join the team at House of Transformation Church and added you to our volunteer onboarding pipeline.</p>
+              <h2>What happens next</h2>
+              <ol>
+                <li>A member of our staff will review your sign-up and reach out personally.</li>
+                <li>You'll be invited to a short training session so you know what to expect.</li>
+                <li>Once training is complete, we'll match you with the right team and get you serving.</li>
+              </ol>
+              ${note ? `<p><strong>Your note to us:</strong><br/><em>${note.replace(/[<>&]/g, "")}</em></p>` : ""}
+              <p>If anything changes or you have questions, just reply to this email — we'd love to hear from you.</p>
+              <p>Welcome to the family,<br/>The HOTC Team</p>
+            `,
+          }),
+        });
+      } catch (e) {
+        console.error("volunteer invite email failed", e);
+      }
+    }
+
+
+
     // Notify admins + staff team members
     try {
       const { data: admins } = await admin.from("user_roles").select("user_id").eq("role", "admin");
