@@ -101,9 +101,14 @@ export default function VolunteerOnboardingPipeline() {
             <p className="text-sm text-muted-foreground">Interested → Training → Volunteer</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowQr((s) => !s)}>
-          <QrCode className="h-4 w-4 mr-1" /> Join-team QR
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Add person
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowQr((s) => !s)}>
+            <QrCode className="h-4 w-4 mr-1" /> Join-team QR
+          </Button>
+        </div>
       </div>
 
       {showQr && (
