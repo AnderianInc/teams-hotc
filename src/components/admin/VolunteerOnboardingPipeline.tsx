@@ -53,6 +53,54 @@ export default function VolunteerOnboardingPipeline() {
   });
   const teamName = (id: string) => (teams as any[]).find((t) => t.id === id)?.name || "Team";
 
+  const { data: searchResults = [], isFetching: searching } = useQuery({
+    queryKey: ["onboarding-attendee-search", search],
+    enabled: addOpen && search.trim().length >= 2,
+    queryFn: async () => {
+      const q = search.trim();
+      const existingIds = new Set((rows as any[]).map((r) => r.attendee_id));
+      const { data, error } = await supabase
+        .from("attendees")
+        .select("id, first_name, last_name, email, phone")
+        .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(20);
+      if (error) throw error;
+      return (data || []).filter((a: any) => !existingIds.has(a.id));
+    },
+  });
+
+  const resetAddForm = () => {
+    setSearch("");
+    setSelectedAttendee(null);
+    setAddStage("interested");
+    setAddTeams([]);
+    setAddNotes("");
+  };
+
+  const addManual = useMutation({
+    mutationFn: async () => {
+      if (!selectedAttendee) throw new Error("Pick a person first");
+      const patch: Record<string, unknown> = {
+        attendee_id: selectedAttendee.id,
+        stage: addStage,
+        source: "manual",
+        preferred_team_ids: addTeams.length ? addTeams : null,
+        notes: addNotes.trim() || null,
+      };
+      if (addStage === "volunteer") patch.completed_at = new Date().toISOString();
+      const { error } = await (supabase.from as any)("volunteer_onboarding").insert(patch);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["volunteer-onboarding"] });
+      toast.success("Added to pipeline");
+      resetAddForm();
+      setAddOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   const setStage = useMutation({
     mutationFn: async ({ id, stage }: { id: string; stage: Stage }) => {
       const patch: Record<string, unknown> = { stage };
