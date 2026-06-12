@@ -251,6 +251,104 @@ export default function VolunteerOnboardingPipeline() {
       <p className="text-xs text-muted-foreground">
         Cards land in <strong>Interested</strong> automatically when someone submits the /join-team form. Move them through Training and Volunteer as they progress. Reaching <strong>Volunteer</strong> marks the row complete — assign the person to a team via the Teams page.
       </p>
+
+      <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) resetAddForm(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add person to onboarding</DialogTitle>
+            <DialogDescription>Search the directory and add an existing attendee or member into the pipeline.</DialogDescription>
+          </DialogHeader>
+
+          {!selectedAttendee ? (
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  placeholder="Search by name, email, or phone…"
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+                {search.trim().length < 2 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">Type at least 2 characters to search.</div>
+                ) : searching ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">Searching…</div>
+                ) : (searchResults as any[]).length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">No matches. They may already be in the pipeline.</div>
+                ) : (
+                  (searchResults as any[]).map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="w-full text-left p-3 hover:bg-muted/50 transition-colors"
+                      onClick={() => setSelectedAttendee(a)}
+                    >
+                      <div className="font-medium text-sm">{a.first_name} {a.last_name}</div>
+                      <div className="text-xs text-muted-foreground">{a.email || a.phone || "—"}</div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-md border p-3 flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-sm">{selectedAttendee.first_name} {selectedAttendee.last_name}</div>
+                  <div className="text-xs text-muted-foreground">{selectedAttendee.email || selectedAttendee.phone || "—"}</div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedAttendee(null)}>Change</Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Stage</Label>
+                <Select value={addStage} onValueChange={(v) => setAddStage(v as Stage)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STAGES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Preferred teams (optional)</Label>
+                <div className="max-h-40 overflow-y-auto rounded-md border p-2 grid grid-cols-2 gap-1">
+                  {(teams as any[]).length === 0 ? (
+                    <div className="text-xs text-muted-foreground col-span-2 p-2">No teams yet.</div>
+                  ) : (teams as any[]).map((t) => {
+                    const checked = addTeams.includes(t.id);
+                    return (
+                      <label key={t.id} className="flex items-center gap-2 text-sm p-1.5 rounded hover:bg-muted/50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => setAddTeams((prev) => e.target.checked ? [...prev, t.id] : prev.filter((id) => id !== t.id))}
+                        />
+                        <span className="truncate">{t.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Notes (optional)</Label>
+                <Textarea rows={3} value={addNotes} onChange={(e) => setAddNotes(e.target.value)} placeholder="Context, conversation notes, etc." />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setAddOpen(false); resetAddForm(); }}>Cancel</Button>
+            <Button onClick={() => addManual.mutate()} disabled={!selectedAttendee || addManual.isPending}>
+              {addManual.isPending ? "Adding…" : "Add to pipeline"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
