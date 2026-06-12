@@ -90,6 +90,42 @@ export default function VolunteerOnboardingPipeline() {
       if (addStage === "volunteer") patch.completed_at = new Date().toISOString();
       const { error } = await (supabase.from as any)("volunteer_onboarding").insert(patch);
       if (error) throw error;
+
+      // Send invitation email to the volunteer if we have an email on file
+      const toEmail = selectedAttendee.email?.trim();
+      if (toEmail) {
+        const firstName = selectedAttendee.first_name || "there";
+        const fullName = `${selectedAttendee.first_name || ""} ${selectedAttendee.last_name || ""}`.trim();
+        const cleanNotes = addNotes.trim().replace(/[<>&]/g, "");
+        const { data: { user } } = await supabase.auth.getUser();
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              to: toEmail,
+              to_name: fullName,
+              related_attendee_id: selectedAttendee.id,
+              logged_by: user?.id,
+              subject: "Welcome to the HOTC team onboarding",
+              html: `
+                <h1>Welcome, ${firstName}!</h1>
+                <p>You've been added to our volunteer onboarding pipeline at House of Transformation Church. We're excited to have you serve with us.</p>
+                <h2>What happens next</h2>
+                <ol>
+                  <li>A member of our staff will be in touch personally with next steps.</li>
+                  <li>You'll be invited to a short training session.</li>
+                  <li>Once training is complete, we'll match you with the right team.</li>
+                </ol>
+                ${cleanNotes ? `<p><strong>Note from the team:</strong><br/><em>${cleanNotes}</em></p>` : ""}
+                <p>If you have any questions, just reply to this email.</p>
+                <p>Welcome to the family,<br/>The HOTC Team</p>
+              `,
+            },
+          });
+        } catch (e) {
+          console.error("Failed to send onboarding invite email", e);
+          toast.warning("Added, but invitation email failed to send");
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["volunteer-onboarding"] });
