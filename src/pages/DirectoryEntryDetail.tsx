@@ -164,7 +164,7 @@ export default function DirectoryEntryDetail() {
   if (!entry || !form) {
     return (
       <div className="mx-auto max-w-3xl p-4 md:p-6 space-y-4">
-        <Button variant="ghost" onClick={() => navigate("/admin")} className="gap-2">
+        <Button variant="ghost" onClick={() => navigate("/admin?tab=directory")} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to Directory
         </Button>
         <Card>
@@ -182,7 +182,7 @@ export default function DirectoryEntryDetail() {
     <div className="mx-auto max-w-3xl p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate("/admin")} className="gap-2">
+        <Button variant="ghost" onClick={() => navigate("/admin?tab=directory")} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to Directory
         </Button>
         {isAdmin && !editing && (
