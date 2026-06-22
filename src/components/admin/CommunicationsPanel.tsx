@@ -55,7 +55,7 @@ export default function CommunicationsPanel() {
   };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="compose">Email</TabsTrigger>
         <TabsTrigger value="sms">Text (SMS)</TabsTrigger>
