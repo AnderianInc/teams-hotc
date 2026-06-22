@@ -184,7 +184,7 @@ serve(async (req) => {
           type: "first_timer",
           title: "New first-time visitor",
           body: `${fullName} just registered${howHeard ? ` (${howHeard})` : ""}.`,
-          url: "/admin?tab=first-impressions",
+          url: "/team/first-impressions?tab=followups",
           data: { attendee_id: attendee.id },
         }));
         await adminClient.from("notifications").insert(notifRows);
@@ -261,7 +261,7 @@ serve(async (req) => {
                 type: "first_timer",
                 title: "New first-time visitor",
                 body: `${fullName} just registered`,
-                url: "/admin?tab=first-impressions",
+                url: "/team/first-impressions?tab=followups",
               }),
             }),
           ),
