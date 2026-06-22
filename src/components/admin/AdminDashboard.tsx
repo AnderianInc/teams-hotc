@@ -134,7 +134,7 @@ function useDashboardStats(range: Range) {
 
 
       return {
-        attendance: attendanceRes.count ?? 0,
+        attendance: seen.size,
         newAttendees: attendeesRes.count ?? 0,
         emails: emailRes.count ?? 0,
         sms: smsRes.count ?? 0,
