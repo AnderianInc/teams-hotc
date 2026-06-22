@@ -64,7 +64,8 @@ function useDashboardStats(range: Range) {
       const sinceIso = since.toISOString();
 
       const [
-        attendanceRes,
+        attendanceRowsRes,
+        profileLinkRes,
         attendeesRes,
         emailRes,
         smsRes,
@@ -76,9 +77,13 @@ function useDashboardStats(range: Range) {
       ] = await Promise.all([
         supabase
           .from("weekly_attendance")
-          .select("status", { count: "exact", head: true })
+          .select("user_id, attendee_id")
           .gte("service_date", sinceIso.slice(0, 10))
           .eq("status", "present"),
+        supabase
+          .from("profiles")
+          .select("user_id, attendee_id")
+          .not("attendee_id", "is", null),
         supabase
           .from("attendees")
           .select("id", { count: "exact", head: true })
@@ -112,6 +117,21 @@ function useDashboardStats(range: Range) {
           .select("id", { count: "exact", head: true })
           .eq("status", "pending_approval"),
       ]);
+
+      // Dedupe attendance: a volunteer who is also a member shouldn't be double-counted.
+      // Resolve each row to a single person key: attendee_id wins; otherwise map user_id
+      // through profiles.attendee_id; otherwise fall back to the user_id itself.
+      const userToAttendee = new Map<string, string>();
+      (profileLinkRes.data ?? []).forEach((p: any) => {
+        if (p.user_id && p.attendee_id) userToAttendee.set(p.user_id, p.attendee_id);
+      });
+      const seen = new Set<string>();
+      (attendanceRowsRes.data ?? []).forEach((r: any) => {
+        const key = r.attendee_id
+          ?? (r.user_id ? userToAttendee.get(r.user_id) ?? `user:${r.user_id}` : null);
+        if (key) seen.add(key);
+      });
+
 
       return {
         attendance: attendanceRes.count ?? 0,
