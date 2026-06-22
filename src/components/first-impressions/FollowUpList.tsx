@@ -143,6 +143,7 @@ export default function FollowUpList() {
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | "inreach" | "outreach">("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"active" | "completed" | "all">("active");
 
   // New follow-up form
   const [attendeeId, setAttendeeId] = useState("");
@@ -154,7 +155,7 @@ export default function FollowUpList() {
   const [assignedTo, setAssignedTo] = useState("");
 
   const { data: followUps, isLoading } = useQuery({
-    queryKey: ["follow-ups", typeFilter, assigneeFilter],
+    queryKey: ["follow-ups", typeFilter, assigneeFilter, statusFilter],
     queryFn: async () => {
       // profiles:assigned_to would fail because follow_ups.assigned_to FKs to auth.users,
       // not profiles; we resolve assignee names via the volunteers query instead
@@ -166,8 +167,12 @@ export default function FollowUpList() {
 
       if (typeFilter !== "all") q = q.eq("type", typeFilter);
       if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
-      // Once contacted or connected, the person leaves the active queue.
-      q = q.not("status", "in", "(contacted,connected,closed)");
+      // Active = still needs attention. Completed = already contacted/connected/closed. All = no filter.
+      if (statusFilter === "active") {
+        q = q.not("status", "in", "(contacted,connected,closed)");
+      } else if (statusFilter === "completed") {
+        q = q.in("status", ["contacted", "connected", "closed"]);
+      }
 
       const { data, error } = await q;
       if (error) throw error;
@@ -511,9 +516,16 @@ export default function FollowUpList() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="active" className="text-xs px-3 h-7">Active</TabsTrigger>
+              <TabsTrigger value="completed" className="text-xs px-3 h-7">Completed</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <Tabs value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
             <TabsList className="h-8">
-              <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs px-3 h-7">All types</TabsTrigger>
               <TabsTrigger value="outreach" className="text-xs px-3 h-7">Outreach</TabsTrigger>
               <TabsTrigger value="inreach" className="text-xs px-3 h-7">Inreach</TabsTrigger>
             </TabsList>

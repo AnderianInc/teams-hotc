@@ -1,12 +1,24 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import AttendeeList from "./AttendeeList";
 import FollowUpList from "./FollowUpList";
 import QRCodeDisplay from "./QRCodeDisplay";
 import OutreachPipeline from "./OutreachPipeline";
 
+const VALID_TABS = ["attendees", "followups", "pipeline", "qrcode"] as const;
 
 export default function FirstImpressionsDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get("tab") ?? "attendees";
+  const activeTab = (VALID_TABS as readonly string[]).includes(requested) ? requested : "attendees";
+
+  const setTab = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", value);
+    setSearchParams(next, { replace: true });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -20,7 +32,7 @@ export default function FirstImpressionsDashboard() {
       </div>
 
 
-      <Tabs defaultValue="attendees" className="w-full">
+      <Tabs value={activeTab} onValueChange={setTab} className="w-full">
         <TabsList>
           <TabsTrigger value="attendees">Visitors & Members</TabsTrigger>
           <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
