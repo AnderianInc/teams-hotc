@@ -20,6 +20,7 @@ const typeLabels: Record<string, string> = {
   roster_assigned: "Roster",
   roster_reminder: "Reminder",
   first_visit_logged: "New Visitor",
+  first_timer: "New Visitor",
   feedback_received: "Feedback",
   deletion_request: "Request",
   inreach_trigger: "Inreach",
