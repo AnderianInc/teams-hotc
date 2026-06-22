@@ -167,11 +167,12 @@ export default function FollowUpList() {
 
       if (typeFilter !== "all") q = q.eq("type", typeFilter);
       if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
-      // Active = still needs attention. Completed = already contacted/connected/closed. All = no filter.
+      // Active = still needs attention (includes 'contacted' — automated touches don't close the loop).
+      // Completed = the assignee/admin has marked it connected or closed.
       if (statusFilter === "active") {
-        q = q.not("status", "in", "(contacted,connected,closed)");
+        q = q.not("status", "in", "(connected,closed)");
       } else if (statusFilter === "completed") {
-        q = q.in("status", ["contacted", "connected", "closed"]);
+        q = q.in("status", ["connected", "closed"]);
       }
 
       const { data, error } = await q;
