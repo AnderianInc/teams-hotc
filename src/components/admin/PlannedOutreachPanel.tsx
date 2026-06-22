@@ -552,7 +552,14 @@ export default function PlannedOutreachPanel() {
               onClearAll={filters.clearAll}
             />
           </div>
-          <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
+          <Tabs
+            value={subParam && VALID_OUTREACH_SUBS.has(subParam) ? subParam : (pendingApproval.length > 0 ? "pending" : "due")}
+            onValueChange={(v) => {
+              const next = new URLSearchParams(searchParams);
+              next.set("sub", v);
+              setSearchParams(next, { replace: true });
+            }}
+          >
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
               <TabsTrigger value="upcoming">Upcoming ({upcoming.length + approvedScheduled.length})</TabsTrigger>
