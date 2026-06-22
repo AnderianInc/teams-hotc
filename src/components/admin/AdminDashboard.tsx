@@ -164,7 +164,7 @@ export default function AdminDashboard() {
           value={isLoading ? "…" : data!.newAttendees}
           icon={UserPlus}
           hint="Added to directory"
-          onClick={go("/admin?tab=dir-directory")}
+          onClick={go("/team/first-impressions?tab=attendees")}
         />
         <StatCard
           label="Emails sent"
