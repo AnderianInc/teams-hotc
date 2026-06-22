@@ -121,9 +121,13 @@ const TEMPLATES: Record<string, { subject: string; body: string }> = {
   "interest-day-of-sms": { subject: "Today", body: "Hi {{first_name}}, see you today! — HOTC" },
 };
 
+const VALID_OUTREACH_SUBS = new Set(["pending", "upcoming", "due", "completed", "skipped", "failed"]);
+
 export default function PlannedOutreachPanel() {
   const qc = useQueryClient();
   const { timezone: churchTz } = useChurchTimezone();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subParam = searchParams.get("sub");
   const [open, setOpen] = useState(false);
   const [reviewRunId, setReviewRunId] = useState<string | null>(null);
   const [editSubject, setEditSubject] = useState("");
