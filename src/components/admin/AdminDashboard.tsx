@@ -170,20 +170,20 @@ export default function AdminDashboard() {
           label="Emails sent"
           value={isLoading ? "…" : data!.emails}
           icon={Mail}
-          onClick={go("/admin?tab=communications")}
+          onClick={go("/admin?tab=communications&sub=log")}
         />
         <StatCard
           label="SMS sent"
           value={isLoading ? "…" : data!.sms}
           icon={MessageSquare}
-          onClick={go("/admin?tab=communications")}
+          onClick={go("/admin?tab=communications&sub=sms-log")}
         />
         <StatCard
           label="Incoming outreach"
           value={isLoading ? "…" : data!.external}
           icon={Inbox}
           hint="Prayer / visit / interest"
-          onClick={go("/team/first-impressions")}
+          onClick={go("/team/first-impressions?tab=pipeline")}
         />
         <StatCard
           label="Feedback received"
@@ -196,14 +196,14 @@ export default function AdminDashboard() {
           value={isLoading ? "…" : data!.pendingFollowUps}
           icon={Users}
           hint="All-time open"
-          onClick={go("/team/first-impressions")}
+          onClick={go("/team/first-impressions?tab=followups")}
         />
         <StatCard
           label="Awaiting approval"
           value={isLoading ? "…" : data!.pendingApproval}
           icon={Cake}
           hint="Outreach messages queued"
-          onClick={go("/admin?tab=dir-outreach")}
+          onClick={go("/admin?tab=dir-outreach&sub=pending")}
         />
       </div>
 

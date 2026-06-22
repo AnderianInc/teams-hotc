@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import EmailComposer from "./EmailComposer";
 import EmailLog from "./EmailLog";
 import EmailTemplates from "./EmailTemplates";
@@ -12,9 +13,27 @@ import SmsTemplates from "./SmsTemplates";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const VALID_SUBS = new Set(["compose", "sms", "inbox", "pending", "groups", "log", "sms-log", "sms-opt-in", "templates"]);
+
 export default function CommunicationsPanel() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("compose");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subParam = searchParams.get("sub");
+  const [activeTab, setActiveTab] = useState(subParam && VALID_SUBS.has(subParam) ? subParam : "compose");
+
+  useEffect(() => {
+    if (subParam && VALID_SUBS.has(subParam) && subParam !== activeTab) {
+      setActiveTab(subParam);
+    }
+  }, [subParam]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const next = new URLSearchParams(searchParams);
+    next.set("sub", value);
+    setSearchParams(next, { replace: true });
+  };
+
   const [composerKey, setComposerKey] = useState(0);
   const [composerDefaults, setComposerDefaults] = useState<{ subject: string; body: string }>({
     subject: "",
@@ -36,7 +55,7 @@ export default function CommunicationsPanel() {
   };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="compose">Email</TabsTrigger>
         <TabsTrigger value="sms">Text (SMS)</TabsTrigger>

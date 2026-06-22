@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,9 +121,13 @@ const TEMPLATES: Record<string, { subject: string; body: string }> = {
   "interest-day-of-sms": { subject: "Today", body: "Hi {{first_name}}, see you today! — HOTC" },
 };
 
+const VALID_OUTREACH_SUBS = new Set(["pending", "upcoming", "due", "completed", "skipped", "failed"]);
+
 export default function PlannedOutreachPanel() {
   const qc = useQueryClient();
   const { timezone: churchTz } = useChurchTimezone();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subParam = searchParams.get("sub");
   const [open, setOpen] = useState(false);
   const [reviewRunId, setReviewRunId] = useState<string | null>(null);
   const [editSubject, setEditSubject] = useState("");
@@ -547,7 +552,14 @@ export default function PlannedOutreachPanel() {
               onClearAll={filters.clearAll}
             />
           </div>
-          <Tabs defaultValue={pendingApproval.length > 0 ? "pending" : "due"}>
+          <Tabs
+            value={subParam && VALID_OUTREACH_SUBS.has(subParam) ? subParam : (pendingApproval.length > 0 ? "pending" : "due")}
+            onValueChange={(v) => {
+              const next = new URLSearchParams(searchParams);
+              next.set("sub", v);
+              setSearchParams(next, { replace: true });
+            }}
+          >
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
               <TabsTrigger value="upcoming">Upcoming ({upcoming.length + approvedScheduled.length})</TabsTrigger>
