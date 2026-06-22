@@ -76,8 +76,8 @@ function useDashboardStats(range: Range) {
       ] = await Promise.all([
         supabase
           .from("weekly_attendance")
-          .select("status", { count: "exact" })
-          .gte("week_start", sinceIso.slice(0, 10))
+          .select("status", { count: "exact", head: true })
+          .gte("service_date", sinceIso.slice(0, 10))
           .eq("status", "present"),
         supabase
           .from("attendees")
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
           value={isLoading ? "…" : data!.newAttendees}
           icon={UserPlus}
           hint="Added to directory"
-          onClick={go("/admin?tab=dir-directory")}
+          onClick={go("/team/first-impressions?tab=attendees")}
         />
         <StatCard
           label="Emails sent"
