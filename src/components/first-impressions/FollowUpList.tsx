@@ -516,9 +516,16 @@ export default function FollowUpList() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="active" className="text-xs px-3 h-7">Active</TabsTrigger>
+              <TabsTrigger value="completed" className="text-xs px-3 h-7">Completed</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <Tabs value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
             <TabsList className="h-8">
-              <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs px-3 h-7">All types</TabsTrigger>
               <TabsTrigger value="outreach" className="text-xs px-3 h-7">Outreach</TabsTrigger>
               <TabsTrigger value="inreach" className="text-xs px-3 h-7">Inreach</TabsTrigger>
             </TabsList>
