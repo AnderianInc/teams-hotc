@@ -1,0 +1,14 @@
+{
+  "name": "hotc-print-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LAN bridge that lets the HOTC Volunteer Hub web app print Brother QL labels from any device on the church wifi.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
