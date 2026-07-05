@@ -313,93 +313,100 @@ export default function ServiceRunSheet() {
         </p>
       </div>
 
-      <div className="space-y-2">
-        {timedSlots.length === 0 && (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No slots yet. Add one below.
-            </CardContent>
-          </Card>
-        )}
-
-        {timedSlots.map((slot, idx) => {
-          const slotAssignments = assignments.filter((a) => a.slot_id === slot.id);
-          return (
-            <Card key={slot.id}>
-              <CardContent className="py-3">
-                <div className="flex items-start gap-3">
-                  <div className="text-right shrink-0 w-16 pt-1">
-                    <p className="font-mono text-sm">{slot.startClock}</p>
-                    <p className="text-xs text-muted-foreground">{slot.duration_minutes} min</p>
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {!canEdit ? (
-                        <span className="font-medium">{slot.title}</span>
-                      ) : (
+      <div className="rounded-md border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs text-muted-foreground">
+            <tr>
+              {canEdit && <th className="w-10 px-2 py-2"></th>}
+              <th className="w-20 px-2 py-2 text-left font-medium">Time</th>
+              <th className="px-2 py-2 text-left font-medium">Item</th>
+              {canEdit && <th className="w-14 px-2 py-2 text-left font-medium">Min</th>}
+              <th className="w-[160px] px-2 py-2 text-left font-medium">Team</th>
+              <th className="px-2 py-2 text-left font-medium">Assigned</th>
+              {canEdit && <th className="w-14 px-2 py-2 text-center font-medium">Songs</th>}
+              {canEdit && <th className="w-10 px-2 py-2"></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {timedSlots.length === 0 && (
+              <tr>
+                <td colSpan={canEdit ? 8 : 4} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  No slots yet.{canEdit ? " Add one below." : ""}
+                </td>
+              </tr>
+            )}
+            {timedSlots.map((slot, idx) => {
+              const slotAssignments = assignments.filter((a) => a.slot_id === slot.id);
+              const isSong = !!slot.is_song_slot;
+              const canEditSongs = !isPrint && isSong && (canEdit || (!!slot.team_id && myTeamIds.includes(slot.team_id)));
+              const showSongsRow = isSong && (canEditSongs || (slot.songs || []).filter(Boolean).length > 0);
+              return (
+                <React.Fragment key={slot.id}>
+                  <tr className="border-t align-middle">
+                    {canEdit && (
+                      <td className="px-1 py-1">
+                        <div className="flex flex-col">
+                          <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, -1)} disabled={idx === 0}>
+                            <ArrowUp className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, 1)} disabled={idx === timedSlots.length - 1}>
+                            <ArrowDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    )}
+                    <td className="px-2 py-1 whitespace-nowrap">
+                      <div className="font-mono text-sm">{slot.startClock}</div>
+                      {!canEdit && <div className="text-[10px] text-muted-foreground">{slot.duration_minutes} min</div>}
+                    </td>
+                    <td className="px-2 py-1">
+                      {canEdit ? (
                         <Input
-                          className="flex-1 min-w-[200px] h-8"
+                          className="h-8"
                           defaultValue={slot.title}
                           onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
                         />
+                      ) : (
+                        <span className="font-medium">{slot.title}</span>
                       )}
-                      {canEdit && (
-                        <>
-                          <Input
-                            type="number"
-                            className="w-16 h-8"
-                            defaultValue={slot.duration_minutes}
-                            onBlur={(e) => {
-                              const n = parseInt(e.target.value, 10);
-                              if (n > 0 && n !== slot.duration_minutes) updateSlot.mutate({ id: slot.id, duration_minutes: n });
-                            }}
-                          />
-                          <Select
-                            value={slot.team_id || "none"}
-                            onValueChange={(value) => updateSlot.mutate({ id: slot.id, team_id: value === "none" ? null : value })}
-                          >
-                            <SelectTrigger className="w-[170px] h-8">
-                              <SelectValue placeholder="Team" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No team</SelectItem>
-                              {(scheduledTeams.length ? scheduledTeams : teams).map((item: any) => {
-                                const id = item.team_id || item.id;
-                                const name = item.teams?.name || item.name;
-                                return <SelectItem key={id} value={id}>{name}</SelectItem>;
-                              })}
-                            </SelectContent>
-                          </Select>
-                          <SlotAssignPopover
-                            slot={slot}
-                            rosterEventId={instance.roster_event_id}
-                            serviceDate={instance.service_date}
-                            allowedTeamIds={slot.team_id && (!allowedTeamIds.length || allowedTeamIds.includes(slot.team_id)) ? [slot.team_id] : allowedTeamIds}
-                          />
-                          <div className="flex flex-col gap-0.5">
-                            <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, -1)} disabled={idx === 0}>
-                              <ArrowUp className="h-3 w-3" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, 1)} disabled={idx === timedSlots.length - 1}>
-                              <ArrowDown className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <Button variant="ghost" size="sm" onClick={() => deleteSlot.mutate(slot.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                    {slot.team_id && (
-                      <p className="text-xs text-muted-foreground">Team: {teamName(slot.team_id)}</p>
+                    </td>
+                    {canEdit && (
+                      <td className="px-2 py-1">
+                        <Input
+                          type="number"
+                          className="h-8 w-14"
+                          defaultValue={slot.duration_minutes}
+                          onBlur={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            if (n > 0 && n !== slot.duration_minutes) updateSlot.mutate({ id: slot.id, duration_minutes: n });
+                          }}
+                        />
+                      </td>
                     )}
-                    <SongEditor
-                      songs={slot.songs || []}
-                      canEdit={!isPrint && (canEdit || (!!slot.team_id && myTeamIds.includes(slot.team_id) && isWorshipSlot(slot)))}
-                      onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
-                    />
-                    {slotAssignments.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
+                    <td className="px-2 py-1">
+                      {canEdit ? (
+                        <Select
+                          value={slot.team_id || "none"}
+                          onValueChange={(value) => updateSlot.mutate({ id: slot.id, team_id: value === "none" ? null : value })}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Team" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No team</SelectItem>
+                            {(scheduledTeams.length ? scheduledTeams : teams).map((item: any) => {
+                              const id = item.team_id || item.id;
+                              const name = item.teams?.name || item.name;
+                              return <SelectItem key={id} value={id}>{name}</SelectItem>;
+                            })}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{teamName(slot.team_id) || "—"}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {slotAssignments.map((a) => {
                           const key = a.profile_id ? `p:${a.profile_id}` : `a:${a.attendee_id}`;
                           const name = nameMap[key] || "…";
@@ -418,14 +425,51 @@ export default function ServiceRunSheet() {
                             </Badge>
                           );
                         })}
+                        {canEdit && (
+                          <SlotAssignPopover
+                            slot={slot}
+                            rosterEventId={instance.roster_event_id}
+                            serviceDate={instance.service_date}
+                            allowedTeamIds={slot.team_id && (!allowedTeamIds.length || allowedTeamIds.includes(slot.team_id)) ? [slot.team_id] : allowedTeamIds}
+                          />
+                        )}
                       </div>
+                    </td>
+                    {canEdit && (
+                      <td className="px-2 py-1 text-center">
+                        <Checkbox
+                          checked={isSong}
+                          onCheckedChange={(v) => updateSlot.mutate({ id: slot.id, is_song_slot: !!v as any })}
+                          aria-label="Mark as song slot"
+                        />
+                      </td>
                     )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                    {canEdit && (
+                      <td className="px-1 py-1">
+                        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => deleteSlot.mutate(slot.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                  {showSongsRow && (
+                    <tr className="bg-muted/10">
+                      {canEdit && <td></td>}
+                      <td></td>
+                      <td colSpan={canEdit ? 6 : 3} className="px-2 pb-2">
+                        <SongEditor
+                          songs={slot.songs || []}
+                          canEdit={canEditSongs}
+                          onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {canEdit && (
