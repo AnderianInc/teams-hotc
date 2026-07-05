@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -28,7 +28,27 @@ export default function OrderOfServicePanel() {
   const [newTplTime, setNewTplTime] = useState("10:00");
   const [generateOpen, setGenerateOpen] = useState(false);
   const [genTemplateId, setGenTemplateId] = useState<string>("");
-  const [genDate, setGenDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [genRosterEventId, setGenRosterEventId] = useState<string>("");
+
+  const { data: rosterEvents = [] } = useQuery({
+    queryKey: ["oos-master-schedule-events"],
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("roster_events")
+        .select("id, name, event_date, event_time, roster_event_teams(teams(name))")
+        .gte("event_date", today)
+        .order("event_date")
+        .order("event_time")
+        .limit(120);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const availableRosterEvents = rosterEvents.filter((event: any) =>
+    !instances.some((instance) => instance.roster_event_id === event.id)
+  );
 
   const createTemplate = useMutation({
     mutationFn: async () => {
@@ -68,12 +88,20 @@ export default function OrderOfServicePanel() {
 
   const generate = useMutation({
     mutationFn: async () => {
-      if (!genTemplateId || !genDate) throw new Error("Pick a template and date");
-      return generateServiceFromTemplate(genTemplateId, genDate);
+      if (!genTemplateId || !genRosterEventId) throw new Error("Pick a template and scheduled service");
+      const event = rosterEvents.find((item: any) => item.id === genRosterEventId);
+      if (!event) throw new Error("Scheduled service not found");
+      return generateServiceFromTemplate(genTemplateId, event.event_date, {
+        rosterEventId: event.id,
+        title: event.name,
+        startTime: event.event_time,
+        createRosterEvent: false,
+      });
     },
     onSuccess: (instance) => {
       invalidate();
       setGenerateOpen(false);
+      setGenRosterEventId("");
       toast.success("Service created");
       navigate(`/admin/order-of-service/${instance.id}`);
     },
@@ -87,7 +115,7 @@ export default function OrderOfServicePanel() {
           <ListOrdered className="h-5 w-5" /> Order of Service
         </h2>
         <p className="text-sm text-muted-foreground">
-          Build reusable templates and generate weekly run-sheets with team assignments.
+          Build reusable templates and attach run-sheets to services from the master schedule.
         </p>
       </div>
 
@@ -104,7 +132,7 @@ export default function OrderOfServicePanel() {
         <TabsContent value="upcoming" className="space-y-3">
           <div className="flex justify-end">
             <Button onClick={() => setGenerateOpen(true)} disabled={!templates.length}>
-              <CalendarPlus className="h-4 w-4 mr-1" /> New service from template
+              <CalendarPlus className="h-4 w-4 mr-1" /> Create run sheet
             </Button>
           </div>
           {loadingI ? (
@@ -112,7 +140,7 @@ export default function OrderOfServicePanel() {
           ) : instances.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No services yet. {templates.length === 0 && "Create a template first."}
+                No run sheets yet. {templates.length === 0 && "Create a template first."}
               </CardContent>
             </Card>
           ) : (
@@ -242,7 +270,7 @@ export default function OrderOfServicePanel() {
       <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Generate service from template</DialogTitle>
+          <DialogTitle>Create run sheet from master schedule</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -259,8 +287,26 @@ export default function OrderOfServicePanel() {
               </Select>
             </div>
             <div>
-              <Label>Service date</Label>
-              <Input type="date" value={genDate} onChange={(e) => setGenDate(e.target.value)} />
+              <Label>Scheduled service</Label>
+              <Select value={genRosterEventId} onValueChange={setGenRosterEventId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick an admin-created service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRosterEvents.map((event: any) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {format(new Date(event.event_date + "T00:00:00"), "MMM d")} · {event.event_time?.slice(0, 5) || "No time"} · {event.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableRosterEvents.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {rosterEvents.length === 0
+                    ? "Create services in Teams → Roster → Master Schedule first."
+                    : "Every upcoming scheduled service already has a run sheet."}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -269,9 +315,9 @@ export default function OrderOfServicePanel() {
             </Button>
             <Button
               onClick={() => generate.mutate()}
-              disabled={!genTemplateId || !genDate || generate.isPending}
+              disabled={!genTemplateId || !genRosterEventId || generate.isPending}
             >
-              Generate
+              Create run sheet
             </Button>
           </DialogFooter>
         </DialogContent>

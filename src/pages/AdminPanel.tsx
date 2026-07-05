@@ -39,7 +39,7 @@ const GROUPS: Record<string, Group> = {
     subs: [
       { value: "teams-teams", label: "Teams" },
       { value: "teams-volunteers", label: "Volunteers" },
-      { value: "teams-roster", label: "Roster" },
+      { value: "teams-roster", label: "Master Schedule" },
     ],
   },
   directory: {
