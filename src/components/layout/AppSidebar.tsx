@@ -89,19 +89,19 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <div className="flex items-center gap-3">
+        <Link to="/dashboard" className="group flex items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary">
             <Users className="h-5 w-5 text-sidebar-primary-foreground" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-display font-semibold text-sidebar-foreground">
+            <span className="text-sm font-display font-semibold text-sidebar-foreground group-hover:text-sidebar-foreground/80">
               HOTC Volunteers
             </span>
             <span className="text-xs text-sidebar-foreground/60 truncate max-w-[160px]">
               {profile}
             </span>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
