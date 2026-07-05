@@ -632,7 +632,6 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                         <CardTitle className="text-base">{event.name}</CardTitle>
                         <div className="flex flex-wrap items-center gap-1 mt-2">
                           <Badge variant="outline">{event.event_time?.slice(0, 5) || "No time"}</Badge>
-                          {links.map((link: any) => <Badge key={link.team_id} variant="secondary">{link.teams?.name || "Team"}</Badge>)}
                           <Badge variant="outline">{eventAssignments.length} assigned</Badge>
                         </div>
                         {event.description && <p className="text-sm text-muted-foreground mt-2">{event.description}</p>}
