@@ -82,10 +82,9 @@ function MemberPicker({
   }, [slot.default_team_id, teamMembers, allProfiles]);
 
   const selected = slot.default_profile_ids || [];
-  const nameById = new Map([
-    ...(allProfiles as any[]).map((p) => [p.id, p.full_name || p.email || "Unknown"]),
-    ...candidates.map((c) => [c.id, c.name]),
-  ]);
+  const nameById = new Map<string, string>();
+  (allProfiles as any[]).forEach((p) => nameById.set(p.id, p.full_name || p.email || "Unknown"));
+  candidates.forEach((c) => nameById.set(c.id, c.name));
   const selectedNames = selected.map((id) => nameById.get(id) || "Unknown");
   const triggerLabel = selectedNames.length === 0
     ? "Default members"
