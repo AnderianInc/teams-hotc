@@ -2100,6 +2100,28 @@ export type Database = {
           tags: string[]
         }[]
       }
+      update_service_slot_songs: {
+        Args: { _slot_id: string; _songs: string[] }
+        Returns: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          instance_id: string
+          notes: string | null
+          order_index: number
+          role_type_id: string | null
+          songs: string[]
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "service_instance_slots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "team_lead" | "member" | "staff"
