@@ -245,7 +245,6 @@ export async function generateServiceFromTemplate(
       title: s.title,
       duration_minutes: s.duration_minutes,
       notes: s.notes,
-      team_id: s.default_team_id,
       team_id: !allowedTeamIds.length || allowedTeamIds.includes(s.default_team_id) ? s.default_team_id : null,
       role_type_id: s.default_role_type_id,
     }));
