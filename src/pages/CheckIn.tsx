@@ -158,6 +158,23 @@ export default function CheckIn() {
         {/* Step: Select type */}
         {step === "select" && (
           <div className="space-y-4">
+            {user && (
+              <button
+                onClick={() => handleCheckIn(user.id)}
+                className="w-full rounded-xl border-2 border-primary bg-primary/5 p-6 text-left hover:bg-primary/10 transition-all active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-lg text-foreground truncate">Check in as {selfName}</p>
+                    <p className="text-sm text-muted-foreground">One tap — no search needed</p>
+                  </div>
+                </div>
+              </button>
+            )}
+
             <button
               onClick={() => selectType("volunteer")}
               className="w-full rounded-xl border-2 border-primary/20 bg-card p-6 text-left hover:border-primary hover:shadow-md transition-all active:scale-[0.98]"
