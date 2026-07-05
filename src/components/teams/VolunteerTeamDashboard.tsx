@@ -17,7 +17,6 @@ import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import TeamMemberManager from "@/components/teams/TeamMemberManager";
 import TeamRoleTypeManager, { useTeamRoleTypes } from "@/components/teams/TeamRoleTypeManager";
-import RosterEventManager from "@/components/teams/RosterEventManager";
 import RosterCalendarView from "@/components/admin/RosterCalendarView";
 import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
 
@@ -82,15 +81,7 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
             <RosterCalendarView teamId={teamId} />
             <details className="rounded-lg border bg-card">
               <summary className="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/50 select-none">
-                Manage events (list view)
-              </summary>
-              <div className="border-t p-4">
-                <RosterEventManager teamId={teamId} teamName={teamName} />
-              </div>
-            </details>
-            <details className="rounded-lg border bg-card">
-              <summary className="cursor-pointer px-4 py-3 text-sm font-medium hover:bg-muted/50 select-none">
-                {teamSlug === "pastoral-team" ? "Sunday duties (list view)" : "Roster entries (list view)"}
+                {teamSlug === "pastoral-team" ? "Sunday duties history" : "Assignment history"}
               </summary>
               <div className="border-t p-4">
                 <RosterSchedule teamId={teamId} teamSlug={teamSlug} />

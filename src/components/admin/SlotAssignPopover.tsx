@@ -15,6 +15,7 @@ interface Props {
   slot: InstanceSlot;
   rosterEventId: string | null;
   serviceDate: string;
+  allowedTeamIds?: string[];
 }
 
 interface Candidate {
@@ -24,7 +25,7 @@ interface Candidate {
   team_id?: string | null;
 }
 
-export default function SlotAssignPopover({ slot, rosterEventId, serviceDate }: Props) {
+export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, allowedTeamIds }: Props) {
   const invalidate = useInvalidateOoS();
   const { data: teams = [] } = useAllTeams();
   const [open, setOpen] = useState(false);
@@ -32,6 +33,9 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate }: 
   const [mode, setMode] = useState<"team" | "everyone">(slot.team_id ? "team" : "team");
   const [search, setSearch] = useState("");
   const [roleLabel, setRoleLabel] = useState("");
+  const restrictedTeams = allowedTeamIds && allowedTeamIds.length > 0
+    ? teams.filter((team) => allowedTeamIds.includes(team.id))
+    : teams;
 
   // Load candidates
   const { data: candidates = [] } = useQuery({
@@ -39,6 +43,7 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate }: 
     enabled: open,
     queryFn: async (): Promise<Candidate[]> => {
       if (mode === "team" && teamId) {
+        if (allowedTeamIds?.length && !allowedTeamIds.includes(teamId)) return [];
         const { data: members } = await supabase
           .from("team_members")
           .select("user_id")
@@ -150,14 +155,16 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate }: 
             >
               <Users className="h-3 w-3 mr-1" /> By team
             </Button>
-            <Button
-              size="sm"
-              variant={mode === "everyone" ? "default" : "outline"}
-              className="flex-1"
-              onClick={() => setMode("everyone")}
-            >
-              <Search className="h-3 w-3 mr-1" /> Search all
-            </Button>
+            {!allowedTeamIds?.length && (
+              <Button
+                size="sm"
+                variant={mode === "everyone" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => setMode("everyone")}
+              >
+                <Search className="h-3 w-3 mr-1" /> Search all
+              </Button>
+            )}
           </div>
 
           {mode === "team" ? (
@@ -166,7 +173,7 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate }: 
                 <SelectValue placeholder="Pick a team" />
               </SelectTrigger>
               <SelectContent>
-                {teams.map((t) => (
+                {restrictedTeams.map((t) => (
                   <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                 ))}
               </SelectContent>

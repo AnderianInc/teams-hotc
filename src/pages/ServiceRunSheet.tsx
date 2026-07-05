@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, Printer, Trash2, ArrowUp, ArrowDown, Clock, X,
 } from "lucide-react";
@@ -44,9 +44,22 @@ export default function ServiceRunSheet() {
   const { data: slots = [] } = useInstanceSlots(instanceId!);
   const { data: assignments = [] } = useSlotAssignments(instanceId!);
   const { data: teams = [] } = useAllTeams();
+  const { data: scheduledTeams = [] } = useQuery({
+    queryKey: ["run-sheet-scheduled-teams", instance?.roster_event_id],
+    enabled: !!instance?.roster_event_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("roster_event_teams")
+        .select("team_id, teams(name)")
+        .eq("event_id", instance!.roster_event_id!);
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const [newTitle, setNewTitle] = useState("");
   const [newDuration, setNewDuration] = useState(5);
+  const [newTeamId, setNewTeamId] = useState("");
 
   // Fetch names of assigned people
   const profileIds = useMemo(() => assignments.filter((a) => a.profile_id).map((a) => a.profile_id!), [assignments]);
@@ -70,6 +83,7 @@ export default function ServiceRunSheet() {
   });
 
   const teamName = (id: string | null) => teams.find((t) => t.id === id)?.name;
+  const allowedTeamIds = scheduledTeams.map((team: any) => team.team_id).filter(Boolean);
 
   const addSlot = useMutation({
     mutationFn: async () => {
@@ -78,6 +92,7 @@ export default function ServiceRunSheet() {
         order_index: slots.length,
         title: newTitle.trim(),
         duration_minutes: newDuration || 5,
+        team_id: newTeamId || null,
       });
       if (error) throw error;
     },
@@ -85,6 +100,7 @@ export default function ServiceRunSheet() {
       invalidate(instanceId);
       setNewTitle("");
       setNewDuration(5);
+      setNewTeamId("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -228,7 +244,28 @@ export default function ServiceRunSheet() {
                               if (n > 0 && n !== slot.duration_minutes) updateSlot.mutate({ id: slot.id, duration_minutes: n });
                             }}
                           />
-                          <SlotAssignPopover slot={slot} rosterEventId={instance.roster_event_id} serviceDate={instance.service_date} />
+                          <Select
+                            value={slot.team_id || "none"}
+                            onValueChange={(value) => updateSlot.mutate({ id: slot.id, team_id: value === "none" ? null : value })}
+                          >
+                            <SelectTrigger className="w-[170px] h-8">
+                              <SelectValue placeholder="Team" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No team</SelectItem>
+                              {(scheduledTeams.length ? scheduledTeams : teams).map((item: any) => {
+                                const id = item.team_id || item.id;
+                                const name = item.teams?.name || item.name;
+                                return <SelectItem key={id} value={id}>{name}</SelectItem>;
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <SlotAssignPopover
+                            slot={slot}
+                            rosterEventId={instance.roster_event_id}
+                            serviceDate={instance.service_date}
+                            allowedTeamIds={slot.team_id && (!allowedTeamIds.length || allowedTeamIds.includes(slot.team_id)) ? [slot.team_id] : allowedTeamIds}
+                          />
                           <div className="flex flex-col gap-0.5">
                             <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, -1)} disabled={idx === 0}>
                               <ArrowUp className="h-3 w-3" />
@@ -293,6 +330,19 @@ export default function ServiceRunSheet() {
                 value={newDuration}
                 onChange={(e) => setNewDuration(parseInt(e.target.value, 10) || 5)}
               />
+              <Select value={newTeamId || "none"} onValueChange={(value) => setNewTeamId(value === "none" ? "" : value)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Team" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No team</SelectItem>
+                  {(scheduledTeams.length ? scheduledTeams : teams).map((item: any) => {
+                    const id = item.team_id || item.id;
+                    const name = item.teams?.name || item.name;
+                    return <SelectItem key={id} value={id}>{name}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
               <Button onClick={() => addSlot.mutate()} disabled={!newTitle.trim()}>
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>

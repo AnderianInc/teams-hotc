@@ -172,7 +172,16 @@ export function useInvalidateOoS() {
  * Generate a service instance from a template on a given date.
  * Creates the instance + slots, and creates/links a roster_event for that date.
  */
-export async function generateServiceFromTemplate(templateId: string, serviceDate: string) {
+export async function generateServiceFromTemplate(
+  templateId: string,
+  serviceDate: string,
+  options: {
+    rosterEventId?: string | null;
+    title?: string;
+    startTime?: string | null;
+    createRosterEvent?: boolean;
+  } = {},
+) {
   const { data: template, error: tErr } = await supabase
     .from("service_templates")
     .select("*")
@@ -187,22 +196,32 @@ export async function generateServiceFromTemplate(templateId: string, serviceDat
     .order("order_index");
   if (sErr) throw sErr;
 
-  // Create linked roster event (best-effort)
-  let rosterEventId: string | null = null;
-  try {
-    const { data: rosterEvent } = await supabase
-      .from("roster_events")
-      .insert({
-        name: template.name,
-        event_date: serviceDate,
-        event_time: template.default_start_time,
-        description: `Order of Service: ${template.name}`,
-      })
-      .select("id")
-      .single();
-    rosterEventId = rosterEvent?.id ?? null;
-  } catch {
-    // team leads without admin may fail here; instance still works
+  let rosterEventId: string | null = options.rosterEventId ?? null;
+  if (!rosterEventId && options.createRosterEvent !== false) {
+    try {
+      const { data: rosterEvent } = await supabase
+        .from("roster_events")
+        .insert({
+          name: options.title || template.name,
+          event_date: serviceDate,
+          event_time: options.startTime ?? template.default_start_time,
+          description: `Order of Service: ${options.title || template.name}`,
+        })
+        .select("id")
+        .single();
+      rosterEventId = rosterEvent?.id ?? null;
+    } catch {
+      // Instance can still be created if the linked master schedule event fails.
+    }
+  }
+
+  let allowedTeamIds: string[] = [];
+  if (rosterEventId) {
+    const { data: links } = await supabase
+      .from("roster_event_teams")
+      .select("team_id")
+      .eq("event_id", rosterEventId);
+    allowedTeamIds = (links || []).map((link: any) => link.team_id).filter(Boolean);
   }
 
   const { data: instance, error: iErr } = await supabase
@@ -211,8 +230,8 @@ export async function generateServiceFromTemplate(templateId: string, serviceDat
       template_id: templateId,
       roster_event_id: rosterEventId,
       service_date: serviceDate,
-      start_time: template.default_start_time,
-      title: template.name,
+      start_time: options.startTime ?? template.default_start_time,
+      title: options.title || template.name,
       status: "draft",
     })
     .select("*")
@@ -226,7 +245,7 @@ export async function generateServiceFromTemplate(templateId: string, serviceDat
       title: s.title,
       duration_minutes: s.duration_minutes,
       notes: s.notes,
-      team_id: s.default_team_id,
+      team_id: !allowedTeamIds.length || allowedTeamIds.includes(s.default_team_id) ? s.default_team_id : null,
       role_type_id: s.default_role_type_id,
     }));
     const { error: insErr } = await supabase.from("service_instance_slots").insert(rows);
