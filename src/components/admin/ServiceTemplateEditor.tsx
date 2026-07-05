@@ -410,7 +410,7 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
                   })}
                   {slots.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      <td colSpan={8} className="px-3 py-6 text-center text-sm text-muted-foreground">
                         No slots yet. Add one below.
                       </td>
                     </tr>
