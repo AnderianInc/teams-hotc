@@ -162,7 +162,7 @@ export default function CheckIn() {
           <div className="space-y-4">
             {user && (
               <button
-                onClick={() => handleCheckIn(user.id)}
+                onClick={() => handleCheckIn(user.id, "volunteer")}
                 className="w-full rounded-xl border-2 border-primary bg-primary/5 p-6 text-left hover:bg-primary/10 transition-all active:scale-[0.98]"
               >
                 <div className="flex items-center gap-4">
