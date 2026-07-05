@@ -215,6 +215,15 @@ export async function generateServiceFromTemplate(
     }
   }
 
+  let allowedTeamIds: string[] = [];
+  if (rosterEventId) {
+    const { data: links } = await supabase
+      .from("roster_event_teams")
+      .select("team_id")
+      .eq("event_id", rosterEventId);
+    allowedTeamIds = (links || []).map((link: any) => link.team_id).filter(Boolean);
+  }
+
   const { data: instance, error: iErr } = await supabase
     .from("service_instances")
     .insert({
@@ -237,6 +246,7 @@ export async function generateServiceFromTemplate(
       duration_minutes: s.duration_minutes,
       notes: s.notes,
       team_id: s.default_team_id,
+      team_id: !allowedTeamIds.length || allowedTeamIds.includes(s.default_team_id) ? s.default_team_id : null,
       role_type_id: s.default_role_type_id,
     }));
     const { error: insErr } = await supabase.from("service_instance_slots").insert(rows);

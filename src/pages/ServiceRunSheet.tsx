@@ -264,7 +264,7 @@ export default function ServiceRunSheet() {
                             slot={slot}
                             rosterEventId={instance.roster_event_id}
                             serviceDate={instance.service_date}
-                            allowedTeamIds={slot.team_id ? [slot.team_id] : allowedTeamIds}
+                            allowedTeamIds={slot.team_id && (!allowedTeamIds.length || allowedTeamIds.includes(slot.team_id)) ? [slot.team_id] : allowedTeamIds}
                           />
                           <div className="flex flex-col gap-0.5">
                             <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, -1)} disabled={idx === 0}>
