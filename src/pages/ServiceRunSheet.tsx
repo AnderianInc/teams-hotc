@@ -212,14 +212,20 @@ export default function ServiceRunSheet() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const togglePublish = useMutation({
-    mutationFn: async () => {
+  const publish = useMutation({
+    mutationFn: async (nextStatus: "published" | "draft") => {
       if (!instance) return;
-      const next = instance.status === "published" ? "draft" : "published";
-      const { error } = await supabase.from("service_instances").update({ status: next }).eq("id", instance.id);
+      const patch: { status: string; published_at?: string | null } = { status: nextStatus };
+      if (nextStatus === "published") {
+        patch.published_at = new Date().toISOString();
+      }
+      const { error } = await supabase.from("service_instances").update(patch).eq("id", instance.id);
       if (error) throw error;
     },
-    onSuccess: () => invalidate(instanceId),
+    onSuccess: (_d, nextStatus) => {
+      invalidate(instanceId);
+      toast.success(nextStatus === "published" ? "Order of service published" : "Order of service unpublished");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
