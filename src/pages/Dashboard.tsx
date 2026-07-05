@@ -113,14 +113,15 @@ export default function Dashboard() {
     }
   };
 
-  // My upcoming roster assignments (next 30 days)
+  // My upcoming roster assignments (next 30 days) — includes both roster_entries and service slot assignments
   const { data: upcomingAssignments } = useQuery({
     queryKey: ["my-upcoming-assignments", userId],
     queryFn: async () => {
       if (!userId) return [];
       const today = format(new Date(), "yyyy-MM-dd");
       const until = format(addDays(new Date(), 30), "yyyy-MM-dd");
-      const { data, error } = await supabase
+
+      const rosterQ = supabase
         .from("roster_entries")
         .select("id, scheduled_date, role_description, response_status, decline_reason, team_id, teams(name)")
         .eq("user_id", userId)
@@ -128,9 +129,53 @@ export default function Dashboard() {
         .lte("scheduled_date", until)
         .or("response_status.is.null,response_status.eq.pending")
         .order("scheduled_date")
-        .limit(10);
-      if (error) throw error;
-      return data || [];
+        .limit(20);
+
+      const profileQ = supabase.from("profiles").select("id").eq("user_id", userId).maybeSingle();
+
+      const [{ data: rosterData, error: rosterErr }, { data: profileRow }] = await Promise.all([rosterQ, profileQ]);
+      if (rosterErr) throw rosterErr;
+
+      const roster = (rosterData || []).map((r: any) => ({
+        ...r,
+        source: "roster" as const,
+      }));
+
+      let slotAssignments: any[] = [];
+      if (profileRow?.id) {
+        const { data: slotData } = await supabase
+          .from("service_slot_assignments")
+          .select("id, role_label, roster_entry_id, service_instance_slots!inner(id, title, team_id, teams(name), service_instances!inner(id, title, service_date, status))")
+          .eq("profile_id", profileRow.id);
+        slotAssignments = (slotData || [])
+          .filter((s: any) => {
+            const inst = s.service_instance_slots?.service_instances;
+            return inst && inst.service_date >= today && inst.service_date <= until;
+          })
+          // avoid double-counting: skip if it already has a matching roster_entry we already listed
+          .filter((s: any) => !s.roster_entry_id || !roster.some((r: any) => r.id === s.roster_entry_id))
+          .map((s: any) => {
+            const slot = s.service_instance_slots;
+            const inst = slot.service_instances;
+            return {
+              id: `slot-${s.id}`,
+              scheduled_date: inst.service_date,
+              role_description: s.role_label || slot.title,
+              response_status: null,
+              decline_reason: null,
+              team_id: slot.team_id,
+              teams: slot.teams,
+              source: "slot" as const,
+              instance_id: inst.id,
+              instance_title: inst.title,
+            };
+          });
+      }
+
+      const combined = [...roster, ...slotAssignments].sort((a, b) =>
+        a.scheduled_date.localeCompare(b.scheduled_date),
+      );
+      return combined.slice(0, 10);
     },
     enabled: !!userId,
   });
@@ -309,23 +354,34 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 ml-auto">
-                  {a.response_status !== "accepted" && (
+                  {a.source === "slot" ? (
                     <Button
                       size="sm" variant="outline" className="h-7 text-xs"
-                      disabled={responding === a.id}
-                      onClick={() => respondToAssignment(a, "accepted")}
+                      onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${a.instance_id}`)}
                     >
-                      <Check className="h-3 w-3 mr-1" /> Accept
+                      View
                     </Button>
-                  )}
-                  {a.response_status !== "declined" && (
-                    <Button
-                      size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
-                      disabled={responding === a.id}
-                      onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
-                    >
-                      <X className="h-3 w-3 mr-1" /> Decline
-                    </Button>
+                  ) : (
+                    <>
+                      {a.response_status !== "accepted" && (
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs"
+                          disabled={responding === a.id}
+                          onClick={() => respondToAssignment(a, "accepted")}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Accept
+                        </Button>
+                      )}
+                      {a.response_status !== "declined" && (
+                        <Button
+                          size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
+                          disabled={responding === a.id}
+                          onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
+                        >
+                          <X className="h-3 w-3 mr-1" /> Decline
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
