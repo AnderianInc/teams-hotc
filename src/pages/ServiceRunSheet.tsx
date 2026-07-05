@@ -390,7 +390,6 @@ export default function ServiceRunSheet() {
               const slotAssignments = assignments.filter((a) => a.slot_id === slot.id);
               const isSong = !!slot.is_song_slot;
               const canEditSongs = !isPrint && isSong && (canEdit || (!!slot.team_id && myTeamIds.includes(slot.team_id)));
-              const showSongsRow = isSong && (canEditSongs || (slot.songs || []).filter(Boolean).length > 0);
               return (
                 <React.Fragment key={slot.id}>
                   <tr className="border-t align-middle">
