@@ -154,6 +154,49 @@ export async function tryRestoreBridge(): Promise<PrinterStatus | null> {
   try { return await connectBridge(saved); } catch { return null; }
 }
 
+/**
+ * Auto-discover a print bridge on the LAN without any user input.
+ *
+ * Real DNS-SD service browsing isn't exposed to web pages, but every modern
+ * OS (iOS, macOS, Windows 10+, most Android) resolves `.local` hostnames
+ * via mDNS. The bridge advertises itself as `hotc-print-bridge.local`, so
+ * we just probe that (and a couple of common fallbacks) in parallel and
+ * connect to the first one that answers.
+ */
+const DISCOVERY_CANDIDATES = [
+  "https://hotc-print-bridge.local:9443",
+  "https://print-bridge.local:9443",
+  "http://hotc-print-bridge.local:9999",
+];
+
+export async function discoverBridge(
+  extraCandidates: string[] = [],
+  timeoutMs = 1500,
+): Promise<string | null> {
+  const candidates = [...new Set([...extraCandidates, ...DISCOVERY_CANDIDATES])];
+  const probe = (url: string) =>
+    new Promise<string | null>((resolve) => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      fetch(`${url}/status`, { method: "GET", signal: ctrl.signal })
+        .then((r) => resolve(r.ok ? url : null))
+        .catch(() => resolve(null))
+        .finally(() => clearTimeout(timer));
+    });
+  const results = await Promise.all(candidates.map(probe));
+  return results.find((u) => u) || null;
+}
+
+/** Try saved bridge first, then auto-discover. Used on app load. */
+export async function tryAutoConnectBridge(): Promise<PrinterStatus | null> {
+  const restored = await tryRestoreBridge();
+  if (restored) return restored;
+  const found = await discoverBridge();
+  if (!found) return null;
+  try { return await connectBridge(found); } catch { return null; }
+}
+
+
 export async function disconnectPrinter(): Promise<void> {
   if (currentConnection) {
     await currentConnection.disconnect();
