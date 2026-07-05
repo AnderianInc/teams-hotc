@@ -85,7 +85,9 @@ const App = () => (
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/org-chart" element={<OrgChart />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
-              <Route path="/team/:slug" element={<TeamDashboard />} />
+              <Route path="/order-of-service" element={<OrderOfServiceView />} />
+              <Route path="/order-of-service/:instanceId" element={<ServiceRunSheet />} />
+
               <Route
                 path="/admin"
                 element={
