@@ -1317,6 +1317,7 @@ export type Database = {
           notes: string | null
           order_index: number
           role_type_id: string | null
+          songs: string[]
           team_id: string | null
           title: string
           updated_at: string
@@ -1329,6 +1330,7 @@ export type Database = {
           notes?: string | null
           order_index?: number
           role_type_id?: string | null
+          songs?: string[]
           team_id?: string | null
           title: string
           updated_at?: string
@@ -1341,6 +1343,7 @@ export type Database = {
           notes?: string | null
           order_index?: number
           role_type_id?: string | null
+          songs?: string[]
           team_id?: string | null
           title?: string
           updated_at?: string
@@ -1507,6 +1510,7 @@ export type Database = {
           id: string
           notes: string | null
           order_index: number
+          songs: string[]
           template_id: string
           title: string
           updated_at: string
@@ -1520,6 +1524,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_index?: number
+          songs?: string[]
           template_id: string
           title: string
           updated_at?: string
@@ -1533,6 +1538,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_index?: number
+          songs?: string[]
           template_id?: string
           title?: string
           updated_at?: string
@@ -2093,6 +2099,28 @@ export type Database = {
           source_id: string
           tags: string[]
         }[]
+      }
+      update_service_slot_songs: {
+        Args: { _slot_id: string; _songs: string[] }
+        Returns: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          instance_id: string
+          notes: string | null
+          order_index: number
+          role_type_id: string | null
+          songs: string[]
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "service_instance_slots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

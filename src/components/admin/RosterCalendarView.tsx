@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
-import { generateServiceFromTemplate } from "@/hooks/useOrderOfService";
+import { generateServiceFromTemplate, useTemplates } from "@/hooks/useOrderOfService";
 
 interface RosterCalendarViewProps {
   teamId?: string;
@@ -25,6 +26,7 @@ interface RosterCalendarViewProps {
 const NO_ROLE_VALUE = "__no_role__";
 
 export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -83,19 +85,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     },
   });
 
-  const { data: templates = [] } = useQuery({
-    queryKey: ["service-templates-for-schedule-run-sheet"],
-    enabled: canManageMasterSchedule,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("service_templates")
-        .select("id, name, default_start_time")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  const { data: templates = [] } = useTemplates();
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["roster-events-calendar", filterTeamId, teamId, format(monthStart, "yyyy-MM")],
@@ -443,7 +433,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
       setRunSheetTemplateId("");
       setRunSheetEvent(null);
       invalidateAll();
-      window.location.href = `/admin/order-of-service/${instance.id}`;
+      navigate(`/admin/order-of-service/${instance.id}`);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -508,7 +498,6 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   function openRunSheetCreate(event: any) {
     setRunSheetEvent(event);
     setRunSheetTemplateId("");
-    setDayDetailOpen(false);
     setRunSheetOpen(true);
   }
 
@@ -639,7 +628,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                       <div className="flex gap-1 shrink-0">
                         {teamId && canAssignForTeam && <Button size="sm" variant="outline" onClick={() => openAssign(event, teamId)}><UserPlus className="h-4 w-4 mr-1" /> Assign</Button>}
                         {!teamId && <Button size="sm" variant="outline" onClick={() => openAssign(event)}><UserPlus className="h-4 w-4 mr-1" /> Assign</Button>}
-                        {visibleRunSheet && <Button size="sm" variant="outline" onClick={() => window.location.href = `${isAdmin ? "/admin" : ""}/order-of-service/${visibleRunSheet.id}`}><ClipboardList className="h-4 w-4 mr-1" /> Run sheet</Button>}
+                        {visibleRunSheet && <Button size="sm" variant="outline" onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${visibleRunSheet.id}`)}><ClipboardList className="h-4 w-4 mr-1" /> Run sheet</Button>}
                         {!runSheet && canManageMasterSchedule && <Button size="sm" variant="outline" onClick={() => openRunSheetCreate(event)}><ClipboardList className="h-4 w-4 mr-1" /> Create run sheet</Button>}
                         {canManageMasterSchedule && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(event)}><Pencil className="h-4 w-4" /></Button>}
                         {canManageMasterSchedule && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => deleteEvent.mutate(event.id)}><Trash2 className="h-4 w-4" /></Button>}

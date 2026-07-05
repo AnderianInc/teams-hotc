@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, CalendarPlus, ChevronRight, Trash2, ListOrdered, CalendarDays } from "lucide-react";
-import { useTemplates, useInstances, generateServiceFromTemplate, useInvalidateOoS, type ServiceTemplate } from "@/hooks/useOrderOfService";
+import { deleteServiceInstance, useTemplates, useInstances, generateServiceFromTemplate, useInvalidateOoS, type ServiceTemplate } from "@/hooks/useOrderOfService";
 import ServiceTemplateEditor from "./ServiceTemplateEditor";
 
 export default function OrderOfServicePanel() {
@@ -82,6 +82,15 @@ export default function OrderOfServicePanel() {
     onSuccess: () => {
       invalidate();
       toast.success("Template deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteService = useMutation({
+    mutationFn: async (id: string) => deleteServiceInstance(id),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Service deleted");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -163,6 +172,18 @@ export default function OrderOfServicePanel() {
                       <Badge variant={inst.status === "published" ? "default" : "secondary"}>
                         {inst.status}
                       </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (confirm(`Delete "${inst.title}"? You can create a fresh run sheet from the template afterward.`)) {
+                            deleteService.mutate(inst.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </CardContent>

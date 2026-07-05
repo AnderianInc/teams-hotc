@@ -21,6 +21,7 @@ export interface TemplateSlot {
   default_team_id: string | null;
   default_role_type_id: string | null;
   default_profile_ids: string[];
+  songs: string[];
 }
 
 export interface ServiceInstance {
@@ -44,6 +45,7 @@ export interface InstanceSlot {
   notes: string | null;
   team_id: string | null;
   role_type_id: string | null;
+  songs: string[];
 }
 
 export interface SlotAssignment {
@@ -248,6 +250,7 @@ export async function generateServiceFromTemplate(
       notes: s.notes,
       team_id: !allowedTeamIds.length || allowedTeamIds.includes(s.default_team_id) ? s.default_team_id : null,
       role_type_id: s.default_role_type_id,
+      songs: s.songs || [],
     }));
     const { data: createdSlots, error: insErr } = await supabase
       .from("service_instance_slots")
@@ -256,11 +259,31 @@ export async function generateServiceFromTemplate(
     if (insErr) throw insErr;
 
     // Seed default assignments from template defaults
+    const rawDefaultIds = Array.from(
+      new Set(
+        (tSlots || [])
+          .flatMap((s: any) => s.default_profile_ids || [])
+          .filter(Boolean),
+      ),
+    );
+    const profileIdByInput = new Map<string, string>();
+    if (rawDefaultIds.length) {
+      const [{ data: profilesById }, { data: profilesByUserId }] = await Promise.all([
+        supabase.from("profiles").select("id, user_id").in("id", rawDefaultIds),
+        supabase.from("profiles").select("id, user_id").in("user_id", rawDefaultIds),
+      ]);
+      (profilesById || []).forEach((profile: any) => profileIdByInput.set(profile.id, profile.id));
+      (profilesByUserId || []).forEach((profile: any) => {
+        if (profile.user_id) profileIdByInput.set(profile.user_id, profile.id);
+      });
+    }
+
     const assignmentRows: any[] = [];
     (createdSlots || []).forEach((cs: any) => {
       const tmpl: any = tSlots.find((s: any) => s.order_index === cs.order_index);
-      const ids: string[] = tmpl?.default_profile_ids || [];
-      ids.forEach((profileId: string) => {
+      const ids = Array.from(new Set((tmpl?.default_profile_ids || []) as string[]));
+      ids.forEach((inputId: string) => {
+        const profileId = profileIdByInput.get(inputId) || inputId;
         assignmentRows.push({
           slot_id: cs.id,
           assignee_type: "profile",
@@ -275,4 +298,35 @@ export async function generateServiceFromTemplate(
   }
 
   return instance as ServiceInstance;
+}
+
+export async function deleteServiceInstance(instanceId: string) {
+  const { data: slotRows, error: slotErr } = await supabase
+    .from("service_instance_slots")
+    .select("id")
+    .eq("instance_id", instanceId);
+  if (slotErr) throw slotErr;
+
+  const slotIds = (slotRows || []).map((slot: any) => slot.id).filter(Boolean);
+  if (slotIds.length) {
+    const { data: assignmentRows, error: assignmentErr } = await supabase
+      .from("service_slot_assignments")
+      .select("roster_entry_id")
+      .in("slot_id", slotIds);
+    if (assignmentErr) throw assignmentErr;
+
+    const rosterEntryIds = Array.from(
+      new Set((assignmentRows || []).map((row: any) => row.roster_entry_id).filter(Boolean)),
+    );
+    if (rosterEntryIds.length) {
+      const { error: rosterErr } = await supabase
+        .from("roster_entries")
+        .delete()
+        .in("id", rosterEntryIds);
+      if (rosterErr) throw rosterErr;
+    }
+  }
+
+  const { error } = await supabase.from("service_instances").delete().eq("id", instanceId);
+  if (error) throw error;
 }
