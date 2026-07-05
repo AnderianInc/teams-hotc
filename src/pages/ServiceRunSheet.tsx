@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ArrowLeft, Plus, Printer, Trash2, ArrowUp, ArrowDown, Clock, X,
   Music,
@@ -31,7 +32,7 @@ function addMinutes(hhmm: string, minutes: number): string {
   return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
 }
 
-function SongEditor({
+function SongListPopover({
   songs,
   canEdit,
   onChange,
@@ -41,6 +42,7 @@ function SongEditor({
   onChange: (songs: string[]) => void;
 }) {
   const [songTitle, setSongTitle] = useState("");
+  const [open, setOpen] = useState(false);
   const cleanSongs = (songs || []).filter(Boolean);
 
   const addSong = () => {
@@ -52,54 +54,72 @@ function SongEditor({
 
   if (!canEdit && cleanSongs.length === 0) return null;
 
-  return (
-    <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Music className="h-4 w-4" /> Songs
-      </div>
-      {cleanSongs.length > 0 && (
-        <div className="space-y-1">
-          {cleanSongs.map((song, songIdx) => (
-            <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
-              {canEdit ? (
-                <>
-                  <Input
-                    className="h-8"
-                    value={song}
-                    onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
-                    onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
-                  />
-                  <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <p className="text-sm">{song}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      {canEdit && (
-        <div className="flex gap-2">
-          <Input
-            className="h-8"
-            placeholder="Song title"
-            value={songTitle}
-            onChange={(event) => setSongTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addSong();
-              }
-            }}
-          />
-          <Button size="sm" variant="outline" onClick={addSong} disabled={!songTitle.trim()}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
-        </div>
-      )}
+  const summary = cleanSongs.length ? cleanSongs.join(" · ") : canEdit ? "Add songs" : "";
+
+  const trigger = (
+    <div className="flex items-center gap-1 mt-0.5 max-w-[220px]">
+      <Music className="h-3 w-3 shrink-0 text-muted-foreground" />
+      <span className="text-xs text-muted-foreground truncate">
+        {summary}
+      </span>
     </div>
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        {canEdit ? (
+          <button className="text-left hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+            {trigger}
+          </button>
+        ) : (
+          <div>{trigger}</div>
+        )}
+      </PopoverTrigger>
+      {canEdit && (
+        <PopoverContent className="w-72 p-3" align="start">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Music className="h-4 w-4" /> Songs
+            </div>
+            {cleanSongs.length > 0 && (
+              <div className="space-y-1">
+                {cleanSongs.map((song, songIdx) => (
+                  <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
+                    <Input
+                      className="h-8 flex-1"
+                      value={song}
+                      onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
+                      onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
+                    />
+                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                className="h-8"
+                placeholder="Song title"
+                value={songTitle}
+                onChange={(event) => setSongTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addSong();
+                  }
+                }}
+              />
+              <Button size="sm" variant="outline" onClick={addSong} disabled={!songTitle.trim()}>
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      )}
+    </Popover>
   );
 }
 
@@ -370,7 +390,6 @@ export default function ServiceRunSheet() {
               const slotAssignments = assignments.filter((a) => a.slot_id === slot.id);
               const isSong = !!slot.is_song_slot;
               const canEditSongs = !isPrint && isSong && (canEdit || (!!slot.team_id && myTeamIds.includes(slot.team_id)));
-              const showSongsRow = isSong && (canEditSongs || (slot.songs || []).filter(Boolean).length > 0);
               return (
                 <React.Fragment key={slot.id}>
                   <tr className="border-t align-middle">
@@ -392,13 +411,27 @@ export default function ServiceRunSheet() {
                     </td>
                     <td className="px-2 py-1">
                       {canEdit ? (
-                        <Input
-                          className="h-8"
-                          defaultValue={slot.title}
-                          onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
-                        />
+                        <div className="space-y-1">
+                          <Input
+                            className="h-8"
+                            defaultValue={slot.title}
+                            onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
+                          />
+                          <SongListPopover
+                            songs={slot.songs || []}
+                            canEdit={canEditSongs}
+                            onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                          />
+                        </div>
                       ) : (
-                        <span className="font-medium">{slot.title}</span>
+                        <div className="space-y-0.5">
+                          <span className="font-medium">{slot.title}</span>
+                          <SongListPopover
+                            songs={slot.songs || []}
+                            canEdit={canEditSongs}
+                            onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                          />
+                        </div>
                       )}
                     </td>
                     {canEdit && (
@@ -483,19 +516,6 @@ export default function ServiceRunSheet() {
                       </td>
                     )}
                   </tr>
-                  {showSongsRow && (
-                    <tr className="bg-muted/10">
-                      {canEdit && <td></td>}
-                      <td></td>
-                      <td colSpan={canEdit ? 6 : 3} className="px-2 pb-2">
-                        <SongEditor
-                          songs={slot.songs || []}
-                          canEdit={canEditSongs}
-                          onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
-                        />
-                      </td>
-                    </tr>
-                  )}
                 </React.Fragment>
               );
             })}
