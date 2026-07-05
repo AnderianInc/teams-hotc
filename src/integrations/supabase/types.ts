@@ -1308,6 +1308,292 @@ export type Database = {
           },
         ]
       }
+      service_instance_slots: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          instance_id: string
+          notes: string | null
+          order_index: number
+          role_type_id: string | null
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          instance_id: string
+          notes?: string | null
+          order_index?: number
+          role_type_id?: string | null
+          team_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          instance_id?: string
+          notes?: string | null
+          order_index?: number
+          role_type_id?: string | null
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_instance_slots_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "service_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_instance_slots_role_type_id_fkey"
+            columns: ["role_type_id"]
+            isOneToOne: false
+            referencedRelation: "team_role_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_instance_slots_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_instances: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          roster_event_id: string | null
+          service_date: string
+          start_time: string | null
+          status: string
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          roster_event_id?: string | null
+          service_date: string
+          start_time?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          roster_event_id?: string | null
+          service_date?: string
+          start_time?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_instances_roster_event_id_fkey"
+            columns: ["roster_event_id"]
+            isOneToOne: false
+            referencedRelation: "roster_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "service_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_slot_assignments: {
+        Row: {
+          assignee_type: string
+          attendee_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          profile_id: string | null
+          role_label: string | null
+          roster_entry_id: string | null
+          slot_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_type: string
+          attendee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          profile_id?: string | null
+          role_label?: string | null
+          roster_entry_id?: string | null
+          slot_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_type?: string
+          attendee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          profile_id?: string | null
+          role_label?: string | null
+          roster_entry_id?: string | null
+          slot_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_slot_assignments_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_slot_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_slot_assignments_roster_entry_id_fkey"
+            columns: ["roster_entry_id"]
+            isOneToOne: false
+            referencedRelation: "roster_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_slot_assignments_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "service_instance_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_template_slots: {
+        Row: {
+          created_at: string
+          default_role_type_id: string | null
+          default_team_id: string | null
+          duration_minutes: number
+          id: string
+          notes: string | null
+          order_index: number
+          template_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_role_type_id?: string | null
+          default_team_id?: string | null
+          duration_minutes?: number
+          id?: string
+          notes?: string | null
+          order_index?: number
+          template_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_role_type_id?: string | null
+          default_team_id?: string | null
+          duration_minutes?: number
+          id?: string
+          notes?: string | null
+          order_index?: number
+          template_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_template_slots_default_role_type_id_fkey"
+            columns: ["default_role_type_id"]
+            isOneToOne: false
+            referencedRelation: "team_role_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_template_slots_default_team_id_fkey"
+            columns: ["default_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_template_slots_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "service_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_duration_minutes: number | null
+          default_start_time: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_duration_minutes?: number | null
+          default_start_time?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_duration_minutes?: number | null
+          default_start_time?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           created_at: string
