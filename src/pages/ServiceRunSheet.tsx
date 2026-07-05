@@ -208,7 +208,7 @@ export default function ServiceRunSheet() {
                   </div>
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {isPrint ? (
+                      {!canEdit ? (
                         <span className="font-medium">{slot.title}</span>
                       ) : (
                         <Input
@@ -217,7 +217,7 @@ export default function ServiceRunSheet() {
                           onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
                         />
                       )}
-                      {!isPrint && (
+                      {canEdit && (
                         <>
                           <Input
                             type="number"
