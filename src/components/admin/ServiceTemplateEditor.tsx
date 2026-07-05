@@ -133,11 +133,6 @@ function MemberPicker({
   );
 }
 
-function isWorshipSlot(slot: TemplateSlot, teams: { id: string; name: string; slug?: string | null }[]) {
-  const team = teams.find((item) => item.id === slot.default_team_id);
-  const haystack = `${slot.title} ${team?.name || ""} ${team?.slug || ""}`.toLowerCase();
-  return haystack.includes("worship");
-}
 
 function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: string[]) => void }) {
   const [songTitle, setSongTitle] = useState("");
@@ -323,12 +318,13 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
                     <th className="w-16 px-2 py-2 text-left font-medium">Min</th>
                     <th className="w-[150px] px-2 py-2 text-left font-medium">Team</th>
                     <th className="w-[170px] px-2 py-2 text-left font-medium">Members</th>
+                    <th className="w-14 px-2 py-2 text-center font-medium">Songs</th>
                     <th className="w-10 px-2 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {slots.map((slot, idx) => {
-                    const worship = isWorshipSlot(slot, teams);
+                    const isSong = !!slot.is_song_slot;
                     return (
                       <React.Fragment key={slot.id}>
                         <tr className="border-t">
@@ -385,16 +381,23 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
                               onChange={(ids) => updateSlot.mutate({ id: slot.id, default_profile_ids: ids as any })}
                             />
                           </td>
+                          <td className="px-2 py-1 text-center align-middle">
+                            <Checkbox
+                              checked={isSong}
+                              onCheckedChange={(v) => updateSlot.mutate({ id: slot.id, is_song_slot: !!v as any })}
+                              aria-label="Mark as song slot"
+                            />
+                          </td>
                           <td className="px-1 py-1 align-middle">
                             <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => deleteSlot.mutate(slot.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </td>
                         </tr>
-                        {worship && (
+                        {isSong && (
                           <tr className="bg-muted/10">
                             <td></td>
-                            <td colSpan={6} className="px-2 pb-2">
+                            <td colSpan={7} className="px-2 pb-2">
                               <SongEditor
                                 songs={slot.songs || []}
                                 onChange={(songs) => updateSlot.mutate({ id: slot.id, songs: songs as any })}
@@ -407,7 +410,7 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
                   })}
                   {slots.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      <td colSpan={8} className="px-3 py-6 text-center text-sm text-muted-foreground">
                         No slots yet. Add one below.
                       </td>
                     </tr>

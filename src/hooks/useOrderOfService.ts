@@ -22,6 +22,7 @@ export interface TemplateSlot {
   default_role_type_id: string | null;
   default_profile_ids: string[];
   songs: string[];
+  is_song_slot: boolean;
 }
 
 export interface ServiceInstance {
@@ -46,6 +47,7 @@ export interface InstanceSlot {
   team_id: string | null;
   role_type_id: string | null;
   songs: string[];
+  is_song_slot: boolean;
 }
 
 export interface SlotAssignment {
@@ -251,6 +253,7 @@ export async function generateServiceFromTemplate(
       team_id: !allowedTeamIds.length || allowedTeamIds.includes(s.default_team_id) ? s.default_team_id : null,
       role_type_id: s.default_role_type_id,
       songs: s.songs || [],
+      is_song_slot: !!s.is_song_slot,
     }));
     const { data: createdSlots, error: insErr } = await supabase
       .from("service_instance_slots")
