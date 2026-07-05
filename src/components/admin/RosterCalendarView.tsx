@@ -43,7 +43,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignEvent, setAssignEvent] = useState<any>(null);
   const [assignTeamId, setAssignTeamId] = useState(teamId || "");
-  const [assignUserId, setAssignUserId] = useState("");
+  const [assignUserIds, setAssignUserIds] = useState<string[]>([]);
   const [assignRole, setAssignRole] = useState("");
 
   const [editAssignment, setEditAssignment] = useState<any>(null);
@@ -331,24 +331,28 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
 
   const assignVolunteer = useMutation({
     mutationFn: async () => {
-      if (!assignEvent || !assignTeamId || !assignUserId) throw new Error("Choose a service, team, and member");
+      if (!assignEvent || !assignTeamId || assignUserIds.length === 0) throw new Error("Choose a service, team, and at least one member");
       if (teamId && assignTeamId !== teamId) throw new Error("Team leaders can only assign their own team");
       if (teamId && !canAssignForTeam) throw new Error("Only team leaders can assign members");
 
-      const member = (members as any[]).find((item) => item.user_id === assignUserId);
-      await assertUserAvailableForRoster(
-        assignUserId,
-        assignEvent.event_date,
-        member?.profiles?.full_name || "This volunteer",
-      );
+      for (const userId of assignUserIds) {
+        const member = (members as any[]).find((item) => item.user_id === userId);
+        await assertUserAvailableForRoster(
+          userId,
+          assignEvent.event_date,
+          member?.profiles?.full_name || "This volunteer",
+        );
+      }
 
-      const { error } = await supabase.from("roster_entries").insert({
-        team_id: assignTeamId,
-        user_id: assignUserId,
-        scheduled_date: assignEvent.event_date,
-        role_description: assignRole || null,
-        event_id: assignEvent.id,
-      });
+      const { error } = await supabase.from("roster_entries").insert(
+        assignUserIds.map((userId) => ({
+          team_id: assignTeamId,
+          user_id: userId,
+          scheduled_date: assignEvent.event_date,
+          role_description: assignRole || null,
+          event_id: assignEvent.id,
+        }))
+      );
       if (error) throw error;
 
       try {
@@ -356,23 +360,25 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
         const dateStr = new Date(assignEvent.event_date + "T00:00:00").toLocaleDateString("en-US", {
           weekday: "long", month: "long", day: "numeric",
         });
-        await supabase.functions.invoke("notify", {
-          body: {
-            recipient_id: assignUserId,
-            type: "roster_assigned",
-            title: `You've been assigned: ${assignEvent.name}`,
-            body: `${teamName} · ${dateStr}${assignRole ? ` · ${assignRole}` : ""}`,
-            url: "/dashboard",
-          },
-        });
+        await Promise.all(assignUserIds.map((userId) =>
+          supabase.functions.invoke("notify", {
+            body: {
+              recipient_id: userId,
+              type: "roster_assigned",
+              title: `You've been assigned: ${assignEvent.name}`,
+              body: `${teamName} · ${dateStr}${assignRole ? ` · ${assignRole}` : ""}`,
+              url: "/dashboard",
+            },
+          })
+        ));
       } catch (error) {
         console.error("Notification failed", error);
       }
     },
     onSuccess: () => {
-      toast.success("Member assigned");
+      toast.success("Members assigned");
       setAssignOpen(false);
-      setAssignUserId("");
+      setAssignUserIds([]);
       setAssignRole("");
       invalidateAll();
     },
@@ -487,9 +493,8 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   function openAssign(event: any, defaultTeamId?: string) {
     setAssignEvent(event);
     setAssignTeamId(teamId || defaultTeamId || "");
-    setAssignUserId("");
+    setAssignUserIds([]);
     setAssignRole("");
-    setDayDetailOpen(false);
     setAssignOpen(true);
   }
 
@@ -627,7 +632,6 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                         <CardTitle className="text-base">{event.name}</CardTitle>
                         <div className="flex flex-wrap items-center gap-1 mt-2">
                           <Badge variant="outline">{event.event_time?.slice(0, 5) || "No time"}</Badge>
-                          {links.map((link: any) => <Badge key={link.team_id} variant="secondary">{link.teams?.name || "Team"}</Badge>)}
                           <Badge variant="outline">{eventAssignments.length} assigned</Badge>
                         </div>
                         {event.description && <p className="text-sm text-muted-foreground mt-2">{event.description}</p>}
@@ -727,7 +731,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
           <form onSubmit={(event) => { event.preventDefault(); assignVolunteer.mutate(); }} className="space-y-4">
             <div className="space-y-1">
               <Label>Team</Label>
-              <Select value={assignTeamId} onValueChange={(value) => { setAssignTeamId(value); setAssignUserId(""); setAssignRole(""); }} disabled={!!teamId}>
+              <Select value={assignTeamId} onValueChange={(value) => { setAssignTeamId(value); setAssignUserIds([]); setAssignRole(""); }} disabled={!!teamId}>
                 <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
                 <SelectContent>
                   {(assignEvent ? eventTeamsByEvent.get(assignEvent.id) || [] : []).map((link: any) => (
@@ -737,18 +741,33 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Team member</Label>
-              <Select value={assignUserId} onValueChange={setAssignUserId} disabled={!assignTeamId}>
-                <SelectTrigger><SelectValue placeholder={assignTeamId ? "Select member" : "Select a team first"} /></SelectTrigger>
-                <SelectContent>
-                  {(members as any[]).map((member) => (
-                    <SelectItem key={member.user_id} value={member.user_id}>{member.profiles?.full_name || "Unknown"}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label>Team members</Label>
+                <span className="text-xs text-muted-foreground">{assignUserIds.length} selected</span>
+              </div>
+              {!assignTeamId ? (
+                <p className="text-sm text-muted-foreground border rounded-md p-3">Select a team first</p>
+              ) : (members as any[]).length === 0 ? (
+                <p className="text-sm text-muted-foreground border rounded-md p-3">No members in this team.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-[220px] overflow-y-auto border rounded-md p-2">
+                  {(members as any[]).map((member) => {
+                    const checked = assignUserIds.includes(member.user_id);
+                    return (
+                      <label key={member.user_id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-1">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => setAssignUserIds((current) => checked ? current.filter((id) => id !== member.user_id) : [...current, member.user_id])}
+                        />
+                        {member.profiles?.full_name || member.profiles?.email || "Unknown"}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
-              <Label>Role / position</Label>
+              <Label>Role / position (applied to all selected)</Label>
               {roleTypes.length > 0 ? (
                 <Select value={assignRole || NO_ROLE_VALUE} onValueChange={(value) => setAssignRole(value === NO_ROLE_VALUE ? "" : value)}>
                   <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
@@ -759,7 +778,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                 </Select>
               ) : <Input value={assignRole} onChange={(event) => setAssignRole(event.target.value)} placeholder="e.g. Lead vocal, Sound board" />}
             </div>
-            <Button type="submit" className="w-full" disabled={assignVolunteer.isPending || !assignUserId || !assignTeamId}>{assignVolunteer.isPending ? "Assigning…" : "Assign member"}</Button>
+            <Button type="submit" className="w-full" disabled={assignVolunteer.isPending || assignUserIds.length === 0 || !assignTeamId}>{assignVolunteer.isPending ? "Assigning…" : `Assign ${assignUserIds.length || ""} member${assignUserIds.length === 1 ? "" : "s"}`.trim()}</Button>
           </form>
         </DialogContent>
       </Dialog>
