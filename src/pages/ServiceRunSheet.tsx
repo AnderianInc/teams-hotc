@@ -160,11 +160,6 @@ export default function ServiceRunSheet() {
   const teamName = (id: string | null) => teams.find((t) => t.id === id)?.name;
   const allowedTeamIds = scheduledTeams.map((team: any) => team.team_id).filter(Boolean);
   const myTeamIds = useMemo(() => myTeams.map((item) => item.team_id).filter(Boolean), [myTeams]);
-  const isWorshipSlot = (slot: InstanceSlot) => {
-    const team = teams.find((item) => item.id === slot.team_id);
-    const haystack = `${slot.title} ${team?.name || ""} ${team?.slug || ""}`.toLowerCase();
-    return haystack.includes("worship");
-  };
 
   const addSlot = useMutation({
     mutationFn: async () => {
