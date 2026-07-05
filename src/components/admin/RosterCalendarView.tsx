@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
-import { generateServiceFromTemplate } from "@/hooks/useOrderOfService";
+import { generateServiceFromTemplate, useTemplates } from "@/hooks/useOrderOfService";
 
 interface RosterCalendarViewProps {
   teamId?: string;
@@ -85,19 +85,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     },
   });
 
-  const { data: templates = [] } = useQuery({
-    queryKey: ["service-templates-for-schedule-run-sheet"],
-    enabled: canManageMasterSchedule,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("service_templates")
-        .select("id, name, default_start_time")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  const { data: templates = [] } = useTemplates();
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["roster-events-calendar", filterTeamId, teamId, format(monthStart, "yyyy-MM")],
