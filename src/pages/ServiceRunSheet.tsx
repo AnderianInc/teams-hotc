@@ -35,6 +35,10 @@ export default function ServiceRunSheet() {
   const [searchParams] = useSearchParams();
   const isPrint = searchParams.get("print") === "1";
   const invalidate = useInvalidateOoS();
+  const { isAdmin } = useAuth();
+  const canEdit = isAdmin && !isPrint;
+  const backTo = isAdmin ? "/admin?tab=order-of-service" : "/order-of-service";
+  const printBase = isAdmin ? "/admin/order-of-service" : "/order-of-service";
 
   const { data: instance, isLoading } = useInstance(instanceId!);
   const { data: slots = [] } = useInstanceSlots(instanceId!);
