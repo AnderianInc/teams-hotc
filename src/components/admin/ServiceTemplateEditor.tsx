@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -287,7 +287,7 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit template</DialogTitle>
         </DialogHeader>
@@ -313,74 +313,107 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
                 </span>
               )}
             </div>
-            <div className="space-y-2">
-              {slots.map((slot, idx) => (
-                <Card key={slot.id}>
-                  <CardContent className="py-3 space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex flex-col gap-0.5">
-                        <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, -1)} disabled={idx === 0}>
-                          <ArrowUp className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, 1)} disabled={idx === slots.length - 1}>
-                          <ArrowDown className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      {startTime && slotTimes[idx]?.start && (
-                        <Badge variant="outline" className="font-mono text-[11px]">
-                          {slotTimes[idx].start}–{slotTimes[idx].end}
-                        </Badge>
-                      )}
-                      <Input
-                        className="flex-1 min-w-[160px]"
-                        defaultValue={slot.title}
-                        onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
-                      />
-                      <Input
-                        type="number"
-                        className="w-20"
-                        defaultValue={slot.duration_minutes}
-                        onBlur={(e) => {
-                          const n = parseInt(e.target.value, 10);
-                          if (n > 0 && n !== slot.duration_minutes) updateSlot.mutate({ id: slot.id, duration_minutes: n });
-                        }}
-                      />
-                      <span className="text-xs text-muted-foreground">min</span>
-                      <Button variant="ghost" size="sm" onClick={() => deleteSlot.mutate(slot.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap pl-8">
-                      <Select
-                        value={slot.default_team_id || "none"}
-                        onValueChange={(v) => updateSlot.mutate({ id: slot.id, default_team_id: v === "none" ? null : v, default_profile_ids: [] })}
-                      >
-                        <SelectTrigger className="w-[180px] h-9">
-                          <SelectValue placeholder="Team" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No default team</SelectItem>
-                          {teams.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <MemberPicker
-                        slot={slot}
-                        onChange={(ids) => updateSlot.mutate({ id: slot.id, default_profile_ids: ids as any })}
-                      />
-                    </div>
-                    {isWorshipSlot(slot, teams) && (
-                      <div className="pl-8">
-                        <SongEditor
-                          songs={slot.songs || []}
-                          onChange={(songs) => updateSlot.mutate({ id: slot.id, songs: songs as any })}
-                        />
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="rounded-md border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="w-10 px-2 py-2"></th>
+                    <th className="w-28 px-2 py-2 text-left font-medium">Time</th>
+                    <th className="px-2 py-2 text-left font-medium">Title</th>
+                    <th className="w-16 px-2 py-2 text-left font-medium">Min</th>
+                    <th className="w-[150px] px-2 py-2 text-left font-medium">Team</th>
+                    <th className="w-[170px] px-2 py-2 text-left font-medium">Members</th>
+                    <th className="w-10 px-2 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {slots.map((slot, idx) => {
+                    const worship = isWorshipSlot(slot, teams);
+                    return (
+                      <React.Fragment key={slot.id}>
+                        <tr className="border-t">
+                          <td className="px-1 py-1 align-middle">
+                            <div className="flex flex-col">
+                              <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, -1)} disabled={idx === 0}>
+                                <ArrowUp className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, 1)} disabled={idx === slots.length - 1}>
+                                <ArrowDown className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
+                          <td className="px-2 py-1 font-mono text-[11px] text-muted-foreground whitespace-nowrap align-middle">
+                            {startTime && slotTimes[idx]?.start ? `${slotTimes[idx].start}–${slotTimes[idx].end}` : "—"}
+                          </td>
+                          <td className="px-2 py-1 align-middle">
+                            <Input
+                              className="h-8"
+                              defaultValue={slot.title}
+                              onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
+                            />
+                          </td>
+                          <td className="px-2 py-1 align-middle">
+                            <Input
+                              type="number"
+                              className="h-8 w-14"
+                              defaultValue={slot.duration_minutes}
+                              onBlur={(e) => {
+                                const n = parseInt(e.target.value, 10);
+                                if (n > 0 && n !== slot.duration_minutes) updateSlot.mutate({ id: slot.id, duration_minutes: n });
+                              }}
+                            />
+                          </td>
+                          <td className="px-2 py-1 align-middle">
+                            <Select
+                              value={slot.default_team_id || "none"}
+                              onValueChange={(v) => updateSlot.mutate({ id: slot.id, default_team_id: v === "none" ? null : v, default_profile_ids: [] })}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Team" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {teams.map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-2 py-1 align-middle">
+                            <MemberPicker
+                              slot={slot}
+                              onChange={(ids) => updateSlot.mutate({ id: slot.id, default_profile_ids: ids as any })}
+                            />
+                          </td>
+                          <td className="px-1 py-1 align-middle">
+                            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => deleteSlot.mutate(slot.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                        {worship && (
+                          <tr className="bg-muted/10">
+                            <td></td>
+                            <td colSpan={6} className="px-2 pb-2">
+                              <SongEditor
+                                songs={slot.songs || []}
+                                onChange={(songs) => updateSlot.mutate({ id: slot.id, songs: songs as any })}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                  {slots.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
+                        No slots yet. Add one below.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
