@@ -18,12 +18,14 @@ interface SearchResult {
 }
 
 export default function CheckIn() {
+  const { user } = useAuth();
   const [type, setType] = useState<CheckInType>(null);
   const [step, setStep] = useState<Step>("select");
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [checkedInName, setCheckedInName] = useState("");
+  const selfName = user?.user_metadata?.full_name || user?.email || "";
 
   // New member registration fields
   const [firstName, setFirstName] = useState("");
