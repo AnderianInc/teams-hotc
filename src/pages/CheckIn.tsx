@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,12 +18,14 @@ interface SearchResult {
 }
 
 export default function CheckIn() {
+  const { user } = useAuth();
   const [type, setType] = useState<CheckInType>(null);
   const [step, setStep] = useState<Step>("select");
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [checkedInName, setCheckedInName] = useState("");
+  const selfName = user?.user_metadata?.full_name || user?.email || "";
 
   // New member registration fields
   const [firstName, setFirstName] = useState("");
@@ -106,11 +109,12 @@ export default function CheckIn() {
     return () => clearTimeout(timer);
   }, [search, type, step]);
 
-  const handleCheckIn = async (selectedId: string) => {
+  const handleCheckIn = async (selectedId: string, forcedType?: CheckInType) => {
+    const useType = forcedType || type;
     setStep("confirming");
     try {
       const body =
-        type === "volunteer"
+        useType === "volunteer"
           ? { type: "volunteer", user_id: selectedId }
           : { type: "member", attendee_id: selectedId };
 
@@ -126,6 +130,7 @@ export default function CheckIn() {
       setStep("search");
     }
   };
+
 
   const handleRegister = async () => {
     if (!firstName.trim() || !lastName.trim()) return;
@@ -155,6 +160,23 @@ export default function CheckIn() {
         {/* Step: Select type */}
         {step === "select" && (
           <div className="space-y-4">
+            {user && (
+              <button
+                onClick={() => handleCheckIn(user.id, "volunteer")}
+                className="w-full rounded-xl border-2 border-primary bg-primary/5 p-6 text-left hover:bg-primary/10 transition-all active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-lg text-foreground truncate">Check in as {selfName}</p>
+                    <p className="text-sm text-muted-foreground">One tap — no search needed</p>
+                  </div>
+                </div>
+              </button>
+            )}
+
             <button
               onClick={() => selectType("volunteer")}
               className="w-full rounded-xl border-2 border-primary/20 bg-card p-6 text-left hover:border-primary hover:shadow-md transition-all active:scale-[0.98]"

@@ -350,8 +350,13 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
         const dateStr = new Date(assignEvent.event_date + "T00:00:00").toLocaleDateString("en-US", {
           weekday: "long", month: "long", day: "numeric",
         });
-        await Promise.all(assignUserIds.map((userId) =>
-          supabase.functions.invoke("notify", {
+        await Promise.all(assignUserIds.map(async (userId) => {
+          const member = (members as any[]).find((m) => m.user_id === userId);
+          const memberEmail = member?.profiles?.email;
+          const memberName = member?.profiles?.full_name || "Volunteer";
+
+          // In-app + push notification
+          await supabase.functions.invoke("notify", {
             body: {
               recipient_id: userId,
               type: "roster_assigned",
@@ -359,8 +364,33 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
               body: `${teamName} · ${dateStr}${assignRole ? ` · ${assignRole}` : ""}`,
               url: "/dashboard",
             },
-          })
-        ));
+          });
+
+          // Email notification
+          if (memberEmail) {
+            await supabase.functions.invoke("send-email", {
+              body: {
+                to: memberEmail,
+                to_name: memberName,
+                subject: `You've been assigned to: ${assignEvent.name}`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #333;">Hi ${memberName},</h2>
+                    <p>You've been assigned to an upcoming event with <strong>${teamName}</strong>.</p>
+                    <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                      <p style="margin: 4px 0;"><strong>Event:</strong> ${assignEvent.name}</p>
+                      <p style="margin: 4px 0;"><strong>Date:</strong> ${dateStr}</p>
+                      ${assignRole ? `<p style="margin: 4px 0;"><strong>Role:</strong> ${assignRole}</p>` : ""}
+                    </div>
+                    <p>Please open the HOTC Teams app to accept or decline this assignment.</p>
+                    <p><a href="https://teams.hotc.life/dashboard">Open Dashboard</a></p>
+                    <p>— House of Transformation Church</p>
+                  </div>
+                `,
+              },
+            });
+          }
+        }));
       } catch (error) {
         console.error("Notification failed", error);
       }

@@ -15,6 +15,7 @@ import {
   CalendarDays, ClipboardCheck, Users, ChevronRight, CheckCircle2, Clock, Check, X,
 } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
+import { useInstances } from "@/hooks/useOrderOfService";
 
 const teamIcons: Record<string, React.ElementType> = {
   "childrens-ministry": Baby,
@@ -30,6 +31,12 @@ export default function Dashboard() {
   const { data: memberships, isLoading } = useMyTeams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: allInstances = [] } = useInstances();
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const upcomingServices = (allInstances as any[])
+    .filter((i) => (isAdmin || i.status === "published") && i.service_date >= todayStr)
+    .sort((a, b) => a.service_date.localeCompare(b.service_date))
+    .slice(0, 3);
   const [declineFor, setDeclineFor] = useState<any>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [responding, setResponding] = useState<string | null>(null);
@@ -119,6 +126,7 @@ export default function Dashboard() {
         .eq("user_id", userId)
         .gte("scheduled_date", today)
         .lte("scheduled_date", until)
+        .or("response_status.is.null,response_status.eq.pending")
         .order("scheduled_date")
         .limit(10);
       if (error) throw error;
@@ -231,6 +239,43 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Order of Service quick access */}
+      {upcomingServices.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4" /> Order of Service
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate("/order-of-service")}>
+              View all
+            </Button>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            {upcomingServices.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer hover:bg-muted/40"
+                onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${s.id}`)}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{s.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(s.service_date + "T00:00:00"), "EEE, MMM d")}
+                    {s.start_time && ` · ${s.start_time.slice(0, 5)}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isAdmin && s.status !== "published" && (
+                    <Badge variant="outline" className="text-xs capitalize">{s.status}</Badge>
+                  )}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upcoming assignments */}
       {upcomingAssignments && upcomingAssignments.length > 0 && (
