@@ -162,16 +162,18 @@ export default function ServiceRunSheet() {
     <div className={`space-y-6 ${isPrint ? "p-6" : ""}`}>
       {!isPrint && (
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/admin?tab=order-of-service")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(backTo)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to services
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.open(`/admin/order-of-service/${instance.id}?print=1`, "_blank")}>
+            <Button variant="outline" size="sm" onClick={() => window.open(`${printBase}/${instance.id}?print=1`, "_blank")}>
               <Printer className="h-4 w-4 mr-1" /> Print view
             </Button>
-            <Button size="sm" onClick={() => togglePublish.mutate()}>
-              {instance.status === "published" ? "Unpublish" : "Publish"}
-            </Button>
+            {isAdmin && (
+              <Button size="sm" onClick={() => togglePublish.mutate()}>
+                {instance.status === "published" ? "Unpublish" : "Publish"}
+              </Button>
+            )}
           </div>
         </div>
       )}
