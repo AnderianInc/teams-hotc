@@ -1314,6 +1314,7 @@ export type Database = {
           duration_minutes: number
           id: string
           instance_id: string
+          is_song_slot: boolean
           notes: string | null
           order_index: number
           role_type_id: string | null
@@ -1327,6 +1328,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instance_id: string
+          is_song_slot?: boolean
           notes?: string | null
           order_index?: number
           role_type_id?: string | null
@@ -1340,6 +1342,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instance_id?: string
+          is_song_slot?: boolean
           notes?: string | null
           order_index?: number
           role_type_id?: string | null
@@ -1508,6 +1511,7 @@ export type Database = {
           default_team_id: string | null
           duration_minutes: number
           id: string
+          is_song_slot: boolean
           notes: string | null
           order_index: number
           songs: string[]
@@ -1522,6 +1526,7 @@ export type Database = {
           default_team_id?: string | null
           duration_minutes?: number
           id?: string
+          is_song_slot?: boolean
           notes?: string | null
           order_index?: number
           songs?: string[]
@@ -1536,6 +1541,7 @@ export type Database = {
           default_team_id?: string | null
           duration_minutes?: number
           id?: string
+          is_song_slot?: boolean
           notes?: string | null
           order_index?: number
           songs?: string[]
@@ -2107,6 +2113,7 @@ export type Database = {
           duration_minutes: number
           id: string
           instance_id: string
+          is_song_slot: boolean
           notes: string | null
           order_index: number
           role_type_id: string | null
