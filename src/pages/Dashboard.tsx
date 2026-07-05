@@ -354,23 +354,34 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 ml-auto">
-                  {a.response_status !== "accepted" && (
+                  {a.source === "slot" ? (
                     <Button
                       size="sm" variant="outline" className="h-7 text-xs"
-                      disabled={responding === a.id}
-                      onClick={() => respondToAssignment(a, "accepted")}
+                      onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${a.instance_id}`)}
                     >
-                      <Check className="h-3 w-3 mr-1" /> Accept
+                      View
                     </Button>
-                  )}
-                  {a.response_status !== "declined" && (
-                    <Button
-                      size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
-                      disabled={responding === a.id}
-                      onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
-                    >
-                      <X className="h-3 w-3 mr-1" /> Decline
-                    </Button>
+                  ) : (
+                    <>
+                      {a.response_status !== "accepted" && (
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs"
+                          disabled={responding === a.id}
+                          onClick={() => respondToAssignment(a, "accepted")}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Accept
+                        </Button>
+                      )}
+                      {a.response_status !== "declined" && (
+                        <Button
+                          size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
+                          disabled={responding === a.id}
+                          onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
+                        >
+                          <X className="h-3 w-3 mr-1" /> Decline
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
