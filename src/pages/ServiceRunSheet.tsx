@@ -412,13 +412,27 @@ export default function ServiceRunSheet() {
                     </td>
                     <td className="px-2 py-1">
                       {canEdit ? (
-                        <Input
-                          className="h-8"
-                          defaultValue={slot.title}
-                          onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
-                        />
+                        <div className="space-y-1">
+                          <Input
+                            className="h-8"
+                            defaultValue={slot.title}
+                            onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
+                          />
+                          <SongListPopover
+                            songs={slot.songs || []}
+                            canEdit={canEditSongs}
+                            onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                          />
+                        </div>
                       ) : (
-                        <span className="font-medium">{slot.title}</span>
+                        <div className="space-y-0.5">
+                          <span className="font-medium">{slot.title}</span>
+                          <SongListPopover
+                            songs={slot.songs || []}
+                            canEdit={canEditSongs}
+                            onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                          />
+                        </div>
                       )}
                     </td>
                     {canEdit && (
