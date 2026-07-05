@@ -301,9 +301,34 @@ export default function ServiceRunSheet() {
                 }} disabled={deleteInstance.isPending}>
                   <Trash2 className="h-4 w-4 mr-1" /> Delete service
                 </Button>
-                <Button size="sm" onClick={() => togglePublish.mutate()}>
-                  {instance.status === "published" ? "Unpublish" : "Publish"}
-                </Button>
+                {(() => {
+                  const isPublished = instance.status === "published";
+                  const hasChanges =
+                    isPublished &&
+                    !!instance.published_at &&
+                    !!instance.updated_at &&
+                    new Date(instance.updated_at).getTime() > new Date(instance.published_at).getTime() + 500;
+
+                  if (!isPublished) {
+                    return (
+                      <Button size="sm" onClick={() => publish.mutate("published")} disabled={publish.isPending}>
+                        Publish
+                      </Button>
+                    );
+                  }
+                  return (
+                    <>
+                      {hasChanges && (
+                        <Button size="sm" onClick={() => publish.mutate("published")} disabled={publish.isPending}>
+                          Update published version
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => publish.mutate("draft")} disabled={publish.isPending}>
+                        Unpublish
+                      </Button>
+                    </>
+                  );
+                })()}
               </>
             )}
           </div>
