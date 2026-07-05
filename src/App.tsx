@@ -27,6 +27,7 @@ import ProofOfConsent from "@/pages/ProofOfConsent";
 import Help from "@/pages/Help";
 import Unsubscribe from "@/pages/Unsubscribe";
 import ServiceRunSheet from "@/pages/ServiceRunSheet";
+import OrderOfServiceView from "@/pages/OrderOfServiceView";
 import { useEffect } from "react";
 import { loadChurchTimezone } from "@/lib/timezone";
 
@@ -84,7 +85,9 @@ const App = () => (
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/org-chart" element={<OrgChart />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
-              <Route path="/team/:slug" element={<TeamDashboard />} />
+              <Route path="/order-of-service" element={<OrderOfServiceView />} />
+              <Route path="/order-of-service/:instanceId" element={<ServiceRunSheet />} />
+
               <Route
                 path="/admin"
                 element={

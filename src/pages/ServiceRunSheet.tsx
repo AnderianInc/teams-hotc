@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useOrderOfService";
 import SlotAssignPopover from "@/components/admin/SlotAssignPopover";
 import { useAllTeams } from "@/hooks/useTeams";
+import { useAuth } from "@/hooks/useAuth";
 
 function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = hhmm.split(":").map(Number);
@@ -34,6 +35,10 @@ export default function ServiceRunSheet() {
   const [searchParams] = useSearchParams();
   const isPrint = searchParams.get("print") === "1";
   const invalidate = useInvalidateOoS();
+  const { isAdmin } = useAuth();
+  const canEdit = isAdmin && !isPrint;
+  const backTo = isAdmin ? "/admin?tab=order-of-service" : "/order-of-service";
+  const printBase = isAdmin ? "/admin/order-of-service" : "/order-of-service";
 
   const { data: instance, isLoading } = useInstance(instanceId!);
   const { data: slots = [] } = useInstanceSlots(instanceId!);
@@ -157,16 +162,18 @@ export default function ServiceRunSheet() {
     <div className={`space-y-6 ${isPrint ? "p-6" : ""}`}>
       {!isPrint && (
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/admin?tab=order-of-service")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(backTo)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to services
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.open(`/admin/order-of-service/${instance.id}?print=1`, "_blank")}>
+            <Button variant="outline" size="sm" onClick={() => window.open(`${printBase}/${instance.id}?print=1`, "_blank")}>
               <Printer className="h-4 w-4 mr-1" /> Print view
             </Button>
-            <Button size="sm" onClick={() => togglePublish.mutate()}>
-              {instance.status === "published" ? "Unpublish" : "Publish"}
-            </Button>
+            {isAdmin && (
+              <Button size="sm" onClick={() => togglePublish.mutate()}>
+                {instance.status === "published" ? "Unpublish" : "Publish"}
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -201,7 +208,7 @@ export default function ServiceRunSheet() {
                   </div>
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {isPrint ? (
+                      {!canEdit ? (
                         <span className="font-medium">{slot.title}</span>
                       ) : (
                         <Input
@@ -210,7 +217,7 @@ export default function ServiceRunSheet() {
                           onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
                         />
                       )}
-                      {!isPrint && (
+                      {canEdit && (
                         <>
                           <Input
                             type="number"
@@ -248,7 +255,7 @@ export default function ServiceRunSheet() {
                             <Badge key={a.id} variant="secondary" className="gap-1">
                               {name}
                               {a.role_label && <span className="opacity-70">· {a.role_label}</span>}
-                              {!isPrint && (
+                              {canEdit && (
                                 <button
                                   onClick={() => removeAssignment.mutate({ id: a.id, roster_entry_id: a.roster_entry_id })}
                                   className="ml-1 opacity-60 hover:opacity-100"
@@ -269,7 +276,7 @@ export default function ServiceRunSheet() {
         })}
       </div>
 
-      {!isPrint && (
+      {canEdit && (
         <Card>
           <CardContent className="py-3">
             <Label className="mb-2 block">Add slot</Label>
