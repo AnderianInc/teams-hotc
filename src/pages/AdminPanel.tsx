@@ -22,6 +22,7 @@ import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
 import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 import VolunteerOnboardingPipeline from "@/components/admin/VolunteerOnboardingPipeline";
 import AdminDashboard from "@/components/admin/AdminDashboard";
+import OrderOfServicePanel from "@/components/admin/OrderOfServicePanel";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };
@@ -55,6 +56,7 @@ const GROUPS: Record<string, Group> = {
     ],
   },
   communications: { label: "Communications", default: "communications", subs: [] },
+  "order-of-service": { label: "Order of Service", default: "order-of-service", subs: [] },
   organogram: { label: "Org Chart", default: "organogram", subs: [] },
   settings: {
     label: "Settings",
@@ -151,6 +153,12 @@ export default function AdminPanel() {
         <TabsContent value="communications">
           <CommunicationsPanel />
         </TabsContent>
+
+        {/* Order of Service */}
+        <TabsContent value="order-of-service">
+          <OrderOfServicePanel />
+        </TabsContent>
+
 
         {/* Org Chart */}
         <TabsContent value="organogram">

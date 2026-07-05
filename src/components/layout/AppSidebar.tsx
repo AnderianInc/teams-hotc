@@ -64,6 +64,7 @@ const adminSubItems = [
   { label: "Teams", value: "teams", icon: UsersRound },
   { label: "Directory", value: "directory", icon: BookOpen },
   { label: "Communications", value: "communications", icon: Mail },
+  { label: "Order of Service", value: "order-of-service", icon: ClipboardCheck },
   { label: "Org Chart", value: "organogram", icon: Network },
   { label: "Settings", value: "settings", icon: Shield },
 ];
