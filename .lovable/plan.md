@@ -1,105 +1,112 @@
-## Rework: Interest Meetings → Join Team pipeline
+# Plan: Kids How-To Guide + Order of Service
 
-Replace the "lead → interest meeting → funnel" model with a dedicated **/join-team** signup that assumes the person is already a known visitor, and a new **Volunteer Onboarding pipeline**: Interested → Training → Volunteer.
+## Part 1 — Children's Ministry How-To Guide
 
----
+Ship the same content in two places so volunteers see it in-context and admins can link to it from anywhere.
 
-### 1. Public route: `/join-team`
+### 1a. New tab in the Children's Ministry dashboard
+- Add a **Setup & Guide** tab in `src/pages/TeamDashboard.tsx` (childrens-ministry branch) alongside Check-In / Check-Out / Volunteers.
+- New component `src/components/kids/KidsSetupGuide.tsx` renders the guide with collapsible sections, screenshots-worthy callouts, and copy buttons for commands.
 
-New page `src/pages/JoinTeam.tsx` plus matching QR card.
+### 1b. Help Center article (public)
+- Expand `src/content/help/articles/kids-checkin.md` into a full walkthrough and add a new article `kids-setup.md` registered in `src/content/help/index.ts` under section "Children's Ministry".
+- The in-tab component imports the same markdown so there is one source of truth.
 
-Form fields:
-- First name, last name (required)
-- Email and/or phone (at least one)
-- Optional team preference (multi-select from Ministry + Volunteer teams; not required)
-- Optional note ("Why do you want to serve?")
-- SMS opt-in checkbox (same consent copy as `/welcome`)
-
-Behavior on submit:
-1. Call new edge function `register-volunteer-interest` (verify_jwt = false, mirrors `register-visitor`).
-2. Edge function searches `attendees` + `profiles` for a match (email exact → phone last-10 → first+last fuzzy).
-3. **If match found** → reuse that attendee_id.
-   **If no match** → silently create a new attendee (tag `source:join-team`, `first-timer` only if no visit history).
-4. Insert a `volunteer_onboarding` row at stage `interested` (see §3).
-5. Apply team-preference tags (`team-pref:<slug>`) on the attendee.
-6. Send confirmation email/SMS via existing templates.
-7. Notify staff via `notifications` (existing pattern from register-visitor).
-
-Show success screen with "We'll be in touch about next steps".
-
-QR display: add a `JoinTeamQRDialog` (mirrors `AttendanceQRDialog`) and a tab/card in First Impressions and Admin.
+### Guide sections
+1. **How the system fits together** — plain-English diagram: kiosk (iPad/phone) → cloud (check-in saved) → bridge PC on same wifi → Brother QL printer. What each piece does and what happens if one is off.
+2. **Print bridge PC setup** — hardware recommendation (any always-on Windows/Mac mini), install Node 18+, `cd print-bridge`, `npm install`, `./generate-cert.sh` (or `start-bridge.bat`), `npm start`. Auto-start on boot instructions for Windows (Task Scheduler) and macOS (LaunchAgent).
+3. **Brother QL printer setup** — USB vs wifi pairing to the bridge PC, loading DK-2205 (2.4") continuous label roll, test print from the bridge's web page.
+4. **Kiosk setup** — open `teams.hotc.life` on iPad/phone, sign in, add to Home Screen for full-screen mode, open Check-In tab, tap the printer icon → **Auto-find bridge**, one-time cert trust on iOS (screenshots-worthy steps).
+5. **Day-of check-in / check-out flow** — search family, register new family, tap Check In, hand parent slip half, tape child slip, checkout by security code, offline banner behavior.
+6. **Troubleshooting** — "printer offline" / "bridge not found" / "labels come out blank" / "iPad won't trust cert" quick fixes.
 
 ---
 
-### 2. New pipeline: Interested → Training → Volunteer
+## Part 2 — Order of Service
 
-Stages:
-- **interested** — submitted /join-team or staff-added
-- **training** — invited to / attending training
-- **volunteer** — completed onboarding, added to a team
+Reusable service templates → generated weekly instances → per-slot assignments that flow into rosters, calendar, and notifications.
 
-Kanban board mirrors the existing Outreach Pipeline UX (arrows back/forward, remove, source badges). Lives under a new admin section **Volunteer Onboarding** (sidebar item) and a tab on the Team management page so leads see their team's onboarding queue.
+### Data model (new tables)
 
-When a card moves to **volunteer**:
-- Prompt staff to assign to a team via existing `TeamMembershipEditor`.
-- Set `completed_at`; row stays for history.
+```text
+service_templates                        (e.g. "Sunday 10am Main Service")
+├─ name, description, default_start_time, default_duration_minutes,
+│  team_ids (default serving teams), is_active
 
----
+service_template_slots                   (ordered rows on a template)
+├─ template_id → service_templates
+├─ order_index, title, duration_minutes, notes,
+│  default_team_id → teams (nullable), default_role_type_id (nullable)
 
-### 3. Data model
+service_instances                        (one Sunday's run sheet)
+├─ template_id → service_templates (nullable — allows ad-hoc)
+├─ roster_event_id → roster_events (link to calendar/roster)
+├─ service_date, start_time, title, notes, status (draft/published/complete)
 
-**New table `volunteer_onboarding`**
-- `attendee_id` (fk attendees, unique with active stage)
-- `stage` enum: `interested | training | volunteer`
-- `preferred_team_ids uuid[]` (optional)
-- `assigned_to uuid` (staff owner)
-- `notes text`
-- `completed_at timestamptz`
-- `source text` ('join-team' | 'manual' | 'imported-from-interest')
-- standard `created_at`, `updated_at`
-- RLS: Admin + Staff full; Team Lead read/update rows whose `preferred_team_ids` intersect a team they lead; Member none.
-- GRANTs for authenticated + service_role.
+service_instance_slots                   (the actual run sheet rows)
+├─ instance_id → service_instances
+├─ order_index, title, duration_minutes, start_time (computed),
+│  notes, team_id (nullable), role_type_id (nullable)
 
-**Removed**:
-- `interest_meetings` table (drop).
-- Existing `external_records` rows with `source = 'interest'` are migrated into `volunteer_onboarding` at stage `interested` (one-time migration, preserving `attendee_id`).
-- `follow_ups.prospect_pipeline_stage` keeps the original **outreach** pipeline (visitor → member) untouched; the new pipeline is a separate table so the two never collide.
+service_slot_assignments                 (who is doing what)
+├─ slot_id → service_instance_slots
+├─ assignee_type ('profile' | 'attendee'),
+│  profile_id (nullable) / attendee_id (nullable),
+│  role_label, status ('pending' | 'accepted' | 'declined')
+```
 
----
+All tables: RLS + grants. Read = authenticated. Write = admin OR team_lead of any team on the linked roster_event. Assignees can update their own assignment status.
 
-### 4. Code removals (per "remove entirely")
+### UI
 
-Delete:
-- `src/components/admin/InterestMeetings.tsx`
-- `src/components/admin/InterestMeetingAutomations.tsx`
-- Any nav/admin-panel tab linking to them.
-- Branches in `register-visitor`, `outreach-sync`, `outreach-dispatch`, `ExternalSourcesPanel`, `PlannedOutreachPanel`, `PendingEmailsPanel` that special-case `source = 'interest'` (replace UI references with Volunteer Onboarding where useful, otherwise drop).
-- `interest-meeting` email/SMS templates kept only if reused for training invites; otherwise removed.
+New sidebar entry **Order of Service** under Administration (admin/team_lead visible), route `/admin?tab=order-of-service` with two sub-tabs:
 
----
+- **Templates** — CRUD list of `service_templates` with an inline slot editor (drag-to-reorder, duration in minutes, optional default team + role type).
+- **Upcoming Services** — list of `service_instances` grouped by month. "New from template" picks a template + date and generates the instance + slots; roster_event is auto-created (or linked to an existing one on that date).
 
-### 5. New / updated files
+**Run-sheet detail page** `/admin/order-of-service/:instanceId`:
+- Header: title, date, start time, linked roster event badge, publish button.
+- Timeline column: each slot shows computed clock time, duration, title, notes, assigned people chips.
+- Per slot: **Assign** popover → pick team → pick member (or search directory). Adds a `service_slot_assignments` row and creates/updates a matching `roster_entries` row so it appears on their calendar and dashboard.
+- Print-friendly view (`?print=1`) for tech booth / worship pastor.
 
-Created
-- `src/pages/JoinTeam.tsx`
-- `src/components/first-impressions/JoinTeamQRDialog.tsx` (or admin equivalent)
-- `src/components/admin/VolunteerOnboardingPipeline.tsx` (kanban)
-- `src/components/admin/VolunteerOnboardingList.tsx` (table for leads)
-- `supabase/functions/register-volunteer-interest/index.ts`
-- Migration: create table + RLS + data backfill + drop `interest_meetings`.
+### Integrations
+- **Rosters** — creating a service_instance auto-creates a `roster_events` row (or links existing). Each slot assignment creates a `roster_entries` row on the linked event so it shows on the person's calendar and triggers accept/decline notifications.
+- **Directory** — assignment picker uses the existing directory search (attendees + profiles) with team-first filtering per user's answer ("pick a team, then a member" with a "Search everyone" fallback).
+- **Calendar** — service_instance surfaces in the existing `RosterCalendarView` via its linked roster_event; clicking opens the run-sheet.
+- **Notifications** — reuse the existing roster assignment notification flow so no new email path is needed.
 
-Edited
-- `src/App.tsx` — add `/join-team` route.
-- `src/components/layout/AppSidebar.tsx` — add "Volunteer Onboarding".
-- `src/pages/AdminPanel.tsx` — replace Interest Meetings tab with Volunteer Onboarding.
-- `src/components/first-impressions/FirstImpressionsDashboard.tsx` — add QR card for /join-team alongside /welcome QR.
-- `register-visitor` edge function — remove interest-source branch.
-- Help articles — replace `fi-*` interest-meeting copy with onboarding doc.
+### Help
+Add `src/content/help/articles/order-of-service.md` explaining templates → weekly service → assignments, registered in the help index (section "Teams & Scheduling", role team_lead).
 
 ---
 
-### 6. Out of scope
+## Technical notes
+- Migration order: create tables → GRANT to authenticated + service_role → enable RLS → policies using `has_role('admin')`, `is_any_team_lead`, and assignment-owner checks → `updated_at` triggers.
+- Slot start_time is derived client-side from service start + cumulative durations; no need to store it.
+- Deleting a service_instance cascades to slots + assignments and removes the auto-created roster_entries linked to those slots (but leaves the roster_event if it has other entries).
+- Reuse existing shadcn primitives (Tabs, Popover, Command, Dialog, Sheet, Sortable via `@dnd-kit`).
+- No new secrets, no new edge functions.
 
-- Automating training scheduling / calendar invites (manual for now).
-- Background-check or document collection workflow.
-- Auto-creating `team_members` rows — staff still does the final assignment.
+---
+
+## Files touched (approx.)
+**New**
+- `src/components/kids/KidsSetupGuide.tsx`
+- `src/content/help/articles/kids-setup.md`
+- `src/content/help/articles/order-of-service.md`
+- `src/components/admin/OrderOfServicePanel.tsx`
+- `src/components/admin/ServiceTemplateEditor.tsx`
+- `src/components/admin/ServiceInstanceRunSheet.tsx`
+- `src/components/admin/SlotAssignPopover.tsx`
+- `src/hooks/useOrderOfService.ts`
+- `src/pages/ServiceRunSheet.tsx`
+- Migration for the 5 new tables + policies
+
+**Edited**
+- `src/pages/TeamDashboard.tsx` — new Setup & Guide tab
+- `src/content/help/articles/kids-checkin.md` — trim; link to new setup article
+- `src/content/help/index.ts` — register 2 new articles
+- `src/pages/AdminPanel.tsx` — new "Order of Service" tab
+- `src/components/layout/AppSidebar.tsx` — add tab entry
+- `src/App.tsx` — route for run-sheet detail page

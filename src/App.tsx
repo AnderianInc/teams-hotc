@@ -26,6 +26,7 @@ import SmsPolicy from "@/pages/SmsPolicy";
 import ProofOfConsent from "@/pages/ProofOfConsent";
 import Help from "@/pages/Help";
 import Unsubscribe from "@/pages/Unsubscribe";
+import ServiceRunSheet from "@/pages/ServiceRunSheet";
 import { useEffect } from "react";
 import { loadChurchTimezone } from "@/lib/timezone";
 
@@ -89,6 +90,14 @@ const App = () => (
                 element={
                   <AdminRoute>
                     <AdminPanel />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/order-of-service/:instanceId"
+                element={
+                  <AdminRoute>
+                    <ServiceRunSheet />
                   </AdminRoute>
                 }
               />

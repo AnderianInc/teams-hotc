@@ -8,6 +8,8 @@ import fiPipeline from "./articles/fi-pipeline.md?raw";
 import fiExternal from "./articles/fi-external.md?raw";
 import fiFollowups from "./articles/fi-followups.md?raw";
 import kidsCheckin from "./articles/kids-checkin.md?raw";
+import kidsSetup from "./articles/kids-setup.md?raw";
+import orderOfService from "./articles/order-of-service.md?raw";
 import kidsFamily from "./articles/kids-family.md?raw";
 import teamsRoster from "./articles/teams-roster.md?raw";
 import teamsCalendar from "./articles/teams-calendar.md?raw";
@@ -40,8 +42,10 @@ export const ARTICLES: Article[] = [
   { slug: "fi-external", title: "External sources (prayer / visit / interest)", section: "First Impressions", role: "staff", content: fiExternal },
   { slug: "fi-followups", title: "Logging follow-ups & the 'contacted' tag", section: "First Impressions", role: "staff", content: fiFollowups },
 
+  { slug: "kids-setup", title: "Setup guide (kiosk, printer, bridge)", section: "Children's Ministry", role: "staff", content: kidsSetup },
   { slug: "kids-checkin", title: "Check-in / check-out flow", section: "Children's Ministry", role: "staff", content: kidsCheckin },
   { slug: "kids-family", title: "Registering a family", section: "Children's Ministry", role: "staff", content: kidsFamily },
+  { slug: "order-of-service", title: "Order of Service", section: "Teams & Scheduling", role: "team_lead", content: orderOfService },
 
   { slug: "teams-roster", title: "Building a roster", section: "Teams & Scheduling", role: "team_lead", content: teamsRoster },
   { slug: "teams-calendar", title: "Calendar view", section: "Teams & Scheduling", role: "member", content: teamsCalendar },
