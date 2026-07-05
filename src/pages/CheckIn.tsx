@@ -109,11 +109,12 @@ export default function CheckIn() {
     return () => clearTimeout(timer);
   }, [search, type, step]);
 
-  const handleCheckIn = async (selectedId: string) => {
+  const handleCheckIn = async (selectedId: string, forcedType?: CheckInType) => {
+    const useType = forcedType || type;
     setStep("confirming");
     try {
       const body =
-        type === "volunteer"
+        useType === "volunteer"
           ? { type: "volunteer", user_id: selectedId }
           : { type: "member", attendee_id: selectedId };
 
@@ -129,6 +130,7 @@ export default function CheckIn() {
       setStep("search");
     }
   };
+
 
   const handleRegister = async () => {
     if (!firstName.trim() || !lastName.trim()) return;
