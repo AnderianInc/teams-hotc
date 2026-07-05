@@ -255,7 +255,7 @@ export default function ServiceRunSheet() {
                             <Badge key={a.id} variant="secondary" className="gap-1">
                               {name}
                               {a.role_label && <span className="opacity-70">· {a.role_label}</span>}
-                              {!isPrint && (
+                              {canEdit && (
                                 <button
                                   onClick={() => removeAssignment.mutate({ id: a.id, roster_entry_id: a.roster_entry_id })}
                                   className="ml-1 opacity-60 hover:opacity-100"
