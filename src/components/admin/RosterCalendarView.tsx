@@ -732,7 +732,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
           <form onSubmit={(event) => { event.preventDefault(); assignVolunteer.mutate(); }} className="space-y-4">
             <div className="space-y-1">
               <Label>Team</Label>
-              <Select value={assignTeamId} onValueChange={(value) => { setAssignTeamId(value); setAssignUserId(""); setAssignRole(""); }} disabled={!!teamId}>
+              <Select value={assignTeamId} onValueChange={(value) => { setAssignTeamId(value); setAssignUserIds([]); setAssignRole(""); }} disabled={!!teamId}>
                 <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
                 <SelectContent>
                   {(assignEvent ? eventTeamsByEvent.get(assignEvent.id) || [] : []).map((link: any) => (
@@ -742,18 +742,33 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Team member</Label>
-              <Select value={assignUserId} onValueChange={setAssignUserId} disabled={!assignTeamId}>
-                <SelectTrigger><SelectValue placeholder={assignTeamId ? "Select member" : "Select a team first"} /></SelectTrigger>
-                <SelectContent>
-                  {(members as any[]).map((member) => (
-                    <SelectItem key={member.user_id} value={member.user_id}>{member.profiles?.full_name || "Unknown"}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label>Team members</Label>
+                <span className="text-xs text-muted-foreground">{assignUserIds.length} selected</span>
+              </div>
+              {!assignTeamId ? (
+                <p className="text-sm text-muted-foreground border rounded-md p-3">Select a team first</p>
+              ) : (members as any[]).length === 0 ? (
+                <p className="text-sm text-muted-foreground border rounded-md p-3">No members in this team.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-[220px] overflow-y-auto border rounded-md p-2">
+                  {(members as any[]).map((member) => {
+                    const checked = assignUserIds.includes(member.user_id);
+                    return (
+                      <label key={member.user_id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-1">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => setAssignUserIds((current) => checked ? current.filter((id) => id !== member.user_id) : [...current, member.user_id])}
+                        />
+                        {member.profiles?.full_name || member.profiles?.email || "Unknown"}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
-              <Label>Role / position</Label>
+              <Label>Role / position (applied to all selected)</Label>
               {roleTypes.length > 0 ? (
                 <Select value={assignRole || NO_ROLE_VALUE} onValueChange={(value) => setAssignRole(value === NO_ROLE_VALUE ? "" : value)}>
                   <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
@@ -764,7 +779,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                 </Select>
               ) : <Input value={assignRole} onChange={(event) => setAssignRole(event.target.value)} placeholder="e.g. Lead vocal, Sound board" />}
             </div>
-            <Button type="submit" className="w-full" disabled={assignVolunteer.isPending || !assignUserId || !assignTeamId}>{assignVolunteer.isPending ? "Assigning…" : "Assign member"}</Button>
+            <Button type="submit" className="w-full" disabled={assignVolunteer.isPending || assignUserIds.length === 0 || !assignTeamId}>{assignVolunteer.isPending ? "Assigning…" : `Assign ${assignUserIds.length || ""} member${assignUserIds.length === 1 ? "" : "s"}`.trim()}</Button>
           </form>
         </DialogContent>
       </Dialog>
