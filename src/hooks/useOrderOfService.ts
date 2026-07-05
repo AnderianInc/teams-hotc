@@ -20,6 +20,7 @@ export interface TemplateSlot {
   notes: string | null;
   default_team_id: string | null;
   default_role_type_id: string | null;
+  default_profile_ids: string[];
 }
 
 export interface ServiceInstance {
