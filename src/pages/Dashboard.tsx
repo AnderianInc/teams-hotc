@@ -31,6 +31,12 @@ export default function Dashboard() {
   const { data: memberships, isLoading } = useMyTeams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: allInstances = [] } = useInstances();
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const upcomingServices = (allInstances as any[])
+    .filter((i) => (isAdmin || i.status === "published") && i.service_date >= todayStr)
+    .sort((a, b) => a.service_date.localeCompare(b.service_date))
+    .slice(0, 3);
   const [declineFor, setDeclineFor] = useState<any>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [responding, setResponding] = useState<string | null>(null);
