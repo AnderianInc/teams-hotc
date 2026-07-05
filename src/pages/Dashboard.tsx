@@ -120,6 +120,7 @@ export default function Dashboard() {
         .eq("user_id", userId)
         .gte("scheduled_date", today)
         .lte("scheduled_date", until)
+        .or("response_status.is.null,response_status.eq.pending")
         .order("scheduled_date")
         .limit(10);
       if (error) throw error;
