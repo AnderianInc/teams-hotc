@@ -43,7 +43,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignEvent, setAssignEvent] = useState<any>(null);
   const [assignTeamId, setAssignTeamId] = useState(teamId || "");
-  const [assignUserId, setAssignUserId] = useState("");
+  const [assignUserIds, setAssignUserIds] = useState<string[]>([]);
   const [assignRole, setAssignRole] = useState("");
 
   const [editAssignment, setEditAssignment] = useState<any>(null);
