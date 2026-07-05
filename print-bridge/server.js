@@ -29,7 +29,14 @@ const https = require("https");
 const net = require("net");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const { spawn } = require("child_process");
+
+// Optional: bonjour-service for mDNS/Bonjour advertisement (auto-discovery
+// from kiosks on the same wifi). If the dep isn't installed, the bridge
+// still works — kiosks just have to enter the IP manually.
+let Bonjour = null;
+try { Bonjour = require("bonjour-service").Bonjour; } catch { /* optional */ }
 
 const PRINTER_HOST = process.env.PRINTER_HOST || "";
 const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || "9100", 10);
@@ -170,4 +177,40 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   log(`No certs at ${CERT_DIR} — run ./generate-cert.sh for HTTPS (required for mobile browsers loading the app from teams.hotc.life)`);
 }
 
+// ---------- mDNS / Bonjour advertisement ----------
+// Advertises the bridge as `_hotc-print._tcp` on the LAN and also as a
+// plain `_http` service, so kiosks can discover it automatically.
+// Also publishes the hostname `hotc-print-bridge.local` — every modern OS
+// (iOS, macOS, Windows 10+, most Android) resolves `.local` via mDNS,
+// which lets the web app connect to a stable URL with no IP typing.
+if (Bonjour) {
+  try {
+    const bonjour = new Bonjour();
+    const hostname = "hotc-print-bridge";
+    const txt = {
+      transport: PRINTER_HOST ? "network" : USB_DEVICE ? "usb" : WIN_PRINTER ? "windows" : "none",
+      https: String(HTTPS_PORT),
+      http: String(HTTP_PORT),
+      version: "1.1.0",
+    };
+    bonjour.publish({ name: "HOTC Print Bridge", type: "hotc-print", protocol: "tcp", port: HTTPS_PORT, host: `${hostname}.local`, txt });
+    bonjour.publish({ name: "HOTC Print Bridge", type: "https",      protocol: "tcp", port: HTTPS_PORT, host: `${hostname}.local`, txt });
+    log(`mDNS advertised as https://${hostname}.local:${HTTPS_PORT} (service _hotc-print._tcp)`);
+    const shutdown = () => { try { bonjour.unpublishAll(() => bonjour.destroy()); } catch {} process.exit(0); };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  } catch (e) {
+    log("mDNS advertisement failed:", e.message);
+  }
+} else {
+  log("bonjour-service not installed — skipping mDNS advertisement. Run `npm install` in print-bridge/ to enable auto-discovery.");
+}
+
+// Log the LAN IPs so the operator can paste one into the kiosk if mDNS
+// isn't available on their network.
+const ips = Object.values(os.networkInterfaces()).flat()
+  .filter((i) => i && i.family === "IPv4" && !i.internal)
+  .map((i) => i.address);
+log("LAN URLs:", ips.map((ip) => `https://${ip}:${HTTPS_PORT}`).join("  "));
 log("Config:", { PRINTER_HOST, PRINTER_PORT, USB_DEVICE, WIN_PRINTER });
+

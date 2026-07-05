@@ -88,10 +88,15 @@ iOS and Android trust it:
 
 ## 5. Point the web app at the bridge
 
-Open the app on the kiosk, go to **Children's Ministry → Check-In → Printer
-button → Network bridge**, and paste `https://<bridge-ip>:9443` (or
-`https://print-bridge.local:9443` if you set up mDNS). Tap **Test print**.
-The URL is stored per device in `localStorage`.
+The kiosk **auto-discovers** the bridge on the same wifi via mDNS —
+no IP entry needed. On first load it probes `hotc-print-bridge.local:9443`
+and connects automatically. You can also tap **Printer button → Network
+bridge → Auto-find bridge** at any time.
+
+Manual fallback (if mDNS is blocked on your network): paste
+`https://<bridge-ip>:9443` into the same popover. The URL is remembered
+per device.
+
 
 ## 6. Auto-start at boot
 
