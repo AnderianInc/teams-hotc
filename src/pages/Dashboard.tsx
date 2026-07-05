@@ -200,7 +200,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
@@ -225,7 +225,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-2 sm:col-span-1">
+        <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
               <ClipboardCheck className="h-5 w-5 text-green-500 shrink-0" />
@@ -238,44 +238,41 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Order of Service quick access */}
-      {upcomingServices.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ClipboardCheck className="h-4 w-4" /> Order of Service
-            </CardTitle>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate("/order-of-service")}>
-              View all
-            </Button>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-2">
-            {upcomingServices.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer hover:bg-muted/40"
-                onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${s.id}`)}
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{s.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(s.service_date + "T00:00:00"), "EEE, MMM d")}
-                    {s.start_time && ` · ${s.start_time.slice(0, 5)}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isAdmin && s.status !== "published" && (
-                    <Badge variant="outline" className="text-xs capitalize">{s.status}</Badge>
-                  )}
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
+        <Card
+          className={upcomingServices.length > 0 ? "cursor-pointer hover:bg-muted/40 transition-colors" : ""}
+          onClick={() => {
+            if (upcomingServices.length === 0) return;
+            const next = upcomingServices[0];
+            navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${next.id}`);
+          }}
+        >
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <ClipboardCheck className="h-5 w-5 text-purple-500 shrink-0" />
+              <div className="min-w-0">
+                {upcomingServices.length > 0 ? (
+                  <>
+                    <p className="text-sm font-semibold truncate">
+                      {format(new Date(upcomingServices[0].service_date + "T00:00:00"), "EEE, MMM d")}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      Next order of service
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold">None</p>
+                    <p className="text-xs text-muted-foreground">Order of service</p>
+                  </>
+                )}
               </div>
-            ))}
+            </div>
           </CardContent>
         </Card>
-      )}
+      </div>
+
+
 
       {/* Upcoming assignments */}
       {upcomingAssignments && upcomingAssignments.length > 0 && (
