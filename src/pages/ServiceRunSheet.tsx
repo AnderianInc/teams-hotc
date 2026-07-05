@@ -212,14 +212,20 @@ export default function ServiceRunSheet() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const togglePublish = useMutation({
-    mutationFn: async () => {
+  const publish = useMutation({
+    mutationFn: async (nextStatus: "published" | "draft") => {
       if (!instance) return;
-      const next = instance.status === "published" ? "draft" : "published";
-      const { error } = await supabase.from("service_instances").update({ status: next }).eq("id", instance.id);
+      const patch: { status: string; published_at?: string | null } = { status: nextStatus };
+      if (nextStatus === "published") {
+        patch.published_at = new Date().toISOString();
+      }
+      const { error } = await supabase.from("service_instances").update(patch).eq("id", instance.id);
       if (error) throw error;
     },
-    onSuccess: () => invalidate(instanceId),
+    onSuccess: (_d, nextStatus) => {
+      invalidate(instanceId);
+      toast.success(nextStatus === "published" ? "Order of service published" : "Order of service unpublished");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -295,9 +301,34 @@ export default function ServiceRunSheet() {
                 }} disabled={deleteInstance.isPending}>
                   <Trash2 className="h-4 w-4 mr-1" /> Delete service
                 </Button>
-                <Button size="sm" onClick={() => togglePublish.mutate()}>
-                  {instance.status === "published" ? "Unpublish" : "Publish"}
-                </Button>
+                {(() => {
+                  const isPublished = instance.status === "published";
+                  const hasChanges =
+                    isPublished &&
+                    !!instance.published_at &&
+                    !!instance.updated_at &&
+                    new Date(instance.updated_at).getTime() > new Date(instance.published_at).getTime() + 500;
+
+                  if (!isPublished) {
+                    return (
+                      <Button size="sm" onClick={() => publish.mutate("published")} disabled={publish.isPending}>
+                        Publish
+                      </Button>
+                    );
+                  }
+                  return (
+                    <>
+                      {hasChanges && (
+                        <Button size="sm" onClick={() => publish.mutate("published")} disabled={publish.isPending}>
+                          Update published version
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => publish.mutate("draft")} disabled={publish.isPending}>
+                        Unpublish
+                      </Button>
+                    </>
+                  );
+                })()}
               </>
             )}
           </div>

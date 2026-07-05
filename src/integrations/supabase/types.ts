@@ -1381,6 +1381,7 @@ export type Database = {
           created_by: string | null
           id: string
           notes: string | null
+          published_at: string | null
           roster_event_id: string | null
           service_date: string
           start_time: string | null
@@ -1394,6 +1395,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           notes?: string | null
+          published_at?: string | null
           roster_event_id?: string | null
           service_date: string
           start_time?: string | null
@@ -1407,6 +1409,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           notes?: string | null
+          published_at?: string | null
           roster_event_id?: string | null
           service_date?: string
           start_time?: string | null
