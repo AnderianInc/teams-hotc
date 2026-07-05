@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -258,17 +259,74 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <CalendarDays className="h-5 w-5 text-blue-500 shrink-0" />
-              <div>
-                <p className="text-2xl font-bold">{upcomingAssignments?.length ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Upcoming shifts</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Card className="cursor-pointer hover:bg-muted/40 transition-colors">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-center gap-3">
+                  <CalendarDays className="h-5 w-5 text-blue-500 shrink-0" />
+                  <div>
+                    <p className="text-2xl font-bold">{upcomingAssignments?.length ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">Upcoming shifts ▾</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[380px] max-h-[70vh] overflow-y-auto p-2">
+            {!upcomingAssignments || upcomingAssignments.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-3 text-center">No upcoming shifts.</p>
+            ) : (
+              <div className="space-y-2">
+                {(upcomingAssignments as any[]).map((a) => (
+                  <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 gap-2 flex-wrap">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="text-center min-w-[36px]">
+                        <p className="text-xs text-muted-foreground">{format(new Date(a.scheduled_date + "T00:00:00"), "MMM")}</p>
+                        <p className="text-lg font-bold leading-none">{format(new Date(a.scheduled_date + "T00:00:00"), "d")}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{(a.teams as any)?.name || "Team"}</p>
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                          {a.role_description && (
+                            <Badge variant="outline" className="text-xs">{a.role_description}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 ml-auto">
+                      {a.source === "slot" ? (
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs"
+                          onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${a.instance_id}`)}
+                        >
+                          View
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm" variant="outline" className="h-7 text-xs"
+                            disabled={responding === a.id}
+                            onClick={() => respondToAssignment(a, "accepted")}
+                          >
+                            <Check className="h-3 w-3 mr-1" /> Accept
+                          </Button>
+                          <Button
+                            size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
+                            disabled={responding === a.id}
+                            onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
+                          >
+                            <X className="h-3 w-3 mr-1" /> Decline
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            )}
+          </PopoverContent>
+        </Popover>
 
         <Card>
           <CardContent className="pt-4 pb-3">
@@ -319,76 +377,6 @@ export default function Dashboard() {
 
 
 
-      {/* Upcoming assignments */}
-      {upcomingAssignments && upcomingAssignments.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" /> Upcoming Assignments
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-2">
-            {(upcomingAssignments as any[]).map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 gap-2 flex-wrap">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="text-center min-w-[36px]">
-                    <p className="text-xs text-muted-foreground">{format(new Date(a.scheduled_date + "T00:00:00"), "MMM")}</p>
-                    <p className="text-lg font-bold leading-none">{format(new Date(a.scheduled_date + "T00:00:00"), "d")}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{(a.teams as any)?.name || "Team"}</p>
-                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                      {a.role_description && (
-                        <Badge variant="outline" className="text-xs">{a.role_description}</Badge>
-                      )}
-                      {a.response_status === "accepted" && (
-                        <Badge className="text-xs bg-green-600 hover:bg-green-600">Accepted</Badge>
-                      )}
-                      {a.response_status === "declined" && (
-                        <Badge variant="destructive" className="text-xs">Declined</Badge>
-                      )}
-                    </div>
-                    {a.response_status === "declined" && a.decline_reason && (
-                      <p className="text-xs text-muted-foreground italic mt-0.5">"{a.decline_reason}"</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 ml-auto">
-                  {a.source === "slot" ? (
-                    <Button
-                      size="sm" variant="outline" className="h-7 text-xs"
-                      onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${a.instance_id}`)}
-                    >
-                      View
-                    </Button>
-                  ) : (
-                    <>
-                      {a.response_status !== "accepted" && (
-                        <Button
-                          size="sm" variant="outline" className="h-7 text-xs"
-                          disabled={responding === a.id}
-                          onClick={() => respondToAssignment(a, "accepted")}
-                        >
-                          <Check className="h-3 w-3 mr-1" /> Accept
-                        </Button>
-                      )}
-                      {a.response_status !== "declined" && (
-                        <Button
-                          size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
-                          disabled={responding === a.id}
-                          onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
-                        >
-                          <X className="h-3 w-3 mr-1" /> Decline
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       {/* My follow-ups */}
       {myFollowUps && myFollowUps.length > 0 && (

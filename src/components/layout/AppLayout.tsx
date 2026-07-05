@@ -3,7 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Home } from "lucide-react";
 
 export function AppLayout() {
   return (
@@ -13,6 +13,12 @@ export function AppLayout() {
         <main className="flex-1 flex flex-col">
           <header className="flex h-14 items-center gap-2 border-b px-4 lg:px-6">
             <SidebarTrigger />
+            <Button asChild variant="ghost" size="sm" className="gap-2">
+              <Link to="/dashboard" aria-label="Home">
+                <Home className="h-4 w-4" />
+                <span className="hidden sm:inline">Home</span>
+              </Link>
+            </Button>
             <div className="flex-1" />
             <Button asChild variant="ghost" size="icon" title="Help & docs">
               <Link to="/help" aria-label="Help & docs">
@@ -29,3 +35,4 @@ export function AppLayout() {
     </SidebarProvider>
   );
 }
+
