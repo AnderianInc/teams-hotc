@@ -29,7 +29,14 @@ const https = require("https");
 const net = require("net");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const { spawn } = require("child_process");
+
+// Optional: bonjour-service for mDNS/Bonjour advertisement (auto-discovery
+// from kiosks on the same wifi). If the dep isn't installed, the bridge
+// still works — kiosks just have to enter the IP manually.
+let Bonjour = null;
+try { Bonjour = require("bonjour-service").Bonjour; } catch { /* optional */ }
 
 const PRINTER_HOST = process.env.PRINTER_HOST || "";
 const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || "9100", 10);
