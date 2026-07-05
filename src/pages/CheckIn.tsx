@@ -20,6 +20,7 @@ interface SearchResult {
 
 export default function CheckIn() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [type, setType] = useState<CheckInType>(null);
   const [step, setStep] = useState<Step>("select");
   const [search, setSearch] = useState("");
@@ -32,6 +33,24 @@ export default function CheckIn() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+
+  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (step === "done" || step === "already") {
+      redirectTimerRef.current = setTimeout(() => {
+        navigate("/dashboard");
+      }, 2500);
+    } else if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, [step, navigate]);
 
   const selectType = (t: CheckInType) => {
     setType(t);
