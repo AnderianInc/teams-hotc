@@ -15,6 +15,7 @@ import {
   CalendarDays, ClipboardCheck, Users, ChevronRight, CheckCircle2, Clock, Check, X,
 } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
+import { useInstances } from "@/hooks/useOrderOfService";
 
 const teamIcons: Record<string, React.ElementType> = {
   "childrens-ministry": Baby,
