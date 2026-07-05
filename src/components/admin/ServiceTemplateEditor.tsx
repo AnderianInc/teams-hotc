@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUp, ArrowDown, Plus, Trash2, Users } from "lucide-react";
+import { ArrowUp, ArrowDown, Music, Plus, Trash2, Users, X } from "lucide-react";
 import { useTemplateSlots, useInvalidateOoS, type ServiceTemplate, type TemplateSlot } from "@/hooks/useOrderOfService";
 import { useAllTeams } from "@/hooks/useTeams";
 
@@ -36,7 +36,7 @@ function useTeamMembers(teamId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("team_members")
-        .select("user_id, profiles:user_id(full_name, email)")
+        .select("user_id, profiles:user_id(id, full_name, email)")
         .eq("team_id", teamId!);
       if (error) throw error;
       return data || [];
@@ -71,7 +71,7 @@ function MemberPicker({
   const candidates = useMemo(() => {
     if (slot.default_team_id && teamMembers.length) {
       return teamMembers.map((m: any) => ({
-        id: m.user_id,
+        id: m.profiles?.id || m.user_id,
         name: m.profiles?.full_name || m.profiles?.email || "Unknown",
       }));
     }
@@ -82,7 +82,16 @@ function MemberPicker({
   }, [slot.default_team_id, teamMembers, allProfiles]);
 
   const selected = slot.default_profile_ids || [];
-  const nameById = new Map(candidates.map((c) => [c.id, c.name]));
+  const nameById = new Map([
+    ...(allProfiles as any[]).map((p) => [p.id, p.full_name || p.email || "Unknown"]),
+    ...candidates.map((c) => [c.id, c.name]),
+  ]);
+  const selectedNames = selected.map((id) => nameById.get(id) || "Unknown");
+  const triggerLabel = selectedNames.length === 0
+    ? "Default members"
+    : selectedNames.length === 1
+      ? selectedNames[0]
+      : `${selectedNames[0]} +${selectedNames.length - 1}`;
 
   const toggle = (id: string) => {
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -93,7 +102,7 @@ function MemberPicker({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-9">
           <Users className="h-3.5 w-3.5 mr-1" />
-          {selected.length ? `${selected.length} default${selected.length === 1 ? "" : "s"}` : "Default members"}
+          <span className="max-w-[150px] truncate">{triggerLabel}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-2" align="end">
@@ -122,6 +131,71 @@ function MemberPicker({
         )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+function isWorshipSlot(slot: TemplateSlot, teams: { id: string; name: string; slug?: string | null }[]) {
+  const team = teams.find((item) => item.id === slot.default_team_id);
+  const haystack = `${slot.title} ${team?.name || ""} ${team?.slug || ""}`.toLowerCase();
+  return haystack.includes("worship");
+}
+
+function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: string[]) => void }) {
+  const [songTitle, setSongTitle] = useState("");
+  const cleanSongs = (songs || []).filter(Boolean);
+
+  const addSong = () => {
+    const next = songTitle.trim();
+    if (!next) return;
+    onChange([...cleanSongs, next]);
+    setSongTitle("");
+  };
+
+  return (
+    <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Music className="h-4 w-4" /> Songs
+      </div>
+      {cleanSongs.length > 0 && (
+        <div className="space-y-1">
+          {cleanSongs.map((song, songIdx) => (
+            <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
+              <Input
+                className="h-8"
+                value={song}
+                onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
+                onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Input
+          className="h-8"
+          placeholder="Song title"
+          value={songTitle}
+          onChange={(event) => setSongTitle(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addSong();
+            }
+          }}
+        />
+        <Button size="sm" variant="outline" onClick={addSong} disabled={!songTitle.trim()}>
+          <Plus className="h-4 w-4 mr-1" /> Add
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -214,7 +288,7 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit template</DialogTitle>
         </DialogHeader>
@@ -243,7 +317,7 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
             <div className="space-y-2">
               {slots.map((slot, idx) => (
                 <Card key={slot.id}>
-                  <CardContent className="py-3 space-y-2">
+                  <CardContent className="py-3 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex flex-col gap-0.5">
                         <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => reorder(idx, -1)} disabled={idx === 0}>
@@ -297,6 +371,14 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
                         onChange={(ids) => updateSlot.mutate({ id: slot.id, default_profile_ids: ids as any })}
                       />
                     </div>
+                    {isWorshipSlot(slot, teams) && (
+                      <div className="pl-8">
+                        <SongEditor
+                          songs={slot.songs || []}
+                          onChange={(songs) => updateSlot.mutate({ id: slot.id, songs: songs as any })}
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
