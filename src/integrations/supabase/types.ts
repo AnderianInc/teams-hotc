@@ -1500,6 +1500,7 @@ export type Database = {
       service_template_slots: {
         Row: {
           created_at: string
+          default_profile_ids: string[]
           default_role_type_id: string | null
           default_team_id: string | null
           duration_minutes: number
@@ -1512,6 +1513,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_profile_ids?: string[]
           default_role_type_id?: string | null
           default_team_id?: string | null
           duration_minutes?: number
@@ -1524,6 +1526,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_profile_ids?: string[]
           default_role_type_id?: string | null
           default_team_id?: string | null
           duration_minutes?: number

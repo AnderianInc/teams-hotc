@@ -20,6 +20,7 @@ export interface TemplateSlot {
   notes: string | null;
   default_team_id: string | null;
   default_role_type_id: string | null;
+  default_profile_ids: string[];
 }
 
 export interface ServiceInstance {
@@ -248,8 +249,29 @@ export async function generateServiceFromTemplate(
       team_id: !allowedTeamIds.length || allowedTeamIds.includes(s.default_team_id) ? s.default_team_id : null,
       role_type_id: s.default_role_type_id,
     }));
-    const { error: insErr } = await supabase.from("service_instance_slots").insert(rows);
+    const { data: createdSlots, error: insErr } = await supabase
+      .from("service_instance_slots")
+      .insert(rows)
+      .select("id, order_index");
     if (insErr) throw insErr;
+
+    // Seed default assignments from template defaults
+    const assignmentRows: any[] = [];
+    (createdSlots || []).forEach((cs: any) => {
+      const tmpl: any = tSlots.find((s: any) => s.order_index === cs.order_index);
+      const ids: string[] = tmpl?.default_profile_ids || [];
+      ids.forEach((profileId: string) => {
+        assignmentRows.push({
+          slot_id: cs.id,
+          assignee_type: "profile",
+          profile_id: profileId,
+          status: "invited",
+        });
+      });
+    });
+    if (assignmentRows.length) {
+      await supabase.from("service_slot_assignments").insert(assignmentRows);
+    }
   }
 
   return instance as ServiceInstance;
