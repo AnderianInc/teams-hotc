@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useOrderOfService";
 import SlotAssignPopover from "@/components/admin/SlotAssignPopover";
 import { useAllTeams } from "@/hooks/useTeams";
+import { useAuth } from "@/hooks/useAuth";
 
 function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = hhmm.split(":").map(Number);
