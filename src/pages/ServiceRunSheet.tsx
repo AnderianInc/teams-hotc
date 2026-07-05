@@ -517,19 +517,6 @@ export default function ServiceRunSheet() {
                       </td>
                     )}
                   </tr>
-                  {showSongsRow && (
-                    <tr className="bg-muted/10">
-                      {canEdit && <td></td>}
-                      <td></td>
-                      <td colSpan={canEdit ? 6 : 3} className="px-2 pb-2">
-                        <SongEditor
-                          songs={slot.songs || []}
-                          canEdit={canEditSongs}
-                          onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
-                        />
-                      </td>
-                    </tr>
-                  )}
                 </React.Fragment>
               );
             })}
