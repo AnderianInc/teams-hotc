@@ -276,7 +276,7 @@ export default function ServiceRunSheet() {
         })}
       </div>
 
-      {!isPrint && (
+      {canEdit && (
         <Card>
           <CardContent className="py-3">
             <Label className="mb-2 block">Add slot</Label>
