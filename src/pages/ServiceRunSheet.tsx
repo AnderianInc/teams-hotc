@@ -12,13 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, Printer, Trash2, ArrowUp, ArrowDown, Clock, X,
+  Music,
 } from "lucide-react";
 import {
-  useInstance, useInstanceSlots, useSlotAssignments, useInvalidateOoS,
+  deleteServiceInstance, useInstance, useInstanceSlots, useSlotAssignments, useInvalidateOoS,
   type InstanceSlot,
 } from "@/hooks/useOrderOfService";
 import SlotAssignPopover from "@/components/admin/SlotAssignPopover";
-import { useAllTeams } from "@/hooks/useTeams";
+import { useAllTeams, useMyTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/hooks/useAuth";
 
 function addMinutes(hhmm: string, minutes: number): string {
@@ -27,6 +28,78 @@ function addMinutes(hhmm: string, minutes: number): string {
   const nh = Math.floor(total / 60) % 24;
   const nm = total % 60;
   return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
+}
+
+function SongEditor({
+  songs,
+  canEdit,
+  onChange,
+}: {
+  songs: string[];
+  canEdit: boolean;
+  onChange: (songs: string[]) => void;
+}) {
+  const [songTitle, setSongTitle] = useState("");
+  const cleanSongs = (songs || []).filter(Boolean);
+
+  const addSong = () => {
+    const next = songTitle.trim();
+    if (!next) return;
+    onChange([...cleanSongs, next]);
+    setSongTitle("");
+  };
+
+  if (!canEdit && cleanSongs.length === 0) return null;
+
+  return (
+    <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Music className="h-4 w-4" /> Songs
+      </div>
+      {cleanSongs.length > 0 && (
+        <div className="space-y-1">
+          {cleanSongs.map((song, songIdx) => (
+            <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
+              {canEdit ? (
+                <>
+                  <Input
+                    className="h-8"
+                    value={song}
+                    onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
+                    onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
+                  />
+                  <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm">{song}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {canEdit && (
+        <div className="flex gap-2">
+          <Input
+            className="h-8"
+            placeholder="Song title"
+            value={songTitle}
+            onChange={(event) => setSongTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addSong();
+              }
+            }}
+          />
+          <Button size="sm" variant="outline" onClick={addSong} disabled={!songTitle.trim()}>
+            <Plus className="h-4 w-4 mr-1" /> Add
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ServiceRunSheet() {
@@ -44,6 +117,7 @@ export default function ServiceRunSheet() {
   const { data: slots = [] } = useInstanceSlots(instanceId!);
   const { data: assignments = [] } = useSlotAssignments(instanceId!);
   const { data: teams = [] } = useAllTeams();
+  const { data: myTeams = [] } = useMyTeams();
   const { data: scheduledTeams = [] } = useQuery({
     queryKey: ["run-sheet-scheduled-teams", instance?.roster_event_id],
     enabled: !!instance?.roster_event_id,
@@ -84,6 +158,12 @@ export default function ServiceRunSheet() {
 
   const teamName = (id: string | null) => teams.find((t) => t.id === id)?.name;
   const allowedTeamIds = scheduledTeams.map((team: any) => team.team_id).filter(Boolean);
+  const myTeamIds = useMemo(() => myTeams.map((item) => item.team_id).filter(Boolean), [myTeams]);
+  const isWorshipSlot = (slot: InstanceSlot) => {
+    const team = teams.find((item) => item.id === slot.team_id);
+    const haystack = `${slot.title} ${team?.name || ""} ${team?.slug || ""}`.toLowerCase();
+    return haystack.includes("worship");
+  };
 
   const addSlot = useMutation({
     mutationFn: async () => {
@@ -147,6 +227,31 @@ export default function ServiceRunSheet() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteInstance = useMutation({
+    mutationFn: async () => {
+      if (!instance) return;
+      await deleteServiceInstance(instance.id);
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success("Service deleted");
+      navigate(backTo);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateSongs = useMutation({
+    mutationFn: async ({ slotId, songs }: { slotId: string; songs: string[] }) => {
+      const { error } = await supabase.rpc("update_service_slot_songs" as any, {
+        _slot_id: slotId,
+        _songs: songs,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => invalidate(instanceId),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const reorder = async (idx: number, dir: -1 | 1) => {
     const swapIdx = idx + dir;
     if (swapIdx < 0 || swapIdx >= slots.length) return;
@@ -186,9 +291,18 @@ export default function ServiceRunSheet() {
               <Printer className="h-4 w-4 mr-1" /> Print view
             </Button>
             {isAdmin && (
-              <Button size="sm" onClick={() => togglePublish.mutate()}>
-                {instance.status === "published" ? "Unpublish" : "Publish"}
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (confirm(`Delete "${instance.title}"? You can create a fresh run sheet from the template afterward.`)) {
+                    deleteInstance.mutate();
+                  }
+                }} disabled={deleteInstance.isPending}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete service
+                </Button>
+                <Button size="sm" onClick={() => togglePublish.mutate()}>
+                  {instance.status === "published" ? "Unpublish" : "Publish"}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -283,6 +397,11 @@ export default function ServiceRunSheet() {
                     {slot.team_id && (
                       <p className="text-xs text-muted-foreground">Team: {teamName(slot.team_id)}</p>
                     )}
+                    <SongEditor
+                      songs={slot.songs || []}
+                      canEdit={!isPrint && (canEdit || (!!slot.team_id && myTeamIds.includes(slot.team_id) && isWorshipSlot(slot)))}
+                      onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                    />
                     {slotAssignments.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {slotAssignments.map((a) => {
