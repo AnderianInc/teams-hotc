@@ -259,17 +259,74 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <CalendarDays className="h-5 w-5 text-blue-500 shrink-0" />
-              <div>
-                <p className="text-2xl font-bold">{upcomingAssignments?.length ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Upcoming shifts</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Card className="cursor-pointer hover:bg-muted/40 transition-colors">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-center gap-3">
+                  <CalendarDays className="h-5 w-5 text-blue-500 shrink-0" />
+                  <div>
+                    <p className="text-2xl font-bold">{upcomingAssignments?.length ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">Upcoming shifts ▾</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[380px] max-h-[70vh] overflow-y-auto p-2">
+            {!upcomingAssignments || upcomingAssignments.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-3 text-center">No upcoming shifts.</p>
+            ) : (
+              <div className="space-y-2">
+                {(upcomingAssignments as any[]).map((a) => (
+                  <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 gap-2 flex-wrap">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="text-center min-w-[36px]">
+                        <p className="text-xs text-muted-foreground">{format(new Date(a.scheduled_date + "T00:00:00"), "MMM")}</p>
+                        <p className="text-lg font-bold leading-none">{format(new Date(a.scheduled_date + "T00:00:00"), "d")}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{(a.teams as any)?.name || "Team"}</p>
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                          {a.role_description && (
+                            <Badge variant="outline" className="text-xs">{a.role_description}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 ml-auto">
+                      {a.source === "slot" ? (
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs"
+                          onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${a.instance_id}`)}
+                        >
+                          View
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm" variant="outline" className="h-7 text-xs"
+                            disabled={responding === a.id}
+                            onClick={() => respondToAssignment(a, "accepted")}
+                          >
+                            <Check className="h-3 w-3 mr-1" /> Accept
+                          </Button>
+                          <Button
+                            size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
+                            disabled={responding === a.id}
+                            onClick={() => { setDeclineFor(a); setDeclineReason(""); }}
+                          >
+                            <X className="h-3 w-3 mr-1" /> Decline
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            )}
+          </PopoverContent>
+        </Popover>
 
         <Card>
           <CardContent className="pt-4 pb-3">
