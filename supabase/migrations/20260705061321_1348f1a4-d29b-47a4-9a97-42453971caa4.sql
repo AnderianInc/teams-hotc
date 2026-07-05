@@ -1,0 +1,1 @@
+ALTER TABLE public.service_template_slots ADD COLUMN IF NOT EXISTS default_profile_ids uuid[] NOT NULL DEFAULT '{}'::uuid[];
