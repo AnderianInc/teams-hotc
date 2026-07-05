@@ -133,11 +133,6 @@ function MemberPicker({
   );
 }
 
-function isWorshipSlot(slot: TemplateSlot, teams: { id: string; name: string; slug?: string | null }[]) {
-  const team = teams.find((item) => item.id === slot.default_team_id);
-  const haystack = `${slot.title} ${team?.name || ""} ${team?.slug || ""}`.toLowerCase();
-  return haystack.includes("worship");
-}
 
 function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: string[]) => void }) {
   const [songTitle, setSongTitle] = useState("");
