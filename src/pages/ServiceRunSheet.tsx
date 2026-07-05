@@ -32,7 +32,7 @@ function addMinutes(hhmm: string, minutes: number): string {
   return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
 }
 
-function SongEditor({
+function SongListPopover({
   songs,
   canEdit,
   onChange,
@@ -42,6 +42,7 @@ function SongEditor({
   onChange: (songs: string[]) => void;
 }) {
   const [songTitle, setSongTitle] = useState("");
+  const [open, setOpen] = useState(false);
   const cleanSongs = (songs || []).filter(Boolean);
 
   const addSong = () => {
@@ -53,54 +54,72 @@ function SongEditor({
 
   if (!canEdit && cleanSongs.length === 0) return null;
 
-  return (
-    <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Music className="h-4 w-4" /> Songs
-      </div>
-      {cleanSongs.length > 0 && (
-        <div className="space-y-1">
-          {cleanSongs.map((song, songIdx) => (
-            <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
-              {canEdit ? (
-                <>
-                  <Input
-                    className="h-8"
-                    value={song}
-                    onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
-                    onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
-                  />
-                  <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <p className="text-sm">{song}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      {canEdit && (
-        <div className="flex gap-2">
-          <Input
-            className="h-8"
-            placeholder="Song title"
-            value={songTitle}
-            onChange={(event) => setSongTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addSong();
-              }
-            }}
-          />
-          <Button size="sm" variant="outline" onClick={addSong} disabled={!songTitle.trim()}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
-        </div>
-      )}
+  const summary = cleanSongs.length ? cleanSongs.join(" · ") : canEdit ? "Add songs" : "";
+
+  const trigger = (
+    <div className="flex items-center gap-1 mt-0.5 max-w-[220px]">
+      <Music className="h-3 w-3 shrink-0 text-muted-foreground" />
+      <span className="text-xs text-muted-foreground truncate">
+        {summary}
+      </span>
     </div>
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        {canEdit ? (
+          <button className="text-left hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+            {trigger}
+          </button>
+        ) : (
+          <div>{trigger}</div>
+        )}
+      </PopoverTrigger>
+      {canEdit && (
+        <PopoverContent className="w-72 p-3" align="start">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Music className="h-4 w-4" /> Songs
+            </div>
+            {cleanSongs.length > 0 && (
+              <div className="space-y-1">
+                {cleanSongs.map((song, songIdx) => (
+                  <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
+                    <Input
+                      className="h-8 flex-1"
+                      value={song}
+                      onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
+                      onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
+                    />
+                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                className="h-8"
+                placeholder="Song title"
+                value={songTitle}
+                onChange={(event) => setSongTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addSong();
+                  }
+                }}
+              />
+              <Button size="sm" variant="outline" onClick={addSong} disabled={!songTitle.trim()}>
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      )}
+    </Popover>
   );
 }
 
