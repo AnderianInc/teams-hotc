@@ -493,9 +493,8 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   function openAssign(event: any, defaultTeamId?: string) {
     setAssignEvent(event);
     setAssignTeamId(teamId || defaultTeamId || "");
-    setAssignUserId("");
+    setAssignUserIds([]);
     setAssignRole("");
-    setDayDetailOpen(false);
     setAssignOpen(true);
   }
 
