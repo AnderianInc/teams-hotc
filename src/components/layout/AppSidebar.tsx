@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams } from "@/hooks/useTeams";
 import { NavLink } from "@/components/NavLink";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
