@@ -10,26 +10,34 @@ import {
   connectBluetooth,
   connectBridge,
   disconnectPrinter,
+  discoverBridge,
   getPrinterStatus,
   getSavedBridgeUrl,
   isUSBAvailable,
   isBluetoothAvailable,
   printTestLabel,
-  tryRestoreBridge,
+  tryAutoConnectBridge,
   type PrinterStatus,
 } from "@/lib/brotherPrinter";
 import { toast } from "sonner";
-import { Printer, Bluetooth, Usb, Unplug, Wifi, Settings2 } from "lucide-react";
+import { Printer, Bluetooth, Usb, Unplug, Wifi, Settings2, Radar } from "lucide-react";
 
 export default function PrinterConnect() {
   const [status, setStatus] = useState<PrinterStatus>(getPrinterStatus());
   const [bridgeUrl, setBridgeUrl] = useState(getSavedBridgeUrl());
   const [testing, setTesting] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
-  // On mount, silently reconnect to saved bridge so reloads keep printing.
+  // On mount: try saved bridge, then auto-discover via mDNS `.local` names.
   useEffect(() => {
     if (!status.connected) {
-      tryRestoreBridge().then((s) => { if (s) setStatus(s); });
+      tryAutoConnectBridge().then((s) => {
+        if (s) {
+          setStatus(s);
+          setBridgeUrl(getSavedBridgeUrl());
+          toast.success(`Auto-connected to ${s.name}`);
+        }
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -64,6 +72,21 @@ export default function PrinterConnect() {
       toast.error(e.message || "Could not reach bridge");
     }
   };
+
+  const handleScan = async () => {
+    setScanning(true);
+    try {
+      const found = await discoverBridge(bridgeUrl.trim() ? [bridgeUrl.trim()] : []);
+      if (!found) { toast.error("No bridge found on this network"); return; }
+      setBridgeUrl(found);
+      const s = await connectBridge(found);
+      setStatus(s);
+      toast.success(`Found bridge at ${found}`);
+    } catch (e: any) {
+      toast.error(e.message || "Discovery failed");
+    } finally { setScanning(false); }
+  };
+
 
   const handleTest = async () => {
     setTesting(true);
