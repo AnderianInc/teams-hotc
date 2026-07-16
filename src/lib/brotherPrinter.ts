@@ -42,7 +42,9 @@ export function isUSBAvailable(): boolean {
   return typeof navigator !== "undefined" && "usb" in navigator;
 }
 export function isBluetoothAvailable(): boolean {
-  return typeof navigator !== "undefined" && "bluetooth" in navigator;
+  // Brother QL-810W has no Bluetooth; QL-820NWB uses Bluetooth Classic (SPP),
+  // which Web Bluetooth (BLE/GATT) cannot pair with. Hide the option.
+  return false;
 }
 /** Network bridge works in every browser — only requires fetch. */
 export function isBridgeAvailable(): boolean {
