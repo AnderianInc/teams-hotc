@@ -42,7 +42,9 @@ export function isUSBAvailable(): boolean {
   return typeof navigator !== "undefined" && "usb" in navigator;
 }
 export function isBluetoothAvailable(): boolean {
-  return typeof navigator !== "undefined" && "bluetooth" in navigator;
+  // Brother QL-810W has no Bluetooth; QL-820NWB uses Bluetooth Classic (SPP),
+  // which Web Bluetooth (BLE/GATT) cannot pair with. Hide the option.
+  return false;
 }
 /** Network bridge works in every browser — only requires fetch. */
 export function isBridgeAvailable(): boolean {
@@ -276,7 +278,9 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
   commands.push(0x1b, 0x69, 0x61, 0x01);
   commands.push(0x1b, 0x69, 0x7a);
   commands.push(0x86, 0x0a, 0x3e, 0x00);
-  commands.push(height & 0xff, (height >> 8) & 0xff, (height >> 16) & 0xff, (height >> 24) & 0xff);
+  // Continuous DK tape: n5-n8 must be 0 (raster length auto-detected).
+  // Sending pixel height here confuses QL-810W/820NWB firmware.
+  commands.push(0x00, 0x00, 0x00, 0x00);
   commands.push(0x00, 0x00, 0x00, 0x00);
   commands.push(0x1b, 0x69, 0x4d, 0x40);
   commands.push(0x1b, 0x69, 0x4b, 0x08);
