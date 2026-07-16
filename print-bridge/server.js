@@ -72,13 +72,17 @@ function sendBytesToPrinter(bytes) {
       }
     }
     if (WIN_PRINTER) {
-      // Windows: pipe bytes to default print via lpr / print command
-      const child = spawn("powershell.exe", [
-        "-Command",
-        `$bytes=[Console]::In.ReadToEnd();[System.IO.File]::WriteAllBytes("$env:TEMP\\hotc_label.prn",[System.Text.Encoding]::GetEncoding(28591).GetBytes($bytes));Start-Process -FilePath "print" -ArgumentList "/D:\\\\localhost\\${WIN_PRINTER.replace(/"/g, '')} $env:TEMP\\hotc_label.prn" -Wait -NoNewWindow`,
-      ]);
-      child.stdin.end(Buffer.from(bytes));
-      child.on("close", (code) => code === 0 ? resolve({ via: WIN_PRINTER }) : reject(new Error("Windows print failed, code " + code)));
+      // Write raw Brother raster bytes to a temp file, then COPY /B them to the
+      // printer share. The `print` CLI re-rasterises via the driver and would
+      // destroy the pre-built ESC/P bytes — copy is byte-exact.
+      const tmp = path.join(os.tmpdir(), `hotc_label_${Date.now()}.prn`);
+      try { fs.writeFileSync(tmp, Buffer.from(bytes)); } catch (e) { return reject(e); }
+      const share = `\\\\localhost\\${WIN_PRINTER.replace(/"/g, "")}`;
+      const child = spawn("cmd.exe", ["/c", "copy", "/B", tmp, share], { windowsHide: true });
+      child.on("close", (code) => {
+        try { fs.unlinkSync(tmp); } catch {}
+        code === 0 ? resolve({ via: WIN_PRINTER }) : reject(new Error("Windows print failed, code " + code));
+      });
       child.on("error", reject);
       return;
     }
