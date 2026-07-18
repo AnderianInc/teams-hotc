@@ -61,8 +61,10 @@ You should see something like `Print bridge listening on https://192.168.1.50:94
 
 You want this running whenever the PC is on.
 
-- **Windows**: Task Scheduler → Create Basic Task → Trigger "At log on" → Action "Start a program" → point at `start-bridge.bat`.
-- **macOS**: create a LaunchAgent that runs `npm start` inside the `print-bridge` folder at login. If you're not sure, just leave a shortcut on the desktop and double-click it when you arrive on Sunday.
+- **Windows (binary)**: drop `hotc-print-bridge-win.exe` into `shell:startup` (Win+R → `shell:startup` → paste the file or a shortcut).
+- **Windows (source)**: Task Scheduler → Create Basic Task → Trigger "At log on" → Action "Start a program" → point at `start-bridge.bat`.
+- **macOS (binary)**: System Settings → General → Login Items → add `hotc-print-bridge-macos`.
+- **macOS (source)**: create a LaunchAgent that runs `npm start` inside the `print-bridge` folder at login, or just leave a shortcut on the desktop and double-click it on Sunday.
 
 ## 3. Set up the Brother QL printer
 
