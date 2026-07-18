@@ -29,11 +29,21 @@ router. Note it — e.g. `192.168.1.60`.
 
 ## 3. Install & configure
 
+**Two ways to install:**
+
+**A) Prebuilt binary (recommended for volunteers)** — grab the file for your OS from
+[GitHub Releases](https://github.com/AnderianInc/teams-hotc/releases) and double-click it.
+No Node.js required. Skip to the `.env` step.
+
+**B) From source (contributors / developers)**:
+
 ```bash
-git clone <this repo> && cd print-bridge
-npm install        # no deps; just confirms node works
+git clone https://github.com/AnderianInc/teams-hotc.git
+cd teams-hotc/print-bridge
+npm install
 cp .env.example .env   # then edit
 ```
+
 
 Edit `.env`:
 
