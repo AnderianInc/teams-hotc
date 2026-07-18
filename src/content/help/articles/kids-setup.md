@@ -61,8 +61,10 @@ You should see something like `Print bridge listening on https://192.168.1.50:94
 
 You want this running whenever the PC is on.
 
-- **Windows**: Task Scheduler → Create Basic Task → Trigger "At log on" → Action "Start a program" → point at `start-bridge.bat`.
-- **macOS**: create a LaunchAgent that runs `npm start` inside the `print-bridge` folder at login. If you're not sure, just leave a shortcut on the desktop and double-click it when you arrive on Sunday.
+- **Windows (binary)**: drop `hotc-print-bridge-win.exe` into `shell:startup` (Win+R → `shell:startup` → paste the file or a shortcut).
+- **Windows (source)**: Task Scheduler → Create Basic Task → Trigger "At log on" → Action "Start a program" → point at `start-bridge.bat`.
+- **macOS (binary)**: System Settings → General → Login Items → add `hotc-print-bridge-macos`.
+- **macOS (source)**: create a LaunchAgent that runs `npm start` inside the `print-bridge` folder at login, or just leave a shortcut on the desktop and double-click it on Sunday.
 
 ## 3. Set up the Brother QL printer
 
@@ -71,7 +73,7 @@ You want this running whenever the PC is on.
 **Connect to the bridge PC** — pick one:
 
 - **USB (easiest, required for QL-810W)**: plug the printer into the bridge PC. Install the Brother P-touch driver from brother.com. Done.
-- **Wifi (QL-820NWB / QL-1110NWB only)**: use Brother's iPrint&Label app to join the printer to the church wifi. In the bridge software's `.env` file (see `print-bridge/.env.example`), set the printer's IP address.
+- **Wifi (QL-820NWB / QL-1110NWB only)**: use Brother's iPrint&Label app to join the printer to the church wifi. In the bridge's `.env` file (source install) or alongside the binary, set `PRINTER_HOST=<printer-ip>`.
 
 > **Bluetooth note:** The QL-810W has no Bluetooth. The QL-820NWB has Bluetooth *Classic (SPP)*, which browsers cannot pair with — connect it by USB or wifi via the bridge instead.
 
