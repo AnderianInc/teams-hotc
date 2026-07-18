@@ -5,7 +5,7 @@
  *   - "usb"       Web USB (Chrome/Edge on Mac/PC kiosks)
  *   - "bluetooth" Web Bluetooth (Chrome/Edge desktop, Android)
  *   - "bridge"    HTTPS POST to a LAN print bridge (iPad/Android/phones).
- *                 See /print-bridge in this repo.
+ *                 Open source: github.com/AnderianInc/teams-hotc → /print-bridge
  *
  * Raster generation is identical across transports — only the byte
  * transport differs.
