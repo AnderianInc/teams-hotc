@@ -29,11 +29,21 @@ router. Note it — e.g. `192.168.1.60`.
 
 ## 3. Install & configure
 
+**Two ways to install:**
+
+**A) Prebuilt binary (recommended for volunteers)** — grab the file for your OS from
+[GitHub Releases](https://github.com/AnderianInc/teams-hotc/releases) and double-click it.
+No Node.js required. Skip to the `.env` step.
+
+**B) From source (contributors / developers)**:
+
 ```bash
-git clone <this repo> && cd print-bridge
-npm install        # no deps; just confirms node works
+git clone https://github.com/AnderianInc/teams-hotc.git
+cd teams-hotc/print-bridge
+npm install
 cp .env.example .env   # then edit
 ```
+
 
 Edit `.env`:
 
@@ -126,3 +136,14 @@ so the bridge is printer-format agnostic — it just forwards bytes.
   or `PRINTER_HOST` is wrong.
 - **Label prints blank or garbled** — wrong tape loaded; QL-1110NWB needs
   DK-2205 continuous or DK-1247 die-cut tape.
+
+---
+
+## Contributing
+
+The bridge is open source under the [AnderianInc/teams-hotc](https://github.com/AnderianInc/teams-hotc) repo.
+PRs welcome — issues, driver support for other printers, or improved installers.
+
+Tagged releases (`print-bridge-v*`) auto-build Windows / macOS / Linux binaries via GitHub Actions
+(`.github/workflows/print-bridge-release.yml`) using [`pkg`](https://github.com/vercel/pkg).
+To cut a release locally: `npm run build` inside `print-bridge/`.

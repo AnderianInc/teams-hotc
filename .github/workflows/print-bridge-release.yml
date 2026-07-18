@@ -1,0 +1,65 @@
+name: Build Print Bridge Binaries
+
+on:
+  push:
+    tags:
+      - 'print-bridge-v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: print-bridge
+        run: npm install
+
+      - name: Install pkg
+        run: npm install -g pkg@5
+
+      - name: Build binaries (Windows, macOS, Linux)
+        working-directory: print-bridge
+        run: |
+          pkg . \
+            --targets node18-win-x64,node18-macos-x64,node18-linux-x64 \
+            --output dist/hotc-print-bridge
+
+      - name: Rename artifacts
+        working-directory: print-bridge/dist
+        run: |
+          ls -la
+          # pkg outputs hotc-print-bridge-win.exe, -macos, -linux by default when using --output prefix
+          mv hotc-print-bridge-win.exe hotc-print-bridge-win.exe 2>/dev/null || true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-bridge-binaries
+          path: print-bridge/dist/*
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/print-bridge-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: print-bridge/dist/*
+          generate_release_notes: true
+          body: |
+            ## HOTC Print Bridge
+
+            Standalone binaries for the HOTC Volunteer Hub print bridge.
+            Download the file for your OS and double-click to run.
+
+            - **Windows**: `hotc-print-bridge-win.exe`
+            - **macOS**: `hotc-print-bridge-macos`
+            - **Linux**: `hotc-print-bridge-linux`
+
+            See [print-bridge/README.md](../blob/main/print-bridge/README.md) for setup instructions.

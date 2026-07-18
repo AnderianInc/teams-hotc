@@ -4,15 +4,24 @@
   "private": true,
   "description": "LAN bridge that lets the HOTC Volunteer Hub web app print Brother QL labels from any device on the church wifi.",
   "main": "server.js",
+  "bin": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "pkg . --targets node18-win-x64,node18-macos-x64,node18-linux-x64 --output dist/hotc-print-bridge"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "bonjour-service": "^1.2.1"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/bonjour-service/**/*"
+    ],
+    "outputPath": "dist"
   }
 }
+
 
