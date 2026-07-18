@@ -136,3 +136,14 @@ so the bridge is printer-format agnostic — it just forwards bytes.
   or `PRINTER_HOST` is wrong.
 - **Label prints blank or garbled** — wrong tape loaded; QL-1110NWB needs
   DK-2205 continuous or DK-1247 die-cut tape.
+
+---
+
+## Contributing
+
+The bridge is open source under the [AnderianInc/teams-hotc](https://github.com/AnderianInc/teams-hotc) repo.
+PRs welcome — issues, driver support for other printers, or improved installers.
+
+Tagged releases (`print-bridge-v*`) auto-build Windows / macOS / Linux binaries via GitHub Actions
+(`.github/workflows/print-bridge-release.yml`) using [`pkg`](https://github.com/vercel/pkg).
+To cut a release locally: `npm run build` inside `print-bridge/`.
