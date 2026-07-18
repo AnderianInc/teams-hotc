@@ -32,28 +32,30 @@ There are three things involved during check-in:
 
 Any always-on Windows or Mac computer works. Only needs to be done once.
 
-**Install Node.js 18+** from [nodejs.org](https://nodejs.org).
+The bridge is open source: **[github.com/AnderianInc/teams-hotc](https://github.com/AnderianInc/teams-hotc)** → `print-bridge/` folder.
 
-**Get the bridge software** — the `print-bridge` folder from this project. Copy it to the PC.
+### Option A — Download a prebuilt binary (easiest, no Node.js required)
 
-Open a terminal (or Command Prompt) inside that folder and run:
+1. Go to [Releases](https://github.com/AnderianInc/teams-hotc/releases) on GitHub.
+2. Download the file for your OS:
+   - Windows: `hotc-print-bridge-win.exe`
+   - macOS: `hotc-print-bridge-macos`
+   - Linux: `hotc-print-bridge-linux`
+3. Double-click to run. On first launch it generates a self-signed certificate so iPads can reach it over HTTPS.
+
+### Option B — Run from source (for developers / contributors)
+
+Requires [Node.js 18+](https://nodejs.org).
 
 ```
+git clone https://github.com/AnderianInc/teams-hotc.git
+cd teams-hotc/print-bridge
 npm install
-```
-
-**Generate the security certificate** so iPads can talk to it:
-
-- macOS / Linux: `./generate-cert.sh`
-- Windows: double-click `start-bridge.bat` — it does the same thing
-
-**Start the bridge**:
-
-```
+./generate-cert.sh        # Windows: double-click start-bridge.bat
 npm start
 ```
 
-You should see something like `Print bridge listening on https://192.168.1.50:9443`. Write down that IP address as a fallback — normally auto-discovery finds it.
+You should see something like `Print bridge listening on https://192.168.1.50:9443`. Write down that IP as a fallback — normally auto-discovery finds it.
 
 ### Make it start automatically
 
