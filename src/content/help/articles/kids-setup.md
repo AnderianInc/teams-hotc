@@ -73,7 +73,7 @@ You want this running whenever the PC is on.
 **Connect to the bridge PC** — pick one:
 
 - **USB (easiest, required for QL-810W)**: plug the printer into the bridge PC. Install the Brother P-touch driver from brother.com. Done.
-- **Wifi (QL-820NWB / QL-1110NWB only)**: use Brother's iPrint&Label app to join the printer to the church wifi. In the bridge software's `.env` file (see `print-bridge/.env.example`), set the printer's IP address.
+- **Wifi (QL-820NWB / QL-1110NWB only)**: use Brother's iPrint&Label app to join the printer to the church wifi. In the bridge's `.env` file (source install) or alongside the binary, set `PRINTER_HOST=<printer-ip>`.
 
 > **Bluetooth note:** The QL-810W has no Bluetooth. The QL-820NWB has Bluetooth *Classic (SPP)*, which browsers cannot pair with — connect it by USB or wifi via the bridge instead.
 
