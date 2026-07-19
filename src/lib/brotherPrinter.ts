@@ -345,23 +345,43 @@ export async function printTestLabel(): Promise<void> {
 }
 
 function buildBrotherRaster(imageData: ImageData, width: number, height: number): Uint8Array {
-  const bytesPerRow = Math.ceil(width / 8);
+  // QL-820NWB uses a fixed 720-dot (90-byte) print buffer for 62mm continuous tape.
+  const bytesPerRow = 90;
   const commands: number[] = [];
+
+  // 1. Invalidate: >=200 null bytes clears any partial job in the printer buffer.
   commands.push(...Array(200).fill(0x00));
+  // 2. Initialize: ESC @
   commands.push(0x1b, 0x40);
+  // 3. Switch to raster graphics mode: ESC i a 0x01
   commands.push(0x1b, 0x69, 0x61, 0x01);
+
+  // 4. Print information command: ESC i z {n1..n10}
+  //    n1 = valid-flag: PI_KIND|PI_WIDTH|PI_LENGTH|PI_QUALITY|PI_RECOVER = 0x8E
+  //    n2 = media type: 0x0A continuous length tape
+  //    n3 = media width in mm: 0x3E = 62
+  //    n4 = media length in mm: 0 for continuous
+  //    n5..n8 = raster row count (little-endian 32-bit)
+  //    n9 = starting page (0), n10 = 0
+  //    Without a valid n1 the QL-820NWB falls back to its last media (address label).
+  const rasterCount = height;
   commands.push(0x1b, 0x69, 0x7a);
-  commands.push(0x86, 0x0a, 0x3e, 0x00);
-  // Continuous DK tape: n5-n8 must be 0 (raster length auto-detected).
-  // Sending pixel height here confuses QL-810W/820NWB firmware.
-  commands.push(0x00, 0x00, 0x00, 0x00);
-  commands.push(0x00, 0x00, 0x00, 0x00);
+  commands.push(0x8e, 0x0a, 0x3e, 0x00);
+  commands.push(rasterCount & 0xff, (rasterCount >> 8) & 0xff, (rasterCount >> 16) & 0xff, (rasterCount >> 24) & 0xff);
+  commands.push(0x00, 0x00);
+
+  // 5. Auto-cut every page: ESC i M 0x40
   commands.push(0x1b, 0x69, 0x4d, 0x40);
+  // 6. Cut at end: ESC i K 0x08
   commands.push(0x1b, 0x69, 0x4b, 0x08);
+  // 7. Feed margin for continuous tape: ESC i d 35 0
   commands.push(0x1b, 0x69, 0x64, 0x23, 0x00);
+  // 8. Compression mode: M 0x00 (no compression) — matches the raw rows below.
+  commands.push(0x4d, 0x00);
 
   for (let y = 0; y < height; y++) {
-    commands.push(0x67, 0x00, bytesPerRow);
+    // Raster line: g 0x00 0x5A + 90 pixel bytes
+    commands.push(0x67, 0x00, 0x5a);
     for (let byteIdx = 0; byteIdx < bytesPerRow; byteIdx++) {
       let byte = 0;
       for (let bit = 0; bit < 8; bit++) {
@@ -377,6 +397,7 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
       commands.push(byte);
     }
   }
+  // Print with feeding (end of job)
   commands.push(0x1a);
   return new Uint8Array(commands);
 }
