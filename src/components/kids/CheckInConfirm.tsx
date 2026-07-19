@@ -179,12 +179,6 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
-          {!activeService && isOnline && (
-            <p className="text-sm text-warning">
-              ⚠ No active service. Ask an admin to create one in Settings.
-            </p>
-          )}
-
           {!isOnline && (
             <Badge variant="secondary" className="gap-1">
               Offline mode — check-in will sync when back online
@@ -194,7 +188,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <Button
             className="w-full h-12 text-base"
             onClick={() => checkIn.mutate()}
-            disabled={checkIn.isPending || (isOnline && !activeService)}
+            disabled={checkIn.isPending}
           >
             <Printer className="h-5 w-5 mr-2" />
             {checkIn.isPending ? "Checking in..." : "Check In & Print Tag"}
