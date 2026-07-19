@@ -73,8 +73,9 @@ export async function verifyPrinterOnline(): Promise<PrinterStatus> {
       const r = await fetch(`${saved}/status`, { method: "GET", signal: ctrl.signal });
       if (!r.ok) throw new Error(`Bridge unreachable (HTTP ${r.status})`);
       const info = await r.json().catch(() => ({}));
-      if (info && info.printerConnected === false) {
-        throw new Error("Bridge is up but the printer is not connected to it. Check USB/Wi-Fi.");
+      const reachable = info?.reachable ?? info?.printerConnected;
+      if (reachable === false) {
+        throw new Error("Bridge is up but the printer is not reachable. Check the printer power/USB/Wi-Fi.");
       }
     } catch (e: any) {
       if (e.name === "AbortError") throw new Error("Printer bridge did not respond (timeout).");
