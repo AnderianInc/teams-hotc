@@ -88,29 +88,32 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         checked_in_at: new Date().toISOString(),
       };
 
-      // Try printing FIRST — if the printer is connected but fails,
-      // abort the check-in so staff can retry rather than have an
-      // unlabeled child.
-      const printerStatus = getPrinterStatus();
-      if (printerStatus.connected) {
-        let roomName = assignedRoom?.name || "TBD";
-        if (!isOnline && !assignedRoom) {
-          const offlineRooms = await getRoomsOffline();
-          const match = offlineRooms.find(
-            (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
-          );
-          if (match) roomName = match.name;
-        }
-        await printNameTag({
-          childName: `${child.first_name} ${child.last_name}`,
-          roomName,
-          allergies: child.allergies,
-          parentName: child.families?.parent1_name,
-        });
-        toast.success("Label printed!");
-      }
+      // STEP 1: Printer is mandatory. Verify it's actually reachable right now
+      // (a stale connection object is not enough — the bridge PC may have slept,
+      // the printer may be powered off, etc.).
+      setPhase("verifying");
+      await verifyPrinterOnline();
 
-      // Now record the check-in
+      // STEP 2: Print the label. If this throws, we do NOT save the check-in
+      // so staff can fix the printer and retry.
+      setPhase("printing");
+      let roomName = assignedRoom?.name || "TBD";
+      if (!isOnline && !assignedRoom) {
+        const offlineRooms = await getRoomsOffline();
+        const match = offlineRooms.find(
+          (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
+        );
+        if (match) roomName = match.name;
+      }
+      await printNameTag({
+        childName: `${child.first_name} ${child.last_name}`,
+        roomName,
+        allergies: child.allergies,
+        parentName: child.families?.parent1_name,
+      });
+
+      // STEP 3: Only after the printer confirms the send, record the check-in.
+      setPhase("saving");
       if (isOnline) {
         const { error } = await supabase.from("check_ins").insert({
           child_id: checkInData.child_id,
@@ -124,10 +127,14 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       }
     },
     onSuccess: () => {
+      setPhase("idle");
       setSuccess(true);
-      toast.success(`${child.first_name} checked in!${!isOnline ? " (offline — will sync later)" : ""}`);
+      toast.success(`${child.first_name} checked in & label printed!${!isOnline ? " (offline — will sync later)" : ""}`);
     },
-    onError: (e: Error) => toast.error(`Check-in aborted: ${e.message}`),
+    onError: (e: Error) => {
+      setPhase("idle");
+      toast.error(`Check-in aborted: ${e.message}`);
+    },
   });
 
   if (success) {
