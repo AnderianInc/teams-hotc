@@ -230,7 +230,7 @@ export async function connectBridge(rawUrl: string): Promise<PrinterStatus> {
         binary += String.fromCharCode.apply(null, Array.from(data.subarray(i, i + CHUNK)));
       }
       const rasterBase64 = btoa(binary);
-      const r = await fetch(`${url}/print`, {
+      const r = await fetch(`${bridgeUrl}/print`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rasterBase64 }),
