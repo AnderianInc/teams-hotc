@@ -26,19 +26,60 @@ jobs:
       - name: Install pkg
         run: npm install -g pkg@5
 
-      - name: Build binaries (Windows, macOS, Linux)
+      - name: Build binaries (Windows, macOS Intel + Apple Silicon, Linux)
         working-directory: print-bridge
         run: |
           pkg . \
-            --targets node18-win-x64,node18-macos-x64,node18-linux-x64 \
+            --targets node18-win-x64,node18-macos-x64,node18-macos-arm64,node18-linux-x64 \
             --output dist/hotc-print-bridge
 
-      - name: Rename artifacts
+      - name: Inspect build output
+        working-directory: print-bridge/dist
+        run: ls -la
+
+      # macOS binaries MUST be zipped. GitHub's raw download strips the
+      # executable bit AND macOS Gatekeeper quarantines unsigned bare
+      # binaries — the user sees "gibberish" opening in TextEdit.
+      # Zipping preserves +x and lets us include a helper script.
+      - name: Package macOS builds as zip
         working-directory: print-bridge/dist
         run: |
+          chmod +x hotc-print-bridge-macos hotc-print-bridge-macos-arm64 || true
+
+          # Intel
+          mkdir -p pkg-macos-intel
+          cp hotc-print-bridge-macos pkg-macos-intel/hotc-print-bridge
+          cat > pkg-macos-intel/run.command <<'EOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          xattr -dr com.apple.quarantine ./hotc-print-bridge 2>/dev/null || true
+          chmod +x ./hotc-print-bridge
+          ./hotc-print-bridge
+          EOF
+          chmod +x pkg-macos-intel/run.command
+          (cd pkg-macos-intel && zip -r ../hotc-print-bridge-macos-intel.zip .)
+
+          # Apple Silicon (M1/M2/M3)
+          mkdir -p pkg-macos-arm64
+          cp hotc-print-bridge-macos-arm64 pkg-macos-arm64/hotc-print-bridge
+          cat > pkg-macos-arm64/run.command <<'EOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          xattr -dr com.apple.quarantine ./hotc-print-bridge 2>/dev/null || true
+          chmod +x ./hotc-print-bridge
+          ./hotc-print-bridge
+          EOF
+          chmod +x pkg-macos-arm64/run.command
+          (cd pkg-macos-arm64 && zip -r ../hotc-print-bridge-macos-arm64.zip .)
+
+          # Linux — also zip to keep +x
+          chmod +x hotc-print-bridge-linux
+          zip hotc-print-bridge-linux.zip hotc-print-bridge-linux
+
+          # Clean raw macOS binaries so users don't grab the broken ones
+          rm -f hotc-print-bridge-macos hotc-print-bridge-macos-arm64
+          rm -rf pkg-macos-intel pkg-macos-arm64
           ls -la
-          # pkg outputs hotc-print-bridge-win.exe, -macos, -linux by default when using --output prefix
-          mv hotc-print-bridge-win.exe hotc-print-bridge-win.exe 2>/dev/null || true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -56,10 +97,12 @@ jobs:
             ## HOTC Print Bridge
 
             Standalone binaries for the HOTC Volunteer Hub print bridge.
-            Download the file for your OS and double-click to run.
 
-            - **Windows**: `hotc-print-bridge-win.exe`
-            - **macOS**: `hotc-print-bridge-macos`
-            - **Linux**: `hotc-print-bridge-linux`
+            - **Windows**: `hotc-print-bridge-win.exe` — double-click to run.
+            - **macOS Apple Silicon (M1/M2/M3)**: `hotc-print-bridge-macos-arm64.zip` — unzip, then double-click `run.command`.
+            - **macOS Intel**: `hotc-print-bridge-macos-intel.zip` — unzip, then double-click `run.command`.
+            - **Linux**: `hotc-print-bridge-linux.zip` — unzip, `chmod +x hotc-print-bridge-linux`, run.
 
-            See [print-bridge/README.md](../blob/main/print-bridge/README.md) for setup instructions.
+            > macOS note: the app is unsigned. First launch will warn "cannot verify developer" — right-click `run.command` → **Open** → **Open** to approve once. After that it launches normally.
+
+            See [print-bridge/README.md](../blob/main/print-bridge/README.md) for full setup.
