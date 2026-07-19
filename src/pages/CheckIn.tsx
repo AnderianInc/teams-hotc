@@ -212,23 +212,35 @@ export default function CheckIn() {
         <h1 className="text-2xl font-bold text-center mb-1" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
           Church Check-In
         </h1>
-        <p className="text-muted-foreground text-center text-sm mb-6">Welcome! Let us know you're here today.</p>
+        <p className="text-muted-foreground text-center text-sm">Welcome! Let us know you're here today.</p>
+        <div className="flex justify-center mb-6 mt-2">
+          <Badge variant="secondary" className="text-xs">Service: {serviceDateLabel}</Badge>
+        </div>
 
         {/* Step: Select type */}
         {step === "select" && (
           <div className="space-y-4">
             {user && (
               <button
-                onClick={() => handleCheckIn(user.id, "volunteer")}
-                className="w-full rounded-xl border-2 border-primary bg-primary/5 p-6 text-left hover:bg-primary/10 transition-all active:scale-[0.98]"
+                onClick={() => !selfAlreadyChecked && handleCheckIn(user.id, "volunteer")}
+                disabled={selfAlreadyChecked === true}
+                className={`w-full rounded-xl border-2 p-6 text-left transition-all active:scale-[0.98] ${
+                  selfAlreadyChecked
+                    ? "border-success/40 bg-success/5 cursor-not-allowed opacity-90"
+                    : "border-primary bg-primary/5 hover:bg-primary/10"
+                }`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-6 w-6 text-primary-foreground" />
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${selfAlreadyChecked ? "bg-success" : "bg-primary"}`}>
+                    <Check className={`h-6 w-6 ${selfAlreadyChecked ? "text-white" : "text-primary-foreground"}`} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-lg text-foreground truncate">Check in as {selfName}</p>
-                    <p className="text-sm text-muted-foreground">One tap — no search needed</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-lg text-foreground truncate">
+                      {selfAlreadyChecked ? `${selfName} — already checked in` : `Check in as ${selfName}`}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selfAlreadyChecked ? `You're set for ${serviceDateLabel}` : "One tap — no search needed"}
+                    </p>
                   </div>
                 </div>
               </button>
