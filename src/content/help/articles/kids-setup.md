@@ -130,3 +130,21 @@ If a parent is new, use **Register family** to add them, then check in.
 - **Check-ins not saving** — the offline banner shows pending count; they upload automatically when connectivity returns.
 
 Still stuck? Message a team lead through **Feedback** in the sidebar.
+
+## Bridge reachable on the host PC but not from other devices
+
+If you can open `https://<bridge-ip>:9443/status` in the bridge PC's own browser but a phone or tablet on the same wifi cannot, the bridge code is fine — the network is blocking device-to-device traffic. Fix in this order:
+
+1. **Windows firewall** — on the bridge PC, run PowerShell as Administrator:
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "HOTC Print Bridge" `
+     -Direction Inbound -Protocol TCP -LocalPort 9443,9999 `
+     -Action Allow -Profile Private
+   ```
+
+2. **macOS firewall** — System Settings → Network → Firewall → Options → allow incoming connections for `hotc-print-bridge-macos` (or `hotc-print-bridge-macos-arm64`). The first time the bridge starts, macOS prompts you — click **Allow**.
+
+3. **Wifi client isolation ("AP isolation")** — many church/guest wifi networks block device-to-device traffic. Quick test: create a hotspot from the bridge PC and connect the phone to it; if the bridge works there, the SSID has isolation on. Ask IT to disable client isolation on the SSID the kiosks and bridge PC share.
+
+4. **`.local` name doesn't resolve on Windows** — `hotc-print-bridge.local` needs Bonjour, which ships with iTunes or Bonjour Print Services. Without it, paste the LAN IP shown in the bridge console (for example `https://192.168.1.42:9443`) into the Network bridge popover.
