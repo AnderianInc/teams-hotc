@@ -216,12 +216,22 @@ async function handler(req, res) {
     const lanUrls = getLanIps().map((ip) => `https://${ip}:${HTTPS_PORT}`);
     res.writeHead(200, { "Content-Type": "text/html" });
     return res.end(`<!doctype html><meta charset=utf-8><title>HOTC Print Bridge</title>
-<body style="font-family:system-ui;max-width:520px;margin:40px auto;padding:0 16px">
+<body style="font-family:system-ui;max-width:640px;margin:40px auto;padding:0 16px;line-height:1.5">
 <h1>HOTC Print Bridge</h1>
 <p>Bridge is running. <a href="/status">/status</a></p>
-<p>Configure your kiosk to use one of these URLs as the printer:</p>
-<ul>${lanUrls.map((u) => `<li><code>${u}</code></li>`).join("")}<li><code>https://hotc-print-bridge.local:${HTTPS_PORT}</code></li></ul>
-<p>If the browser warns that this site is not private, approve it once on each kiosk device, then connect again from teams.hotc.life.</p>
+<h2>Connecting from the SAME computer</h2>
+<p>In the app, use: <code>http://localhost:${HTTP_PORT}</code><br>No certificate warning, no setup — works instantly.</p>
+<h2>Connecting from another device (iPad, phone, other PC)</h2>
+<p>Use one of these URLs in the app:</p>
+<ul>${lanUrls.map((u) => `<li><code>${u}</code></li>`).join("")}<li><code>https://hotc-print-bridge.local:${HTTPS_PORT}</code> (needs Bonjour on Windows)</li></ul>
+<p><b>You MUST fully trust the certificate on that device first.</b> Clicking "Advanced → Proceed" in a browser tab is NOT enough — the app's <code>fetch()</code> will still be blocked. Install <code>cert/cert.pem</code> from the bridge folder as a trusted root:</p>
+<ul>
+<li><b>iPad/iPhone:</b> AirDrop cert.pem → open → install profile → Settings → General → About → Certificate Trust Settings → enable full trust.</li>
+<li><b>Android:</b> Settings → Security → Install certificate → CA certificate.</li>
+<li><b>Windows:</b> double-click cert.pem → Install → Local Machine → Trusted Root Certification Authorities.</li>
+<li><b>Mac:</b> double-click cert.pem → Keychain Access → set to Always Trust.</li>
+</ul>
+<p>Also allow inbound TCP ${HTTPS_PORT} (and ${HTTP_PORT}) through the firewall, and make sure the wifi doesn't enforce client isolation.</p>
 </body>`);
   }
 

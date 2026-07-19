@@ -86,7 +86,10 @@ export default function PrinterConnect() {
     try {
       const found = await discoverBridge(bridgeUrl.trim() ? [bridgeUrl.trim()] : []);
       if (!found) {
-        toast.error("No bridge found. Open the bridge status page once to approve the certificate, then try again.");
+        toast.error(
+          "No bridge found. If the bridge is on THIS computer, try http://localhost:9999. If it's on another PC, open its HTTPS URL in a new tab and fully trust the certificate first (browser 'Advanced → Proceed' is not enough for fetch — install cert.pem as a trusted root, or use the LAN IP with http:// on the same machine).",
+          { duration: 12000 }
+        );
         return;
       }
       setBridgeUrl(found);
@@ -164,7 +167,7 @@ export default function PrinterConnect() {
           <Input
             value={bridgeUrl}
             onChange={(e) => setBridgeUrl(e.target.value)}
-            placeholder="https://hotc-print-bridge.local:9443"
+            placeholder="http://localhost:9999  (same PC)  or  https://192.168.x.x:9443"
             autoComplete="off"
           />
           <div className="flex gap-2">
@@ -176,14 +179,16 @@ export default function PrinterConnect() {
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            First time on this device, open status and approve the certificate warning. If status shows reachable: false, the bridge is running but the printer is not ready.
+            <b>Same PC as the bridge?</b> Use <code>http://localhost:9999</code> — no cert warning, works instantly.
           </p>
           <div className="rounded-md border bg-muted/40 p-2 text-[11px] text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Bridge works on the host PC but not from other devices?</p>
-            <p>1. <b>Windows firewall:</b> allow inbound TCP 9443 on the Private profile.</p>
-            <p>2. <b>macOS firewall:</b> System Settings → Network → Firewall → allow incoming for the bridge app.</p>
-            <p>3. <b>Wifi client isolation:</b> many church/guest APs block device-to-device traffic — ask IT to disable it on the kiosk SSID.</p>
-            <p>4. Windows without Bonjour cannot resolve <code>hotc-print-bridge.local</code> — use the LAN IP shown in the bridge console.</p>
+            <p className="font-medium text-foreground">Connecting from a different device (iPad, phone, other PC)?</p>
+            <p>The bridge uses a self-signed HTTPS certificate. Browsers will NOT let this app <code>fetch()</code> it just because you clicked "Advanced → Proceed" in a tab — you must fully trust it:</p>
+            <p>• <b>iPad/iPhone:</b> AirDrop <code>print-bridge/cert/cert.pem</code> → open → Settings → General → VPN &amp; Device Management → install profile → Settings → General → About → Certificate Trust Settings → enable full trust.</p>
+            <p>• <b>Android:</b> Settings → Security → Install certificate → CA certificate → pick <code>cert.pem</code>.</p>
+            <p>• <b>Windows:</b> double-click <code>cert.pem</code> → Install Certificate → Local Machine → "Trusted Root Certification Authorities". Also install <a href="https://support.apple.com/kb/DL999" target="_blank" rel="noreferrer" className="underline">Bonjour Print Services</a> so <code>.local</code> resolves.</p>
+            <p>• <b>Mac:</b> double-click <code>cert.pem</code> → Keychain Access → set to "Always Trust".</p>
+            <p>Also check: firewall allows inbound TCP 9443 (Private profile), and the wifi doesn't have "client isolation" enabled.</p>
           </div>
 
         </PopoverContent>
