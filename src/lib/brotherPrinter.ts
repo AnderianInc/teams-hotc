@@ -186,15 +186,38 @@ export async function connectBluetooth(): Promise<PrinterStatus> {
  * URL example: "https://192.168.1.50:9443" or "https://print-bridge.local:9443"
  */
 export async function connectBridge(rawUrl: string): Promise<PrinterStatus> {
-  const url = normalizeBridgeUrl(rawUrl);
+  let url = normalizeBridgeUrl(rawUrl);
   if (!url) throw new Error("Enter the bridge URL");
   if (!/^https?:\/\//.test(url)) throw new Error("Bridge URL must start with http:// or https://");
-  const info = await fetchBridgeStatus(url);
+
+  // Same-PC shortcut: HTTPS to localhost/127.0.0.1 always fails from a browser
+  // because of the self-signed cert. Silently try the HTTP loopback ports
+  // (which the browser treats as trustworthy) before giving up.
+  const isLocalHttps = /^https:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/i.test(url);
+  let info: any = null;
+  if (isLocalHttps) {
+    for (const candidate of ["http://localhost:9999", "http://127.0.0.1:9999"]) {
+      try { info = await fetchBridgeStatus(candidate, 3000); url = candidate; break; } catch { /* try next */ }
+    }
+  }
+  if (!info) {
+    try {
+      info = await fetchBridgeStatus(url);
+    } catch (err) {
+      // Last-ditch: run auto-discovery. Handles "user typed https URL but
+      // hasn't installed the cert — but the bridge is on this LAN via http".
+      const found = await discoverBridge([url]);
+      if (!found) throw err;
+      info = await fetchBridgeStatus(found);
+      url = found;
+    }
+  }
   const reachable = info?.reachable ?? info?.printerConnected;
   if (reachable === false) {
     throw new Error("Bridge is running, but the printer is not reachable. Check printer power, USB/Wi-Fi, and bridge settings.");
   }
   saveBridgeUrl(url);
+  const bridgeUrl = url;
 
   currentConnection = {
     type: "bridge",
