@@ -44,19 +44,17 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
     },
   });
 
-  // Get active service
+  // Get (or auto-create) today's active service
   const { data: activeService } = useQuery({
     queryKey: ["active-service"],
     enabled: isOnline,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("services")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
+      const { data, error } = await supabase.rpc("ensure_todays_service" as any);
+      if (error) {
+        console.error("ensure_todays_service failed", error);
+        return null;
+      }
+      return data as any;
     },
   });
 
