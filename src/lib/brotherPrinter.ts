@@ -357,9 +357,6 @@ export function setTwoColorMode(on: boolean): void {
   localStorage.setItem(TWO_COLOR_KEY, on ? "1" : "0");
 }
 
-function _unusedSetMirror(on: boolean): void {
-  localStorage.setItem(MIRROR_KEY, on ? "1" : "0");
-}
 
 /**
  * Render a label to a canvas. Pure — no printer I/O. Used by both the print
