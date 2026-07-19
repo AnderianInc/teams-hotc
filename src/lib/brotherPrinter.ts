@@ -341,6 +341,26 @@ export function setMirrorPrint(on: boolean): void {
   localStorage.setItem(MIRROR_KEY, on ? "1" : "0");
 }
 
+const TWO_COLOR_KEY = "hotc.printTwoColor";
+/**
+ * True only for DK-22251 (black/red) rolls. On plain white DK rolls
+ * (DK-22205, DK-11202, etc.) two-color mode makes the QL-820NWB accept
+ * the job, light "receiving", and then wait forever without printing.
+ * Default: OFF.
+ */
+export function getTwoColorMode(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(TWO_COLOR_KEY) === "1";
+}
+export function setTwoColorMode(on: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(TWO_COLOR_KEY, on ? "1" : "0");
+}
+
+function _unusedSetMirror(on: boolean): void {
+  localStorage.setItem(MIRROR_KEY, on ? "1" : "0");
+}
+
 /**
  * Render a label to a canvas. Pure — no printer I/O. Used by both the print
  * path and the on-screen preview so what you see is exactly what is sent.
