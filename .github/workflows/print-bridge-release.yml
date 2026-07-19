@@ -146,10 +146,11 @@ jobs:
             Standalone binaries for the HOTC Volunteer Hub print bridge.
 
             - **Windows**: `hotc-print-bridge-win.exe` — double-click to run.
-            - **macOS Apple Silicon (M1/M2/M3)**: `hotc-print-bridge-macos-arm64.zip` — unzip, then double-click `run.command`.
-            - **macOS Intel**: `hotc-print-bridge-macos-intel.zip` — unzip, then double-click `run.command`.
+            - **macOS Apple Silicon (M1/M2/M3)**: `hotc-print-bridge-macos-arm64.zip` — unzip, then right-click `run.command` → Open.
+            - **macOS Intel**: `hotc-print-bridge-macos-intel.zip` — unzip, then right-click `run.command` → Open.
             - **Linux**: `hotc-print-bridge-linux.zip` — unzip, `chmod +x hotc-print-bridge-linux`, run.
 
             > macOS note: the app is unsigned. First launch will warn "cannot verify developer" — right-click `run.command` → **Open** → **Open** to approve once. After that it launches normally.
+            > Browser note: from `teams.hotc.life`, open `https://<bridge-ip>:9443/status` once on each kiosk to approve the local bridge certificate before connecting.
 
             See [print-bridge/README.md](../blob/main/print-bridge/README.md) for full setup.
