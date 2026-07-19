@@ -86,7 +86,10 @@ export default function PrinterConnect() {
     try {
       const found = await discoverBridge(bridgeUrl.trim() ? [bridgeUrl.trim()] : []);
       if (!found) {
-        toast.error("No bridge found. Open the bridge status page once to approve the certificate, then try again.");
+        toast.error(
+          "No bridge found. If the bridge is on THIS computer, try http://localhost:9999. If it's on another PC, open its HTTPS URL in a new tab and fully trust the certificate first (browser 'Advanced → Proceed' is not enough for fetch — install cert.pem as a trusted root, or use the LAN IP with http:// on the same machine).",
+          { duration: 12000 }
+        );
         return;
       }
       setBridgeUrl(found);
