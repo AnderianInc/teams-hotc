@@ -184,6 +184,18 @@ export default function PrinterConnect() {
           <p className="text-[11px] text-muted-foreground">
             <b>Same PC as the bridge?</b> Use <code>http://localhost:9999</code> — no cert warning, works instantly.
           </p>
+          <label className="flex items-start gap-2 rounded-md border p-2 text-[11px] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={twoColor}
+              onChange={(e) => { setTwoColor(e.target.checked); setTwoColorMode(e.target.checked); }}
+              className="mt-0.5"
+            />
+            <span>
+              <b>Two-color roll (DK-22251 black/red)</b><br/>
+              <span className="text-muted-foreground">Leave OFF for plain white rolls (DK-22205, DK-11202). If the printer shows "receiving" but never prints, this is why — turn it off.</span>
+            </span>
+          </label>
           <div className="rounded-md border bg-muted/40 p-2 text-[11px] text-muted-foreground space-y-1">
             <p className="font-medium text-foreground">Connecting from a different device (iPad, phone, other PC)?</p>
             <p>The bridge uses a self-signed HTTPS certificate. Browsers will NOT let this app <code>fetch()</code> it just because you clicked "Advanced → Proceed" in a tab — you must fully trust it:</p>
