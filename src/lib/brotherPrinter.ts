@@ -409,48 +409,49 @@ function drawLabel(
   const contentH = contentBottom - contentTop;
 
   if (opts.copy === "parent") {
-    drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 60, 700, 56, 32);
-    ctx.font = "500 22px Arial, sans-serif";
-    ctx.fillText(`Class: ${opts.roomName}`, padding, contentTop + 72);
-    ctx.font = "500 18px Arial, sans-serif";
-    ctx.fillText("PICKUP CODE — must match child's tag", padding, contentTop + 108);
-    ctx.font = "800 96px 'Courier New', monospace";
-    ctx.fillText(opts.securityCode, padding, contentTop + 130);
+    drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 80, 700, 72, 44);
+    ctx.font = "600 34px Arial, sans-serif";
+    ctx.fillText(`Class: ${opts.roomName}`, padding, contentTop + 96);
+    ctx.font = "600 22px Arial, sans-serif";
+    ctx.fillText("PICKUP CODE — must match child's tag", padding, contentTop + 144);
+    ctx.font = "800 128px 'Courier New', monospace";
+    ctx.fillText(opts.securityCode, padding, contentTop + 176);
     return;
   }
 
   if (opts.copy === "teacher") {
-    drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 60, 700, 56, 32);
-    ctx.font = "500 22px Arial, sans-serif";
-    ctx.fillText(`Class: ${opts.roomName}`, padding, contentTop + 72);
+    drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 80, 700, 72, 44);
+    ctx.font = "600 34px Arial, sans-serif";
+    ctx.fillText(`Class: ${opts.roomName}`, padding, contentTop + 96);
     if (opts.parentName) {
+      ctx.font = "500 26px Arial, sans-serif";
       ctx.fillText(
         `Guardian: ${opts.parentName}${opts.parentPhone ? " · " + opts.parentPhone : ""}`,
         padding,
-        contentTop + 100,
+        contentTop + 140,
       );
     }
-    ctx.font = "700 20px 'Courier New', monospace";
-    ctx.fillText(`Code: ${opts.securityCode}`, padding, contentTop + 128);
+    ctx.font = "800 32px 'Courier New', monospace";
+    ctx.fillText(`Code: ${opts.securityCode}`, padding, contentTop + 180);
     if (opts.allergies) {
       ctx.fillStyle = "#000000";
-      ctx.fillRect(padding, contentTop + 158, innerW, 44);
+      ctx.fillRect(padding, contentTop + 224, innerW, 60);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "800 22px Arial, sans-serif";
-      ctx.fillText(`ALLERGIES: ${opts.allergies}`, padding + 8, contentTop + 168);
+      ctx.font = "800 30px Arial, sans-serif";
+      ctx.fillText(`ALLERGIES: ${opts.allergies}`, padding + 10, contentTop + 238);
     }
     return;
   }
 
-  // CHILD copy — big name centered, code small at bottom
-  const nameMaxH = contentH - 90;
+  // CHILD copy — big name centered, class + code larger at bottom
+  const nameMaxH = contentH - 150;
   drawFittedNameCentered(ctx, opts.childName, padding, contentTop, innerW, nameMaxH);
   ctx.fillStyle = "#000000";
-  ctx.font = "500 22px Arial, sans-serif";
+  ctx.font = "700 44px Arial, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(`Class: ${opts.roomName}`, padding + innerW / 2, contentBottom - 68);
-  ctx.font = "700 24px 'Courier New', monospace";
-  ctx.fillText(`Code ${opts.securityCode}`, padding + innerW / 2, contentBottom - 34);
+  ctx.fillText(`Class: ${opts.roomName}`, padding + innerW / 2, contentBottom - 110);
+  ctx.font = "800 52px 'Courier New', monospace";
+  ctx.fillText(`Code ${opts.securityCode}`, padding + innerW / 2, contentBottom - 56);
   ctx.textAlign = "left";
 }
 
