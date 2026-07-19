@@ -607,17 +607,23 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
   //    n4 = 0x00: continuous tape length
   //    n5..n8 = raster row count (little-endian 32-bit) — still required
   //    n9 = starting page (0), n10 = 0
+  const twoColor = getTwoColorMode();
   const rasterCount = height;
   commands.push(0x1b, 0x69, 0x7a);
-  commands.push(0x8e, 0x0a, 0x3e, 0x00);
+  // n1: media-type validity byte. 0x8E enables recovery+media validation
+  // (required for two-color DK-22251). For plain single-color rolls, drop
+  // the validation bits so the printer accepts whatever roll is loaded.
+  commands.push(twoColor ? 0x8e : 0x82, 0x0a, 0x3e, 0x00);
   commands.push(rasterCount & 0xff, (rasterCount >> 8) & 0xff, (rasterCount >> 16) & 0xff, (rasterCount >> 24) & 0xff);
   commands.push(0x00, 0x00);
 
   // 5. Auto-cut every page: ESC i M 0x40
   commands.push(0x1b, 0x69, 0x4d, 0x40);
-  // 6. Expanded mode: ESC i K 0x09 = two-color printing + cut at end.
-  //    Required for QL-820NWB Black/Red media, even for black-only labels.
-  commands.push(0x1b, 0x69, 0x4b, 0x09);
+  // 6. Expanded mode: bit 3 (0x08) = cut at end.
+  //    Bit 0 (0x01) = two-color printing — REQUIRED for DK-22251 black/red,
+  //    but on plain white rolls the QL-820NWB accepts the job, lights
+  //    "receiving", and never prints. Toggle via setTwoColorMode().
+  commands.push(0x1b, 0x69, 0x4b, twoColor ? 0x09 : 0x08);
   // 7. Feed margin for continuous tape: ESC i d 35 0
   commands.push(0x1b, 0x69, 0x64, 0x23, 0x00);
   // 8. Compression mode: M 0x00 (no compression) — matches the raw rows below.
@@ -626,10 +632,9 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
   const blankRedPlane = new Array(bytesPerRow).fill(0x00);
 
   for (let y = 0; y < height; y++) {
-    // Two-color raster line pair:
-    //   w 01 5A + black plane bytes
-    //   w 02 5A + red plane bytes (blank; we only print the name in black)
-    commands.push(0x77, 0x01, 0x5a);
+    // Black plane: g NN NN (single-color) or w 01 5A (two-color)
+    if (twoColor) commands.push(0x77, 0x01, 0x5a);
+    else commands.push(0x67, 0x00, bytesPerRow);
     for (let byteIdx = 0; byteIdx < bytesPerRow; byteIdx++) {
       let byte = 0;
       for (let bit = 0; bit < 8; bit++) {
@@ -644,7 +649,7 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
       }
       commands.push(byte);
     }
-    commands.push(0x77, 0x02, 0x5a, ...blankRedPlane);
+    if (twoColor) commands.push(0x77, 0x02, 0x5a, ...blankRedPlane);
   }
   // Print with feeding (end of job)
   commands.push(0x1a);
