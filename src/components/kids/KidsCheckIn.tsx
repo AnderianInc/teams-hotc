@@ -197,11 +197,12 @@ export default function KidsCheckIn() {
       )}
 
       {search.length < 2 && (
-        <div className="max-w-xl">
+        <div className="max-w-xl space-y-4">
           <Button variant="outline" onClick={() => setShowRegister(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
             Register New Child
           </Button>
+          <CheckedInToday />
         </div>
       )}
     </div>
