@@ -10,6 +10,7 @@ import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterI
 import EditFamily from "./EditFamily";
 import { printCheckInLabels, getPrinterStatus, verifyPrinterOnline, generateSecurityCode } from "@/lib/brotherPrinter";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
+import LabelPreviewDialog from "./LabelPreviewDialog";
 
 interface CheckInConfirmProps {
   child: {
