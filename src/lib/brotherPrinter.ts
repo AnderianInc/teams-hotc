@@ -298,9 +298,10 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
   if (!currentConnection) throw new Error("No printer connected");
 
   // Raster geometry: WIDTH must stay at 720 dots (90 bytes) for 62mm tape.
-  // HEIGHT is the feed length (~50mm at 300dpi ≈ 600 rows).
+  // HEIGHT is the feed length; 1200 rows makes the landscape tag twice as wide
+  // while keeping the physical tape height unchanged.
   const WIDTH = 720;
-  const HEIGHT = 600;
+  const HEIGHT = 1200;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -308,13 +309,14 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // Landscape: rotate CCW so the label reads along the tape as it emerges.
-  // Replaces the previous CW rotation that produced mirrored / portrait output.
+  // Landscape mapping: logical label width runs with the feed direction, and
+  // logical label height stays the fixed 62mm tape height. Rotating clockwise
+  // keeps left-to-right text from being mirrored along the feed direction.
   const labelLength = HEIGHT;
   const tapeWidth = WIDTH;
   ctx.save();
-  ctx.translate(0, HEIGHT);
-  ctx.rotate(-Math.PI / 2);
+  ctx.translate(WIDTH, 0);
+  ctx.rotate(Math.PI / 2);
   drawLabel(ctx, labelLength, tapeWidth, opts);
   ctx.restore();
 
@@ -379,7 +381,7 @@ function drawLabel(
   if (opts.copy === "parent") {
     drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 60, 700, 56, 32);
     ctx.font = "500 22px Arial, sans-serif";
-    ctx.fillText(`Room: ${opts.roomName}`, padding, contentTop + 72);
+    ctx.fillText(`Class: ${opts.roomName}`, padding, contentTop + 72);
     ctx.font = "500 18px Arial, sans-serif";
     ctx.fillText("PICKUP CODE — must match child's tag", padding, contentTop + 108);
     ctx.font = "800 96px 'Courier New', monospace";
@@ -390,7 +392,7 @@ function drawLabel(
   if (opts.copy === "teacher") {
     drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 60, 700, 56, 32);
     ctx.font = "500 22px Arial, sans-serif";
-    ctx.fillText(`Room: ${opts.roomName}`, padding, contentTop + 72);
+    ctx.fillText(`Class: ${opts.roomName}`, padding, contentTop + 72);
     if (opts.parentName) {
       ctx.fillText(
         `Guardian: ${opts.parentName}${opts.parentPhone ? " · " + opts.parentPhone : ""}`,
@@ -416,7 +418,7 @@ function drawLabel(
   ctx.fillStyle = "#000000";
   ctx.font = "500 22px Arial, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(`Room: ${opts.roomName}`, padding + innerW / 2, contentBottom - 68);
+  ctx.fillText(`Class: ${opts.roomName}`, padding + innerW / 2, contentBottom - 68);
   ctx.font = "700 24px 'Courier New', monospace";
   ctx.fillText(`Code ${opts.securityCode}`, padding + innerW / 2, contentBottom - 34);
   ctx.textAlign = "left";
