@@ -323,16 +323,27 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
 if (Bonjour) {
   try {
     const bonjour = new Bonjour();
-    const hostname = "hotc-print-bridge";
+    // Include the machine hostname so multiple bridges on the same LAN don't
+    // collide on the mDNS registry. The client-side auto-discovery matches on
+    // the `_hotc-print._tcp` service type, not the exact instance name.
+    const machineHost = os.hostname().replace(/\.local$/i, "");
+    const instanceName = `HOTC Print Bridge (${machineHost})`;
+    const advertisedHost = `${machineHost}.local`;
     const txt = {
       transport: PRINTER_HOST ? "network" : USB_DEVICE ? "usb" : WIN_PRINTER ? "windows" : process.platform === "darwin" ? "macos-cups" : "none",
       https: String(HTTPS_PORT),
       http: String(HTTP_PORT),
-      version: "1.2.0",
+      version: "1.2.1",
     };
-    bonjour.publish({ name: "HOTC Print Bridge", type: "hotc-print", protocol: "tcp", port: HTTPS_PORT, host: `${hostname}.local`, txt });
-    bonjour.publish({ name: "HOTC Print Bridge", type: "https",      protocol: "tcp", port: HTTPS_PORT, host: `${hostname}.local`, txt });
-    log(`mDNS advertised as https://${hostname}.local:${HTTPS_PORT} (service _hotc-print._tcp)`);
+    const publishSafely = (opts) => {
+      const svc = bonjour.publish(opts);
+      // bonjour-service emits 'error' on collisions instead of throwing.
+      svc.on("error", (err) => log(`mDNS publish error for ${opts.name} / ${opts.type}:`, err.message));
+    };
+    publishSafely({ name: instanceName, type: "hotc-print", protocol: "tcp", port: HTTPS_PORT, host: advertisedHost, txt });
+    publishSafely({ name: instanceName, type: "https",      protocol: "tcp", port: HTTPS_PORT, host: advertisedHost, txt });
+    log(`mDNS advertised as https://${advertisedHost}:${HTTPS_PORT} (service _hotc-print._tcp, instance "${instanceName}")`);
+    log(`Kiosks that can't resolve .local: paste one of the LAN URLs above.`);
     const shutdown = () => { try { bonjour.unpublishAll(() => bonjour.destroy()); } catch {} process.exit(0); };
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
