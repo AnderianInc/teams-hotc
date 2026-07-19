@@ -89,6 +89,60 @@ jobs:
           name: print-bridge-binaries
           path: print-bridge/dist/*
 
+      # Mirror the same artifacts into Lovable Cloud so end users can download
+      # them directly from the app (Children's Ministry → Setup & Guide) without
+      # visiting GitHub. Requires two repo secrets:
+      #   BRIDGE_UPLOAD_URL   = https://<project-ref>.supabase.co/functions/v1/upload-bridge-release
+      #   BRIDGE_UPLOAD_TOKEN = same value stored as BRIDGE_UPLOAD_TOKEN in Lovable Cloud secrets
+      - name: Mirror release to Lovable Cloud
+        if: startsWith(github.ref, 'refs/tags/print-bridge-v')
+        working-directory: print-bridge/dist
+        env:
+          BRIDGE_UPLOAD_URL: ${{ secrets.BRIDGE_UPLOAD_URL }}
+          BRIDGE_UPLOAD_TOKEN: ${{ secrets.BRIDGE_UPLOAD_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+          if [ -z "$BRIDGE_UPLOAD_URL" ] || [ -z "$BRIDGE_UPLOAD_TOKEN" ]; then
+            echo "BRIDGE_UPLOAD_URL / BRIDGE_UPLOAD_TOKEN not set — skipping Cloud mirror."
+            exit 0
+          fi
+          upload() {
+            local file="$1"
+            local ctype="$2"
+            echo "Uploading $file..."
+            curl -sSf -X POST \
+              -H "x-upload-token: $BRIDGE_UPLOAD_TOKEN" \
+              -H "content-type: $ctype" \
+              --data-binary "@$file" \
+              "$BRIDGE_UPLOAD_URL?filename=$file"
+            echo ""
+          }
+            local file="$1"
+            local ctype="$2"
+            echo "Uploading $file..."
+            curl -sSf -X POST \
+              -H "x-upload-token: $BRIDGE_UPLOAD_TOKEN" \
+              -H "content-type: $ctype" \
+              --data-binary "@$file" \
+              "$BRIDGE_UPLOAD_URL?filename=$file"
+            echo ""
+          }
+          upload "hotc-print-bridge-win.exe"          "application/octet-stream"
+          upload "hotc-print-bridge-macos-arm64.zip"  "application/zip"
+          upload "hotc-print-bridge-macos-intel.zip"  "application/zip"
+          upload "hotc-print-bridge-linux.zip"        "application/zip"
+
+          # Write manifest
+          cat > version.json <<EOF
+          { "tag": "$TAG", "released_at": "$(date -u +%FT%TZ)", "notes_url": "https://github.com/${{ github.repository }}/releases/tag/$TAG" }
+          EOF
+          curl -sSf -X POST \
+            -H "x-upload-token: $BRIDGE_UPLOAD_TOKEN" \
+            -H "content-type: application/json" \
+            --data-binary "@version.json" \
+            "$BRIDGE_UPLOAD_URL?manifest=1"
+
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/print-bridge-v')
         uses: softprops/action-gh-release@v2
