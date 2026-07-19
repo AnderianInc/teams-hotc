@@ -1,0 +1,13 @@
+{
+  "name": "HOTC Volunteer Hub",
+  "short_name": "HOTC Volunteers",
+  "description": "teams.hotc.life — volunteer, roster & children's ministry hub.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
+  ]
+}
