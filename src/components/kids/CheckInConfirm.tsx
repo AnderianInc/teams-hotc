@@ -65,6 +65,23 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
     (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
   );
 
+  // Check for existing open check-in for this child + service (prevents duplicates)
+  const { data: existingCheckIn } = useQuery({
+    queryKey: ["existing-check-in", child.id, activeService?.id],
+    enabled: !!activeService?.id && isOnline,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("check_ins")
+        .select("id, checked_in_at")
+        .eq("child_id", child.id)
+        .eq("service_id", activeService!.id)
+        .is("checked_out_at", null)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const alreadyCheckedIn = !!existingCheckIn;
+
   const serviceDateLabel = activeService?.service_date
     ? new Date(activeService.service_date + "T00:00:00").toLocaleDateString(undefined, {
         weekday: "long",
@@ -87,6 +104,18 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         checked_in_by: user?.id || null,
         checked_in_at: new Date().toISOString(),
       };
+
+      // STEP 0: Never double check-in the same child for the same service.
+      if (isOnline && activeService?.id) {
+        const { data: dup } = await supabase
+          .from("check_ins")
+          .select("id")
+          .eq("child_id", child.id)
+          .eq("service_id", activeService.id)
+          .is("checked_out_at", null)
+          .maybeSingle();
+        if (dup) throw new Error(`${child.first_name} is already checked in for this service.`);
+      }
 
       // STEP 1: Printer is mandatory. Verify it's actually reachable right now
       // (a stale connection object is not enough — the bridge PC may have slept,
@@ -205,11 +234,21 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
+          {alreadyCheckedIn && (
+            <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-warning" />
+              <span>
+                Already checked in for this service at{" "}
+                <b>{new Date(existingCheckIn!.checked_in_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</b>.
+              </span>
+            </div>
+          )}
+
           {/* Printer status — MUST be connected to check in */}
           <div
             className={`flex items-center gap-2 rounded-md border p-2 text-sm ${
               printerStatus.connected
-                ? "border-success/40 bg-success/5 text-success-foreground"
+                ? "border-success/40 bg-success/5 text-success"
                 : "border-destructive/40 bg-destructive/5 text-destructive"
             }`}
           >
@@ -229,10 +268,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <Button
             className="w-full h-12 text-base"
             onClick={() => checkIn.mutate()}
-            disabled={checkIn.isPending || !printerStatus.connected}
+            disabled={checkIn.isPending || !printerStatus.connected || alreadyCheckedIn}
           >
             <Printer className="h-5 w-5 mr-2" />
-            {phase === "verifying"
+            {alreadyCheckedIn
+              ? "Already checked in"
+              : phase === "verifying"
               ? "Checking printer…"
               : phase === "printing"
               ? "Printing label…"

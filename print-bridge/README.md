@@ -158,3 +158,15 @@ PRs welcome — issues, driver support for other printers, or improved installer
 Tagged releases (`print-bridge-v*`) auto-build Windows / macOS / Linux binaries via GitHub Actions
 (`.github/workflows/print-bridge-release.yml`) using [`pkg`](https://github.com/vercel/pkg).
 To cut a release locally: `npm run build` inside `print-bridge/`.
+
+## Reachable from host, not from other devices
+
+The bridge binds to `0.0.0.0` on ports 9999 (HTTP) and 9443 (HTTPS). If it answers on `https://localhost:9443` but a phone on the same wifi cannot reach `https://<lan-ip>:9443`, the block is on the network, not the bridge.
+
+- **Windows:** open inbound TCP 9443 on the Private profile:
+  ```powershell
+  New-NetFirewallRule -DisplayName "HOTC Print Bridge" -Direction Inbound -Protocol TCP -LocalPort 9443,9999 -Action Allow -Profile Private
+  ```
+- **macOS:** System Settings → Network → Firewall → Options → allow incoming for the `hotc-print-bridge-macos` binary.
+- **Wifi client / AP isolation:** guest/church wifi often blocks device-to-device traffic. Disable client isolation on the SSID or move the kiosks and bridge to a shared SSID that allows it.
+- **Windows mDNS:** `hotc-print-bridge.local` only resolves if Apple Bonjour is installed. Use the LAN IP printed at startup instead.
