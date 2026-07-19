@@ -30,6 +30,7 @@ export default function PrinterConnect() {
   const [bridgeUrl, setBridgeUrl] = useState(getSavedBridgeUrl());
   const [testing, setTesting] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [twoColor, setTwoColor] = useState(getTwoColorMode());
 
   // On mount: try saved bridge, then auto-discover via mDNS `.local` names.
   useEffect(() => {
