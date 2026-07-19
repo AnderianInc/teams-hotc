@@ -323,12 +323,12 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
 if (Bonjour) {
   try {
     const bonjour = new Bonjour();
-    // Include the machine hostname so multiple bridges on the same LAN don't
-    // collide on the mDNS registry. The client-side auto-discovery matches on
-    // the `_hotc-print._tcp` service type, not the exact instance name.
     const machineHost = os.hostname().replace(/\.local$/i, "");
+    // Publish under the stable `hotc-print-bridge.local` name so kiosks can
+    // find it, but include the machine hostname in the instance name so two
+    // bridges on the same LAN don't collide in the registry.
+    const stableHost = "hotc-print-bridge.local";
     const instanceName = `HOTC Print Bridge (${machineHost})`;
-    const advertisedHost = `${machineHost}.local`;
     const txt = {
       transport: PRINTER_HOST ? "network" : USB_DEVICE ? "usb" : WIN_PRINTER ? "windows" : process.platform === "darwin" ? "macos-cups" : "none",
       https: String(HTTPS_PORT),
@@ -337,13 +337,14 @@ if (Bonjour) {
     };
     const publishSafely = (opts) => {
       const svc = bonjour.publish(opts);
-      // bonjour-service emits 'error' on collisions instead of throwing.
+      // bonjour-service emits 'error' on probe collisions. Catch it so the
+      // process doesn't crash if another bridge is already advertising.
       svc.on("error", (err) => log(`mDNS publish error for ${opts.name} / ${opts.type}:`, err.message));
     };
-    publishSafely({ name: instanceName, type: "hotc-print", protocol: "tcp", port: HTTPS_PORT, host: advertisedHost, txt });
-    publishSafely({ name: instanceName, type: "https",      protocol: "tcp", port: HTTPS_PORT, host: advertisedHost, txt });
-    log(`mDNS advertised as https://${advertisedHost}:${HTTPS_PORT} (service _hotc-print._tcp, instance "${instanceName}")`);
-    log(`Kiosks that can't resolve .local: paste one of the LAN URLs above.`);
+    publishSafely({ name: instanceName, type: "hotc-print", protocol: "tcp", port: HTTPS_PORT, host: stableHost, txt });
+    publishSafely({ name: instanceName, type: "https",      protocol: "tcp", port: HTTPS_PORT, host: `${machineHost}.local`, txt });
+    log(`mDNS advertised as https://${stableHost}:${HTTPS_PORT} (service _hotc-print._tcp, instance "${instanceName}")`);
+    log(`Fallback host: https://${machineHost}.local:${HTTPS_PORT}`);
     const shutdown = () => { try { bonjour.unpublishAll(() => bonjour.destroy()); } catch {} process.exit(0); };
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
