@@ -10,6 +10,7 @@ import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterI
 import EditFamily from "./EditFamily";
 import { printCheckInLabels, getPrinterStatus, verifyPrinterOnline, generateSecurityCode } from "@/lib/brotherPrinter";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
+import LabelPreviewDialog from "./LabelPreviewDialog";
 
 interface CheckInConfirmProps {
   child: {
@@ -34,6 +35,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const queryClient = useQueryClient();
   const [success, setSuccess] = useState(false);
   const [phase, setPhase] = useState<"idle" | "verifying" | "printing" | "saving">("idle");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [issuedCode, setIssuedCode] = useState<string | null>(null);
   const securityCode = useMemo(() => generateSecurityCode(), [child.id]);
   const isOnline = navigator.onLine;
@@ -85,6 +87,17 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   });
   const alreadyCheckedIn = !!existingCheckIn;
 
+  // Room label = child's grade / age group from directory (per admin spec).
+  const roomName = child.grade_group || assignedRoom?.name || "TBD";
+  const previewBase = {
+    childName: `${child.first_name} ${child.last_name}`,
+    roomName,
+    allergies: child.allergies,
+    parentName: child.families?.parent1_name,
+    parentPhone: child.families?.parent1_phone,
+    securityCode,
+  };
+
   const serviceDateLabel = activeService?.service_date
     ? new Date(activeService.service_date + "T00:00:00").toLocaleDateString(undefined, {
         weekday: "long",
@@ -129,22 +142,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       // STEP 2: Print the label. If this throws, we do NOT save the check-in
       // so staff can fix the printer and retry.
       setPhase("printing");
-      // Room label = child's grade / age group from directory (per admin spec).
-      // Fall back to auto-assigned room only when the child has no grade set.
-      let roomName = child.grade_group || assignedRoom?.name || "TBD";
-      if (!isOnline && !child.grade_group && !assignedRoom) {
-        const offlineRooms = await getRoomsOffline();
-        const match = offlineRooms.find((r) => r.grade_group);
-        if (match) roomName = match.name;
-      }
-      await printCheckInLabels({
-        childName: `${child.first_name} ${child.last_name}`,
-        roomName,
-        allergies: child.allergies,
-        parentName: child.families?.parent1_name,
-        parentPhone: child.families?.parent1_phone,
-        securityCode,
-      });
+      await printCheckInLabels(previewBase);
 
       // STEP 3: Only after the printer confirms the send, record the check-in.
       setPhase("saving");
@@ -282,7 +280,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
 
           <Button
             className="w-full h-12 text-base"
-            onClick={() => checkIn.mutate()}
+            onClick={() => setPreviewOpen(true)}
             disabled={checkIn.isPending || !printerStatus.connected || alreadyCheckedIn}
           >
             <Printer className="h-5 w-5 mr-2" />
@@ -294,8 +292,19 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
               ? "Printing label…"
               : phase === "saving"
               ? "Saving check-in…"
-              : "Check In & Print Tag"}
+              : "Preview & Print Tags"}
           </Button>
+
+          <LabelPreviewDialog
+            open={previewOpen}
+            onOpenChange={(v) => !checkIn.isPending && setPreviewOpen(v)}
+            base={previewBase}
+            printing={checkIn.isPending}
+            onConfirm={() => {
+              setPreviewOpen(false);
+              checkIn.mutate();
+            }}
+          />
 
         </CardContent>
       </Card>

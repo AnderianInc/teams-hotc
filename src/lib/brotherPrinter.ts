@@ -294,13 +294,21 @@ export interface NameTagOptions {
   date?: string;
 }
 
-export async function printNameTag(opts: NameTagOptions): Promise<void> {
-  if (!currentConnection) throw new Error("No printer connected");
+const MIRROR_KEY = "hotc.printMirror";
+export function getMirrorPrint(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(MIRROR_KEY) === "1";
+}
+export function setMirrorPrint(on: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(MIRROR_KEY, on ? "1" : "0");
+}
 
-  // Raster geometry: WIDTH must stay at 720 dots (90 bytes) for 62mm tape.
-  // HEIGHT is feed length (rows).
-  //   - Child copy: LANDSCAPE, full length (1200 rows) — big, easy-to-read name.
-  //   - Parent/Teacher copies: PORTRAIT, half length (600 rows) to save paper.
+/**
+ * Render a label to a canvas. Pure — no printer I/O. Used by both the print
+ * path and the on-screen preview so what you see is exactly what is sent.
+ */
+export function renderLabelCanvas(opts: NameTagOptions): HTMLCanvasElement {
   const WIDTH = 720;
   const isLandscape = opts.copy === "child";
   const HEIGHT = isLandscape ? 1200 : 600;
@@ -311,25 +319,39 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
+  const mirror = getMirrorPrint();
+  if (mirror) {
+    // Flip horizontally so bytes packed MSB-first land as a mirrored image
+    // on printers that read pins in the opposite direction.
+    ctx.translate(WIDTH, 0);
+    ctx.scale(-1, 1);
+  }
+
   if (isLandscape) {
-    // Landscape: text runs along feed direction. Rotate -90° (counter-clockwise)
-    // and translate so local (0,0) is at canvas (0, HEIGHT). This produces
-    // non-mirrored text that reads correctly when the tape exits the printer.
-    const labelLength = HEIGHT; // reading-direction length
-    const tapeWidth = WIDTH;    // physical 62mm tape height
+    const labelLength = HEIGHT;
+    const tapeWidth = WIDTH;
     ctx.save();
     ctx.translate(0, HEIGHT);
     ctx.rotate(-Math.PI / 2);
     drawLabel(ctx, labelLength, tapeWidth, opts);
     ctx.restore();
   } else {
-    // Portrait: no rotation. Draw directly — width is the 62mm tape width,
-    // height is the (halved) feed length.
     drawLabel(ctx, WIDTH, HEIGHT, opts);
   }
+  return canvas;
+}
 
-  const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
-  const rasterData = buildBrotherRaster(imageData, WIDTH, HEIGHT);
+/** DataURL of the exact bitmap that will be sent — for on-screen preview. */
+export function renderLabelPreviewDataUrl(opts: NameTagOptions): string {
+  return renderLabelCanvas(opts).toDataURL("image/png");
+}
+
+export async function printNameTag(opts: NameTagOptions): Promise<void> {
+  if (!currentConnection) throw new Error("No printer connected");
+  const canvas = renderLabelCanvas(opts);
+  const ctx = canvas.getContext("2d")!;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const rasterData = buildBrotherRaster(imageData, canvas.width, canvas.height);
   await currentConnection.send(rasterData);
 }
 
