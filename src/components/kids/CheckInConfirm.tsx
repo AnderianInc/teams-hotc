@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterIcon } from "lucide-react";
 import EditFamily from "./EditFamily";
-import { printNameTag, getPrinterStatus } from "@/lib/brotherPrinter";
+import { printNameTag, getPrinterStatus, verifyPrinterOnline } from "@/lib/brotherPrinter";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 
 interface CheckInConfirmProps {
