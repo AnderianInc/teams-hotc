@@ -238,7 +238,13 @@ export async function tryRestoreBridge(): Promise<PrinterStatus | null> {
  * we just probe that (and a couple of common fallbacks) in parallel and
  * connect to the first one that answers.
  */
+// Chrome/Edge treat http://localhost and http://127.0.0.1 as "potentially
+// trustworthy", so HTTPS pages can fetch them with no mixed-content block
+// and no self-signed cert hoops. Probe those first — they solve the
+// "bridge is on the same PC as the browser" case instantly.
 const DISCOVERY_CANDIDATES = [
+  "http://localhost:9999",
+  "http://127.0.0.1:9999",
   "https://hotc-print-bridge.local:9443",
   "https://print-bridge.local:9443",
   "https://localhost:9443",
