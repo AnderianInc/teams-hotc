@@ -186,15 +186,38 @@ export async function connectBluetooth(): Promise<PrinterStatus> {
  * URL example: "https://192.168.1.50:9443" or "https://print-bridge.local:9443"
  */
 export async function connectBridge(rawUrl: string): Promise<PrinterStatus> {
-  const url = normalizeBridgeUrl(rawUrl);
+  let url = normalizeBridgeUrl(rawUrl);
   if (!url) throw new Error("Enter the bridge URL");
   if (!/^https?:\/\//.test(url)) throw new Error("Bridge URL must start with http:// or https://");
-  const info = await fetchBridgeStatus(url);
+
+  // Same-PC shortcut: HTTPS to localhost/127.0.0.1 always fails from a browser
+  // because of the self-signed cert. Silently try the HTTP loopback ports
+  // (which the browser treats as trustworthy) before giving up.
+  const isLocalHttps = /^https:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/i.test(url);
+  let info: any = null;
+  if (isLocalHttps) {
+    for (const candidate of ["http://localhost:9999", "http://127.0.0.1:9999"]) {
+      try { info = await fetchBridgeStatus(candidate, 3000); url = candidate; break; } catch { /* try next */ }
+    }
+  }
+  if (!info) {
+    try {
+      info = await fetchBridgeStatus(url);
+    } catch (err) {
+      // Last-ditch: run auto-discovery. Handles "user typed https URL but
+      // hasn't installed the cert — but the bridge is on this LAN via http".
+      const found = await discoverBridge([url]);
+      if (!found) throw err;
+      info = await fetchBridgeStatus(found);
+      url = found;
+    }
+  }
   const reachable = info?.reachable ?? info?.printerConnected;
   if (reachable === false) {
     throw new Error("Bridge is running, but the printer is not reachable. Check printer power, USB/Wi-Fi, and bridge settings.");
   }
   saveBridgeUrl(url);
+  const bridgeUrl = url;
 
   currentConnection = {
     type: "bridge",
@@ -207,7 +230,7 @@ export async function connectBridge(rawUrl: string): Promise<PrinterStatus> {
         binary += String.fromCharCode.apply(null, Array.from(data.subarray(i, i + CHUNK)));
       }
       const rasterBase64 = btoa(binary);
-      const r = await fetch(`${url}/print`, {
+      const r = await fetch(`${bridgeUrl}/print`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rasterBase64 }),
@@ -317,6 +340,23 @@ export function setMirrorPrint(on: boolean): void {
   if (typeof localStorage === "undefined") return;
   localStorage.setItem(MIRROR_KEY, on ? "1" : "0");
 }
+
+const TWO_COLOR_KEY = "hotc.printTwoColor";
+/**
+ * True only for DK-22251 (black/red) rolls. On plain white DK rolls
+ * (DK-22205, DK-11202, etc.) two-color mode makes the QL-820NWB accept
+ * the job, light "receiving", and then wait forever without printing.
+ * Default: OFF.
+ */
+export function getTwoColorMode(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(TWO_COLOR_KEY) === "1";
+}
+export function setTwoColorMode(on: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(TWO_COLOR_KEY, on ? "1" : "0");
+}
+
 
 /**
  * Render a label to a canvas. Pure — no printer I/O. Used by both the print
@@ -567,17 +607,23 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
   //    n4 = 0x00: continuous tape length
   //    n5..n8 = raster row count (little-endian 32-bit) — still required
   //    n9 = starting page (0), n10 = 0
+  const twoColor = getTwoColorMode();
   const rasterCount = height;
   commands.push(0x1b, 0x69, 0x7a);
-  commands.push(0x8e, 0x0a, 0x3e, 0x00);
+  // n1: media-type validity byte. 0x8E enables recovery+media validation
+  // (required for two-color DK-22251). For plain single-color rolls, drop
+  // the validation bits so the printer accepts whatever roll is loaded.
+  commands.push(twoColor ? 0x8e : 0x82, 0x0a, 0x3e, 0x00);
   commands.push(rasterCount & 0xff, (rasterCount >> 8) & 0xff, (rasterCount >> 16) & 0xff, (rasterCount >> 24) & 0xff);
   commands.push(0x00, 0x00);
 
   // 5. Auto-cut every page: ESC i M 0x40
   commands.push(0x1b, 0x69, 0x4d, 0x40);
-  // 6. Expanded mode: ESC i K 0x09 = two-color printing + cut at end.
-  //    Required for QL-820NWB Black/Red media, even for black-only labels.
-  commands.push(0x1b, 0x69, 0x4b, 0x09);
+  // 6. Expanded mode: bit 3 (0x08) = cut at end.
+  //    Bit 0 (0x01) = two-color printing — REQUIRED for DK-22251 black/red,
+  //    but on plain white rolls the QL-820NWB accepts the job, lights
+  //    "receiving", and never prints. Toggle via setTwoColorMode().
+  commands.push(0x1b, 0x69, 0x4b, twoColor ? 0x09 : 0x08);
   // 7. Feed margin for continuous tape: ESC i d 35 0
   commands.push(0x1b, 0x69, 0x64, 0x23, 0x00);
   // 8. Compression mode: M 0x00 (no compression) — matches the raw rows below.
@@ -586,10 +632,9 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
   const blankRedPlane = new Array(bytesPerRow).fill(0x00);
 
   for (let y = 0; y < height; y++) {
-    // Two-color raster line pair:
-    //   w 01 5A + black plane bytes
-    //   w 02 5A + red plane bytes (blank; we only print the name in black)
-    commands.push(0x77, 0x01, 0x5a);
+    // Black plane: g NN NN (single-color) or w 01 5A (two-color)
+    if (twoColor) commands.push(0x77, 0x01, 0x5a);
+    else commands.push(0x67, 0x00, bytesPerRow);
     for (let byteIdx = 0; byteIdx < bytesPerRow; byteIdx++) {
       let byte = 0;
       for (let bit = 0; bit < 8; bit++) {
@@ -604,7 +649,7 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
       }
       commands.push(byte);
     }
-    commands.push(0x77, 0x02, 0x5a, ...blankRedPlane);
+    if (twoColor) commands.push(0x77, 0x02, 0x5a, ...blankRedPlane);
   }
   // Print with feeding (end of job)
   commands.push(0x1a);
