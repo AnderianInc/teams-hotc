@@ -31,8 +31,11 @@ interface CheckInConfirmProps {
 
 export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [success, setSuccess] = useState(false);
   const [phase, setPhase] = useState<"idle" | "verifying" | "printing" | "saving">("idle");
+  const [issuedCode, setIssuedCode] = useState<string | null>(null);
+  const securityCode = useMemo(() => generateSecurityCode(), [child.id]);
   const isOnline = navigator.onLine;
   const printerStatus = getPrinterStatus();
 
