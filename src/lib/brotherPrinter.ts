@@ -94,6 +94,35 @@ export function saveBridgeUrl(url: string) {
   try { localStorage.setItem(BRIDGE_URL_KEY, url); } catch { /* ignore */ }
 }
 
+export function normalizeBridgeUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+async function fetchBridgeStatus(url: string, timeoutMs = 6000): Promise<any> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${url}/status`, { method: "GET", signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Bridge responded with HTTP ${res.status}`);
+    return await res.json();
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error("Bridge did not respond. Confirm the bridge app is open and this device is on the same wifi.");
+    }
+    if (e instanceof TypeError) {
+      throw new Error(
+        "Could not reach the bridge. Open the bridge URL in a new browser tab first and approve the certificate warning, then try again.",
+      );
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ---------------- USB ----------------
 export async function connectUSB(): Promise<PrinterStatus> {
   if (!isUSBAvailable()) throw new Error("Web USB not supported in this browser");
@@ -147,11 +176,14 @@ export async function connectBluetooth(): Promise<PrinterStatus> {
  * URL example: "https://192.168.1.50:9443" or "https://print-bridge.local:9443"
  */
 export async function connectBridge(rawUrl: string): Promise<PrinterStatus> {
-  const url = rawUrl.replace(/\/+$/, "");
+  const url = normalizeBridgeUrl(rawUrl);
+  if (!url) throw new Error("Enter the bridge URL");
   if (!/^https?:\/\//.test(url)) throw new Error("Bridge URL must start with http:// or https://");
-  const res = await fetch(`${url}/status`, { method: "GET" });
-  if (!res.ok) throw new Error(`Bridge /status returned ${res.status}`);
-  const info = await res.json();
+  const info = await fetchBridgeStatus(url);
+  const reachable = info?.reachable ?? info?.printerConnected;
+  if (reachable === false) {
+    throw new Error("Bridge is running, but the printer is not reachable. Check printer power, USB/Wi-Fi, and bridge settings.");
+  }
   saveBridgeUrl(url);
 
   currentConnection = {
@@ -199,7 +231,7 @@ export async function tryRestoreBridge(): Promise<PrinterStatus | null> {
 const DISCOVERY_CANDIDATES = [
   "https://hotc-print-bridge.local:9443",
   "https://print-bridge.local:9443",
-  "http://hotc-print-bridge.local:9999",
+  "https://localhost:9443",
 ];
 
 export async function discoverBridge(
@@ -211,8 +243,9 @@ export async function discoverBridge(
     new Promise<string | null>((resolve) => {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-      fetch(`${url}/status`, { method: "GET", signal: ctrl.signal })
-        .then((r) => resolve(r.ok ? url : null))
+      const normalized = normalizeBridgeUrl(url);
+      fetch(`${normalized}/status`, { method: "GET", signal: ctrl.signal })
+        .then((r) => resolve(r.ok ? normalized : null))
         .catch(() => resolve(null))
         .finally(() => clearTimeout(timer));
     });
