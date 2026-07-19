@@ -130,8 +130,18 @@ export async function connectUSB(): Promise<PrinterStatus> {
     filters: QL_PRODUCT_IDS.map((pid) => ({ vendorId: BROTHER_VENDOR_ID, productId: pid })),
   });
   await device.open();
-  await device.selectConfiguration(1);
-  await device.claimInterface(0);
+  if (device.configuration === null) await device.selectConfiguration(1);
+  try {
+    await device.claimInterface(0);
+  } catch (e: any) {
+    await device.close().catch(() => {});
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+    throw new Error(
+      isMac
+        ? "macOS is holding the printer. Open System Settings → Printers & Scanners, remove the Brother QL printer, unplug/replug the USB cable, then try Connect USB again. (Or use the Network bridge instead — it works alongside the macOS driver.)"
+        : "Another program is using the printer. Close any Brother software / print queues and unplug/replug the USB cable, then try again. Or use the Network bridge instead."
+    );
+  }
   const iface = device.configuration!.interfaces[0];
   const alt = iface.alternates[0];
   const outEndpoint = alt.endpoints.find((e: any) => e.direction === "out");
