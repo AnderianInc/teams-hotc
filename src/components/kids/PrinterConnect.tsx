@@ -13,6 +13,8 @@ import {
   discoverBridge,
   getPrinterStatus,
   getSavedBridgeUrl,
+  getTwoColorMode,
+  setTwoColorMode,
   isUSBAvailable,
   isBluetoothAvailable,
   normalizeBridgeUrl,
