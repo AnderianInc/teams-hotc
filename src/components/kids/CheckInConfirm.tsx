@@ -189,6 +189,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           {assignedRoom && (
             <p className="text-muted-foreground mt-1">Room: {assignedRoom.name}</p>
           )}
+          {issuedCode && (
+            <div className="mt-4 rounded-md border bg-muted p-3">
+              <p className="text-xs uppercase text-muted-foreground">Pickup code (parent + child + teacher)</p>
+              <p className="text-3xl font-mono font-bold tracking-widest">{issuedCode}</p>
+            </div>
+          )}
           {!isOnline && (
             <Badge variant="outline" className="mt-2">Queued for sync</Badge>
           )}
