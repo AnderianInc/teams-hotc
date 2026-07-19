@@ -138,6 +138,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <h2 className="text-2xl font-display font-bold">
             {child.first_name} is checked in!
           </h2>
+          <p className="text-sm text-muted-foreground mt-1">{serviceDateLabel}</p>
           {assignedRoom && (
             <p className="text-muted-foreground mt-1">Room: {assignedRoom.name}</p>
           )}
@@ -162,6 +163,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Confirm Check-In</CardTitle>
+          <p className="text-sm text-muted-foreground">{serviceDateLabel}</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1">
