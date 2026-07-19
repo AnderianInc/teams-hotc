@@ -137,7 +137,7 @@ export default function Help() {
           <Card>
             <CardContent className="pt-6">
               {current ? (
-                <article className="prose prose-sm dark:prose-invert max-w-none">
+                <article className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-display prose-headings:tracking-tight prose-h1:text-3xl prose-h2:text-2xl prose-h2:mt-8 prose-h3:text-lg prose-a:text-primary prose-code:text-primary prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted prose-pre:text-foreground prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground prose-hr:border-border prose-strong:text-foreground prose-li:my-1">
                   <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
                     <Badge variant="outline">{current.section}</Badge>
                     {current.role !== "public" && <Badge variant="secondary">{current.role}</Badge>}
