@@ -22,7 +22,7 @@ export default function CheckedInToday() {
       const { data, error } = await supabase
         .from("check_ins")
         .select(
-          "id, checked_in_at, checked_out_at, children(first_name, last_name, grade_group), rooms(name)"
+          "id, checked_in_at, checked_out_at, security_code, children(first_name, last_name, grade_group), rooms(name)"
         )
         .gte("checked_in_at", start)
         .lte("checked_in_at", end)
