@@ -30,7 +30,34 @@ const net = require("net");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { spawn } = require("child_process");
+const { execFile, spawn } = require("child_process");
+
+const DATA_DIR = process.pkg ? path.dirname(process.execPath) : __dirname;
+
+function loadEnvFiles() {
+  const candidates = [...new Set([
+    path.join(process.cwd(), ".env"),
+    path.join(DATA_DIR, ".env"),
+    path.join(__dirname, ".env"),
+  ])];
+  for (const file of candidates) {
+    if (!fs.existsSync(file)) continue;
+    try {
+      const lines = fs.readFileSync(file, "utf8").split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+        if (!match || process.env[match[1]] !== undefined) continue;
+        process.env[match[1]] = match[2].trim().replace(/^['"]|['"]$/g, "");
+      }
+    } catch (e) {
+      console.warn("Could not read .env", file, e.message);
+    }
+  }
+}
+
+loadEnvFiles();
 
 // Optional: bonjour-service for mDNS/Bonjour advertisement (auto-discovery
 // from kiosks on the same wifi). If the dep isn't installed, the bridge
@@ -38,37 +65,73 @@ const { spawn } = require("child_process");
 let Bonjour = null;
 try { Bonjour = require("bonjour-service").Bonjour; } catch { /* optional */ }
 
+let selfsigned = null;
+try { selfsigned = require("selfsigned"); } catch { /* optional */ }
+
 const PRINTER_HOST = process.env.PRINTER_HOST || "";
 const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || "9100", 10);
 const USB_DEVICE = process.env.USB_DEVICE || "";
 const WIN_PRINTER = process.env.WIN_PRINTER || "";
+const MAC_PRINTER = process.env.MAC_PRINTER || "";
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "9999", 10);
 const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || "9443", 10);
-const CERT_DIR = process.env.CERT_DIR || path.join(__dirname, "cert");
+const CERT_DIR = process.env.CERT_DIR || path.join(DATA_DIR, "cert");
 
 function log(...args) {
   console.log(new Date().toISOString(), ...args);
 }
 
-function sendBytesToPrinter(bytes) {
+function getLanIps() {
+  return Object.values(os.networkInterfaces()).flat()
+    .filter((i) => i && i.family === "IPv4" && !i.internal)
+    .map((i) => i.address);
+}
+
+function execFileText(command, args, timeout = 5000) {
   return new Promise((resolve, reject) => {
+    execFile(command, args, { timeout }, (error, stdout, stderr) => {
+      if (error) return reject(error);
+      resolve(`${stdout || ""}${stderr || ""}`);
+    });
+  });
+}
+
+let detectedMacPrinter;
+async function getMacPrinterName() {
+  if (MAC_PRINTER) return MAC_PRINTER;
+  if (process.platform !== "darwin") return "";
+  if (detectedMacPrinter !== undefined) return detectedMacPrinter;
+  try {
+    const out = await execFileText("lpstat", ["-p"], 3000);
+    const names = out.split(/\r?\n/)
+      .map((line) => line.match(/^printer\s+(\S+)/)?.[1])
+      .filter(Boolean);
+    detectedMacPrinter = names.find((name) => /brother|ql/i.test(name)) || "";
+  } catch {
+    detectedMacPrinter = "";
+  }
+  return detectedMacPrinter;
+}
+
+async function sendBytesToPrinter(bytes) {
     if (PRINTER_HOST) {
-      const sock = new net.Socket();
-      sock.setTimeout(10000);
-      sock.connect(PRINTER_PORT, PRINTER_HOST, () => {
-        sock.write(Buffer.from(bytes), () => sock.end());
+      return new Promise((resolve, reject) => {
+        const sock = new net.Socket();
+        sock.setTimeout(10000);
+        sock.connect(PRINTER_PORT, PRINTER_HOST, () => {
+          sock.write(Buffer.from(bytes), () => sock.end());
+        });
+        sock.on("close", () => resolve({ via: `tcp://${PRINTER_HOST}:${PRINTER_PORT}` }));
+        sock.on("timeout", () => { sock.destroy(); reject(new Error("Printer TCP timeout")); });
+        sock.on("error", reject);
       });
-      sock.on("close", () => resolve({ via: `tcp://${PRINTER_HOST}:${PRINTER_PORT}` }));
-      sock.on("timeout", () => { sock.destroy(); reject(new Error("Printer TCP timeout")); });
-      sock.on("error", reject);
-      return;
     }
     if (USB_DEVICE) {
       try {
         fs.writeFileSync(USB_DEVICE, Buffer.from(bytes));
-        return resolve({ via: USB_DEVICE });
+        return { via: USB_DEVICE };
       } catch (e) {
-        return reject(e);
+        throw e;
       }
     }
     if (WIN_PRINTER) {
@@ -76,18 +139,35 @@ function sendBytesToPrinter(bytes) {
       // printer share. The `print` CLI re-rasterises via the driver and would
       // destroy the pre-built ESC/P bytes — copy is byte-exact.
       const tmp = path.join(os.tmpdir(), `hotc_label_${Date.now()}.prn`);
-      try { fs.writeFileSync(tmp, Buffer.from(bytes)); } catch (e) { return reject(e); }
+      try { fs.writeFileSync(tmp, Buffer.from(bytes)); } catch (e) { throw e; }
       const share = `\\\\localhost\\${WIN_PRINTER.replace(/"/g, "")}`;
-      const child = spawn("cmd.exe", ["/c", "copy", "/B", tmp, share], { windowsHide: true });
-      child.on("close", (code) => {
-        try { fs.unlinkSync(tmp); } catch {}
-        code === 0 ? resolve({ via: WIN_PRINTER }) : reject(new Error("Windows print failed, code " + code));
+      return new Promise((resolve, reject) => {
+        const child = spawn("cmd.exe", ["/c", "copy", "/B", tmp, share], { windowsHide: true });
+        child.on("close", (code) => {
+          try { fs.unlinkSync(tmp); } catch {}
+          code === 0 ? resolve({ via: WIN_PRINTER }) : reject(new Error("Windows print failed, code " + code));
+        });
+        child.on("error", reject);
       });
-      child.on("error", reject);
-      return;
     }
-    reject(new Error("No printer transport configured. Set PRINTER_HOST, USB_DEVICE, or WIN_PRINTER."));
-  });
+    if (process.platform === "darwin") {
+      const printer = await getMacPrinterName();
+      if (printer) {
+        const tmp = path.join(os.tmpdir(), `hotc_label_${Date.now()}.prn`);
+        fs.writeFileSync(tmp, Buffer.from(bytes));
+        return new Promise((resolve, reject) => {
+          const child = spawn("lp", ["-d", printer, "-o", "raw", tmp]);
+          let stderr = "";
+          child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+          child.on("close", (code) => {
+            try { fs.unlinkSync(tmp); } catch {}
+            code === 0 ? resolve({ via: `CUPS:${printer}` }) : reject(new Error(stderr || "macOS print failed, code " + code));
+          });
+          child.on("error", reject);
+        });
+      }
+    }
+    throw new Error("No printer transport configured. Set PRINTER_HOST, USB_DEVICE, WIN_PRINTER, or MAC_PRINTER.");
 }
 
 async function probePrinter() {
@@ -102,13 +182,24 @@ async function probePrinter() {
   }
   if (USB_DEVICE) return fs.existsSync(USB_DEVICE);
   if (WIN_PRINTER) return true; // assume installed
+  if (process.platform === "darwin") {
+    const printer = await getMacPrinterName();
+    if (!printer) return false;
+    try {
+      await execFileText("lpstat", ["-p", printer], 3000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   return false;
 }
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Access-Control-Request-Private-Network",
+  "Access-Control-Allow-Private-Network": "true",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -118,24 +209,30 @@ async function handler(req, res) {
   if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
 
   if (req.method === "GET" && req.url === "/") {
+    const lanUrls = getLanIps().map((ip) => `https://${ip}:${HTTPS_PORT}`);
     res.writeHead(200, { "Content-Type": "text/html" });
     return res.end(`<!doctype html><meta charset=utf-8><title>HOTC Print Bridge</title>
 <body style="font-family:system-ui;max-width:520px;margin:40px auto;padding:0 16px">
 <h1>HOTC Print Bridge</h1>
 <p>Bridge is running. <a href="/status">/status</a></p>
-<p>Configure your kiosk to use this URL as the printer.</p>
+<p>Configure your kiosk to use one of these URLs as the printer:</p>
+<ul>${lanUrls.map((u) => `<li><code>${u}</code></li>`).join("")}<li><code>https://hotc-print-bridge.local:${HTTPS_PORT}</code></li></ul>
+<p>If the browser warns that this site is not private, approve it once on each kiosk device, then connect again from teams.hotc.life.</p>
 </body>`);
   }
 
   if (req.method === "GET" && req.url === "/status") {
     const reachable = await probePrinter();
+    const macPrinter = !PRINTER_HOST && !USB_DEVICE && !WIN_PRINTER && process.platform === "darwin"
+      ? await getMacPrinterName()
+      : "";
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({
       ok: true,
-      transport: PRINTER_HOST ? "network" : USB_DEVICE ? "usb-linux" : WIN_PRINTER ? "windows" : "none",
-      target: PRINTER_HOST || USB_DEVICE || WIN_PRINTER || null,
+      transport: PRINTER_HOST ? "network" : USB_DEVICE ? "usb-linux" : WIN_PRINTER ? "windows" : macPrinter ? "macos-cups" : "none",
+      target: PRINTER_HOST || USB_DEVICE || WIN_PRINTER || macPrinter || null,
       reachable,
-      version: "1.0.0",
+      version: "1.2.0",
     }));
   }
 
@@ -170,6 +267,42 @@ http.createServer(handler).listen(HTTP_PORT, "0.0.0.0", () => {
 
 const certPath = path.join(CERT_DIR, "cert.pem");
 const keyPath = path.join(CERT_DIR, "key.pem");
+function ensureCertificate() {
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) return;
+  if (!selfsigned) {
+    log(`No certs at ${CERT_DIR} and selfsigned is unavailable — HTTPS disabled.`);
+    return;
+  }
+  fs.mkdirSync(CERT_DIR, { recursive: true });
+  const hostname = os.hostname().replace(/\.local$/i, "");
+  const altNames = [
+    { type: 2, value: "hotc-print-bridge.local" },
+    { type: 2, value: "print-bridge.local" },
+    { type: 2, value: `${hostname}.local` },
+    { type: 2, value: "localhost" },
+    { type: 7, ip: "127.0.0.1" },
+    ...getLanIps().map((ip) => ({ type: 7, ip })),
+  ];
+  const pems = selfsigned.generate(
+    [{ name: "commonName", value: "hotc-print-bridge.local" }],
+    {
+      days: 3650,
+      keySize: 2048,
+      algorithm: "sha256",
+      extensions: [
+        { name: "basicConstraints", cA: true },
+        { name: "keyUsage", keyCertSign: true, digitalSignature: true, keyEncipherment: true },
+        { name: "extKeyUsage", serverAuth: true },
+        { name: "subjectAltName", altNames },
+      ],
+    },
+  );
+  fs.writeFileSync(certPath, pems.cert);
+  fs.writeFileSync(keyPath, pems.private);
+  log(`Generated HTTPS certificate at ${CERT_DIR}`);
+}
+
+ensureCertificate();
 if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   https.createServer({
     cert: fs.readFileSync(certPath),
@@ -192,10 +325,10 @@ if (Bonjour) {
     const bonjour = new Bonjour();
     const hostname = "hotc-print-bridge";
     const txt = {
-      transport: PRINTER_HOST ? "network" : USB_DEVICE ? "usb" : WIN_PRINTER ? "windows" : "none",
+      transport: PRINTER_HOST ? "network" : USB_DEVICE ? "usb" : WIN_PRINTER ? "windows" : process.platform === "darwin" ? "macos-cups" : "none",
       https: String(HTTPS_PORT),
       http: String(HTTP_PORT),
-      version: "1.1.0",
+      version: "1.2.0",
     };
     bonjour.publish({ name: "HOTC Print Bridge", type: "hotc-print", protocol: "tcp", port: HTTPS_PORT, host: `${hostname}.local`, txt });
     bonjour.publish({ name: "HOTC Print Bridge", type: "https",      protocol: "tcp", port: HTTPS_PORT, host: `${hostname}.local`, txt });
@@ -212,9 +345,7 @@ if (Bonjour) {
 
 // Log the LAN IPs so the operator can paste one into the kiosk if mDNS
 // isn't available on their network.
-const ips = Object.values(os.networkInterfaces()).flat()
-  .filter((i) => i && i.family === "IPv4" && !i.internal)
-  .map((i) => i.address);
+const ips = getLanIps();
 log("LAN URLs:", ips.map((ip) => `https://${ip}:${HTTPS_PORT}`).join("  "));
-log("Config:", { PRINTER_HOST, PRINTER_PORT, USB_DEVICE, WIN_PRINTER });
+log("Config:", { PRINTER_HOST, PRINTER_PORT, USB_DEVICE, WIN_PRINTER, MAC_PRINTER, CERT_DIR });
 
