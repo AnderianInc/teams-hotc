@@ -296,8 +296,10 @@ export interface NameTagOptions {
 
 const MIRROR_KEY = "hotc.printMirror";
 export function getMirrorPrint(): boolean {
-  if (typeof localStorage === "undefined") return false;
-  return localStorage.getItem(MIRROR_KEY) === "1";
+  if (typeof localStorage === "undefined") return true;
+  const v = localStorage.getItem(MIRROR_KEY);
+  // Default ON — Brother QL-820NWB raster packing prints reversed otherwise.
+  return v === null ? true : v === "1";
 }
 export function setMirrorPrint(on: boolean): void {
   if (typeof localStorage === "undefined") return;
