@@ -63,6 +63,18 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
     (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
   );
 
+  const serviceDateLabel = activeService?.service_date
+    ? new Date(activeService.service_date + "T00:00:00").toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      });
+
   const checkIn = useMutation({
     mutationFn: async () => {
       const checkInData = {
@@ -74,6 +86,29 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         checked_in_at: new Date().toISOString(),
       };
 
+      // Try printing FIRST — if the printer is connected but fails,
+      // abort the check-in so staff can retry rather than have an
+      // unlabeled child.
+      const printerStatus = getPrinterStatus();
+      if (printerStatus.connected) {
+        let roomName = assignedRoom?.name || "TBD";
+        if (!isOnline && !assignedRoom) {
+          const offlineRooms = await getRoomsOffline();
+          const match = offlineRooms.find(
+            (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
+          );
+          if (match) roomName = match.name;
+        }
+        await printNameTag({
+          childName: `${child.first_name} ${child.last_name}`,
+          roomName,
+          allergies: child.allergies,
+          parentName: child.families?.parent1_name,
+        });
+        toast.success("Label printed!");
+      }
+
+      // Now record the check-in
       if (isOnline) {
         const { error } = await supabase.from("check_ins").insert({
           child_id: checkInData.child_id,
@@ -83,40 +118,14 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         });
         if (error) throw error;
       } else {
-        // Queue for later sync
         await queueCheckIn(checkInData);
-      }
-
-      // Try to print if printer connected
-      const printerStatus = getPrinterStatus();
-      if (printerStatus.connected) {
-        try {
-          let roomName = assignedRoom?.name || "TBD";
-          if (!isOnline && !assignedRoom) {
-            const offlineRooms = await getRoomsOffline();
-            const match = offlineRooms.find(
-              (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
-            );
-            if (match) roomName = match.name;
-          }
-
-          await printNameTag({
-            childName: `${child.first_name} ${child.last_name}`,
-            roomName,
-            allergies: child.allergies,
-            parentName: child.families?.parent1_name,
-          });
-          toast.success("Label printed!");
-        } catch (e: any) {
-          toast.error(`Print failed: ${e.message}`);
-        }
       }
     },
     onSuccess: () => {
       setSuccess(true);
       toast.success(`${child.first_name} checked in!${!isOnline ? " (offline — will sync later)" : ""}`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(`Check-in aborted: ${e.message}`),
   });
 
   if (success) {
@@ -129,6 +138,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <h2 className="text-2xl font-display font-bold">
             {child.first_name} is checked in!
           </h2>
+          <p className="text-sm text-muted-foreground mt-1">{serviceDateLabel}</p>
           {assignedRoom && (
             <p className="text-muted-foreground mt-1">Room: {assignedRoom.name}</p>
           )}
@@ -153,6 +163,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Confirm Check-In</CardTitle>
+          <p className="text-sm text-muted-foreground">{serviceDateLabel}</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1">
