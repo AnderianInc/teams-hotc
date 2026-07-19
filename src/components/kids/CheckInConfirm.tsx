@@ -87,6 +87,17 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   });
   const alreadyCheckedIn = !!existingCheckIn;
 
+  // Room label = child's grade / age group from directory (per admin spec).
+  const roomName = child.grade_group || assignedRoom?.name || "TBD";
+  const previewBase = {
+    childName: `${child.first_name} ${child.last_name}`,
+    roomName,
+    allergies: child.allergies,
+    parentName: child.families?.parent1_name,
+    parentPhone: child.families?.parent1_phone,
+    securityCode,
+  };
+
   const serviceDateLabel = activeService?.service_date
     ? new Date(activeService.service_date + "T00:00:00").toLocaleDateString(undefined, {
         weekday: "long",
