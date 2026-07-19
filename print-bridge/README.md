@@ -25,7 +25,7 @@ old laptop is fine. Needs Node.js 18+ and to be on the church wifi.
 Plug the printer into church wifi. Find its IP from the printer's LCD or your
 router. Note it — e.g. `192.168.1.60`.
 
-**Option B — USB:** plug printer USB into the bridge PC.
+**Option B — USB:** plug printer USB into the bridge PC. On macOS, install the Brother driver and add the printer in System Settings first; the bridge will auto-detect a Brother/QL CUPS printer, or you can set `MAC_PRINTER=<printer-name>` beside the app.
 
 ## 3. Install & configure
 
@@ -36,7 +36,7 @@ router. Note it — e.g. `192.168.1.60`.
 
 - **Windows** — `hotc-print-bridge-win.exe`, double-click.
 - **macOS Apple Silicon (M1/M2/M3)** — `hotc-print-bridge-macos-arm64.zip`, unzip, then **right-click** `run.command` → **Open** → **Open** (needed once because the app is unsigned; macOS quarantines unsigned bare binaries and shows them as gibberish in TextEdit, which is why we ship a `.zip` with a launcher).
-- **macOS Intel** — `hotc-print-bridge-macos-intel.zip`, same as above.
+- **macOS Intel** — `hotc-print-bridge-macos-intel.zip`, same as above. For a USB printer installed on this Mac, no `.env` is usually needed; the bridge auto-detects a Brother/QL printer through macOS printing.
 - **Linux** — `hotc-print-bridge-linux.zip`, unzip, `chmod +x hotc-print-bridge-linux`, run.
 
 No Node.js required. Skip to the `.env` step.
@@ -65,11 +65,14 @@ PRINTER_PORT=9100
 # OR Windows (printer installed in Windows under this exact name)
 # WIN_PRINTER=Brother QL-1110NWB
 
+# OR macOS USB/CUPS (optional; auto-detected if omitted)
+# MAC_PRINTER=Brother_QL_820NWB
+
 HTTP_PORT=9999
 HTTPS_PORT=9443
 ```
 
-Then generate a self-signed cert (one-time, lasts 10 years):
+Source installs should generate a self-signed cert (one-time, lasts 10 years). Prebuilt binaries generate one automatically next to the app on first launch.
 
 ```bash
 ./generate-cert.sh
@@ -110,6 +113,8 @@ no IP entry needed. On first load it probes `hotc-print-bridge.local:9443`
 and connects automatically. You can also tap **Printer button → Network
 bridge → Auto-find bridge** at any time.
 
+Important: because `teams.hotc.life` is HTTPS, the browser will not let the app talk to the local bridge until this device trusts the bridge certificate. In the printer popover, click **Open status** first. If the status page opens with a privacy warning, approve it once, then return to the app and click **Connect**.
+
 Manual fallback (if mDNS is blocked on your network): paste
 `https://<bridge-ip>:9443` into the same popover. The URL is remembered
 per device.
@@ -137,10 +142,9 @@ so the bridge is printer-format agnostic — it just forwards bytes.
 
 ## Troubleshooting
 
-- **"Failed to fetch" in browser console** — cert isn't trusted on this device.
-  Visit `https://<bridge-ip>:9443/status` directly first, accept warning, retry.
+- **"Could not reach the bridge" / "Failed to fetch"** — usually the bridge certificate is not trusted on this device, or the bridge app is not running. Open `https://<bridge-ip>:9443/status` or use **Open status** in the app, approve the warning once, then retry.
 - **`/status` says `reachable: false`** — printer is off, on a different wifi,
-  or `PRINTER_HOST` is wrong.
+  `PRINTER_HOST` is wrong, or macOS/Windows does not have the Brother printer installed.
 - **Label prints blank or garbled** — wrong tape loaded; QL-1110NWB needs
   DK-2205 continuous or DK-1247 die-cut tape.
 
