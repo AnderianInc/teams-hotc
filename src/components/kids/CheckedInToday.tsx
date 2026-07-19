@@ -69,6 +69,11 @@ export default function CheckedInToday() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {c.security_code && (
+                    <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">
+                      {c.security_code}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {new Date(c.checked_in_at).toLocaleTimeString([], {
                       hour: "numeric",
