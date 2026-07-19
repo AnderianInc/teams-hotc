@@ -245,6 +245,20 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {isAdmin && (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => navigate("/admin?tab=teams-roster")}>
+            <CalendarDays className="h-4 w-4 mr-2" /> Master Schedule
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate("/admin?tab=order-of-service")}>
+            <ClipboardCheck className="h-4 w-4 mr-2" /> Order of Service
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate("/admin")}>
+            <LayoutDashboard className="h-4 w-4 mr-2" /> Admin Panel
+          </Button>
+        </div>
+      )}
+
       {/* Quick stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card>
