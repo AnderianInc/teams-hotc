@@ -18,6 +18,18 @@ interface SearchResult {
   extra?: string[];
 }
 
+// Current week's Sunday (matches self-check-in edge function)
+const getServiceSunday = () => {
+  const now = new Date();
+  const s = new Date(now);
+  s.setDate(now.getDate() - now.getDay());
+  s.setHours(0, 0, 0, 0);
+  return s;
+};
+
+const formatServiceDate = (d: Date) =>
+  d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
 export default function CheckIn() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -27,7 +39,11 @@ export default function CheckIn() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [checkedInName, setCheckedInName] = useState("");
+  const [selfAlreadyChecked, setSelfAlreadyChecked] = useState<boolean | null>(null);
   const selfName = user?.user_metadata?.full_name || user?.email || "";
+  const serviceSunday = getServiceSunday();
+  const serviceDateISO = serviceSunday.toISOString().split("T")[0];
+  const serviceDateLabel = formatServiceDate(serviceSunday);
 
   // New member registration fields
   const [firstName, setFirstName] = useState("");
@@ -35,6 +51,27 @@ export default function CheckIn() {
   const [phone, setPhone] = useState("");
 
   const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Verify if the logged-in user has already checked in for this Sunday
+  useEffect(() => {
+    if (!user) {
+      setSelfAlreadyChecked(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("weekly_attendance")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("service_date", serviceDateISO)
+        .maybeSingle();
+      if (!cancelled) setSelfAlreadyChecked(!!data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, serviceDateISO, step]);
 
   useEffect(() => {
     if (step === "done" || step === "already") {
@@ -175,23 +212,35 @@ export default function CheckIn() {
         <h1 className="text-2xl font-bold text-center mb-1" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
           Church Check-In
         </h1>
-        <p className="text-muted-foreground text-center text-sm mb-6">Welcome! Let us know you're here today.</p>
+        <p className="text-muted-foreground text-center text-sm">Welcome! Let us know you're here today.</p>
+        <div className="flex justify-center mb-6 mt-2">
+          <Badge variant="secondary" className="text-xs">Service: {serviceDateLabel}</Badge>
+        </div>
 
         {/* Step: Select type */}
         {step === "select" && (
           <div className="space-y-4">
             {user && (
               <button
-                onClick={() => handleCheckIn(user.id, "volunteer")}
-                className="w-full rounded-xl border-2 border-primary bg-primary/5 p-6 text-left hover:bg-primary/10 transition-all active:scale-[0.98]"
+                onClick={() => !selfAlreadyChecked && handleCheckIn(user.id, "volunteer")}
+                disabled={selfAlreadyChecked === true}
+                className={`w-full rounded-xl border-2 p-6 text-left transition-all active:scale-[0.98] ${
+                  selfAlreadyChecked
+                    ? "border-success/40 bg-success/5 cursor-not-allowed opacity-90"
+                    : "border-primary bg-primary/5 hover:bg-primary/10"
+                }`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-6 w-6 text-primary-foreground" />
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${selfAlreadyChecked ? "bg-success" : "bg-primary"}`}>
+                    <Check className={`h-6 w-6 ${selfAlreadyChecked ? "text-white" : "text-primary-foreground"}`} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-lg text-foreground truncate">Check in as {selfName}</p>
-                    <p className="text-sm text-muted-foreground">One tap — no search needed</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-lg text-foreground truncate">
+                      {selfAlreadyChecked ? `${selfName} — already checked in` : `Check in as ${selfName}`}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selfAlreadyChecked ? `You're set for ${serviceDateLabel}` : "One tap — no search needed"}
+                    </p>
                   </div>
                 </div>
               </button>
@@ -334,6 +383,7 @@ export default function CheckIn() {
             </div>
             <h2 className="text-xl font-bold mb-1">You're checked in!</h2>
             <p className="text-muted-foreground">{checkedInName}</p>
+            <p className="text-xs text-muted-foreground mt-1">{serviceDateLabel}</p>
             <Button variant="outline" onClick={reset} className="mt-8">
               Check in someone else
             </Button>
@@ -347,7 +397,8 @@ export default function CheckIn() {
               <Check className="h-10 w-10 text-primary" />
             </div>
             <h2 className="text-xl font-bold mb-1">Already checked in!</h2>
-            <p className="text-muted-foreground">{checkedInName} is already checked in for this week.</p>
+            <p className="text-muted-foreground">{checkedInName} is already checked in.</p>
+            <p className="text-xs text-muted-foreground mt-1">{serviceDateLabel}</p>
             <Button variant="outline" onClick={reset} className="mt-8">
               Check in someone else
             </Button>
