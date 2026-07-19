@@ -32,7 +32,9 @@ interface CheckInConfirmProps {
 export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const { user } = useAuth();
   const [success, setSuccess] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "verifying" | "printing" | "saving">("idle");
   const isOnline = navigator.onLine;
+  const printerStatus = getPrinterStatus();
 
   // Find matching room by grade_group
   const { data: rooms } = useQuery({
