@@ -291,7 +291,10 @@ export async function printNameTag(opts: {
   if (!currentConnection) throw new Error("No printer connected");
 
   const canvas = document.createElement("canvas");
-  const WIDTH = 720;   // 62mm tape width in dots
+  // Brother QL raster data is always sent as: print-head width × feed length.
+  // For the QL-820NWB roll shown in Brother's editor (2.4" Black/Red), that is
+  // 62mm tape width = 720 dots, and a compact 1.5" name tag = 450 feed rows.
+  const WIDTH = 720;
   const HEIGHT = 450;
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -299,35 +302,17 @@ export async function printNameTag(opts: {
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(0, 0, WIDTH, 80);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 36px sans-serif";
-  ctx.fillText("KIDS CHECK-IN", 20, 55);
 
-  ctx.fillStyle = "#000000";
-  ctx.font = "bold 60px sans-serif";
-  ctx.fillText(opts.childName, 20, 170);
-
-  ctx.font = "36px sans-serif";
-  ctx.fillText(`Room: ${opts.roomName}`, 20, 230);
-
-  if (opts.parentName) {
-    ctx.font = "28px sans-serif";
-    ctx.fillStyle = "#555555";
-    ctx.fillText(`Parent: ${opts.parentName}`, 20, 290);
-  }
-  ctx.font = "24px sans-serif";
-  ctx.fillStyle = "#888888";
-  ctx.fillText(opts.date || new Date().toLocaleDateString(), 20, 340);
-
-  if (opts.allergies) {
-    ctx.fillStyle = "#dc2626";
-    ctx.fillRect(0, 370, WIDTH, 80);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 32px sans-serif";
-    ctx.fillText(`⚠ ALLERGY: ${opts.allergies}`, 20, 420);
-  }
+  // Match Brother Editor's landscape layout: label length is horizontal and
+  // tape width is vertical. Raster coordinates are the opposite, so rotate the
+  // canvas before drawing the simple name-only tag.
+  const labelLength = HEIGHT;
+  const tapeWidth = WIDTH;
+  ctx.save();
+  ctx.translate(WIDTH, 0);
+  ctx.rotate(Math.PI / 2);
+  drawCenteredName(ctx, opts.childName, labelLength, tapeWidth);
+  ctx.restore();
 
   const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
   const rasterData = buildBrotherRaster(imageData, WIDTH, HEIGHT);
@@ -344,6 +329,70 @@ export async function printTestLabel(): Promise<void> {
   });
 }
 
+function drawCenteredName(
+  ctx: CanvasRenderingContext2D,
+  rawName: string,
+  labelLength: number,
+  tapeWidth: number,
+) {
+  const name = rawName.trim().replace(/\s+/g, " ") || "Name";
+  const maxWidth = labelLength - 42;
+  const maxHeight = tapeWidth - 96;
+  const words = name.split(" ");
+
+  const splitTwoLines = () => {
+    if (words.length < 2) return [name];
+    let best = [name];
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let i = 1; i < words.length; i++) {
+      const candidate = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
+      const widths = candidate.map((line) => ctx.measureText(line).width);
+      const score = Math.max(...widths) + Math.abs(widths[0] - widths[1]);
+      if (score < bestScore) {
+        best = candidate;
+        bestScore = score;
+      }
+    }
+    return best;
+  };
+
+  let selectedLines = [name];
+  let selectedSize = 44;
+
+  for (let size = 96; size >= 44; size -= 2) {
+    ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`;
+    const singleFits = ctx.measureText(name).width <= maxWidth;
+    if (singleFits && size <= maxHeight) {
+      selectedLines = [name];
+      selectedSize = size;
+      break;
+    }
+
+    const twoLines = splitTwoLines();
+    const lineHeight = size * 1.08;
+    const twoLineFits =
+      twoLines.length === 2 &&
+      lineHeight * twoLines.length <= maxHeight &&
+      twoLines.every((line) => ctx.measureText(line).width <= maxWidth);
+    if (twoLineFits) {
+      selectedLines = twoLines;
+      selectedSize = size;
+      break;
+    }
+  }
+
+  ctx.fillStyle = "#000000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${selectedSize}px Arial, Helvetica, sans-serif`;
+
+  const lineHeight = selectedSize * 1.08;
+  const firstY = tapeWidth / 2 - ((selectedLines.length - 1) * lineHeight) / 2;
+  selectedLines.forEach((line, index) => {
+    ctx.fillText(line, labelLength / 2, firstY + index * lineHeight, maxWidth);
+  });
+}
+
 function buildBrotherRaster(imageData: ImageData, width: number, height: number): Uint8Array {
   // QL-820NWB uses a fixed 720-dot (90-byte) print buffer for 62mm continuous tape.
   const bytesPerRow = 90;
@@ -357,33 +406,40 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
   commands.push(0x1b, 0x69, 0x61, 0x01);
 
   // 4. Print information command: ESC i z {n1..n10}
-  //    n1 = valid-flag: 0x00 => do NOT validate media type/width/length.
-  //         The printer prints on whatever roll is currently installed. This
-  //         prevents the "wrong roll type" error that fires when a hard-coded
-  //         declaration (e.g. 62mm continuous) doesn't match what the user
-  //         actually loaded. Works for white continuous tape (DK-22205) and
-  //         die-cut address labels alike.
-  //    n2..n4 = 0 (ignored because the KIND/WIDTH/LENGTH flags are off)
+  //    This app is intentionally NOT sending an address-label profile.
+  //    It declares 62mm continuous tape: the same 2.4" Black/Red roll shown in
+  //    Brother Editor. On QL-820NWB, that media must be printed in two-color
+  //    mode even when the red plane is blank; otherwise the firmware returns
+  //    "Wrong Roll Type / Check the print data".
+  //    n1 = 0x8E: media type, media width, media length, printer recovery valid
+  //    n2 = 0x0A: continuous length tape
+  //    n3 = 0x3E: 62mm width
+  //    n4 = 0x00: continuous tape length
   //    n5..n8 = raster row count (little-endian 32-bit) — still required
   //    n9 = starting page (0), n10 = 0
   const rasterCount = height;
   commands.push(0x1b, 0x69, 0x7a);
-  commands.push(0x00, 0x00, 0x00, 0x00);
+  commands.push(0x8e, 0x0a, 0x3e, 0x00);
   commands.push(rasterCount & 0xff, (rasterCount >> 8) & 0xff, (rasterCount >> 16) & 0xff, (rasterCount >> 24) & 0xff);
   commands.push(0x00, 0x00);
 
   // 5. Auto-cut every page: ESC i M 0x40
   commands.push(0x1b, 0x69, 0x4d, 0x40);
-  // 6. Cut at end: ESC i K 0x08
-  commands.push(0x1b, 0x69, 0x4b, 0x08);
+  // 6. Expanded mode: ESC i K 0x09 = two-color printing + cut at end.
+  //    Required for QL-820NWB Black/Red media, even for black-only labels.
+  commands.push(0x1b, 0x69, 0x4b, 0x09);
   // 7. Feed margin for continuous tape: ESC i d 35 0
   commands.push(0x1b, 0x69, 0x64, 0x23, 0x00);
   // 8. Compression mode: M 0x00 (no compression) — matches the raw rows below.
   commands.push(0x4d, 0x00);
 
+  const blankRedPlane = new Array(bytesPerRow).fill(0x00);
+
   for (let y = 0; y < height; y++) {
-    // Raster line: g 0x00 0x5A + 90 pixel bytes
-    commands.push(0x67, 0x00, 0x5a);
+    // Two-color raster line pair:
+    //   w 01 5A + black plane bytes
+    //   w 02 5A + red plane bytes (blank; we only print the name in black)
+    commands.push(0x77, 0x01, 0x5a);
     for (let byteIdx = 0; byteIdx < bytesPerRow; byteIdx++) {
       let byte = 0;
       for (let bit = 0; bit < 8; bit++) {
@@ -398,6 +454,7 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
       }
       commands.push(byte);
     }
+    commands.push(0x77, 0x02, 0x5a, ...blankRedPlane);
   }
   // Print with feeding (end of job)
   commands.push(0x1a);
