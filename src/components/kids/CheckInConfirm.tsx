@@ -142,22 +142,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       // STEP 2: Print the label. If this throws, we do NOT save the check-in
       // so staff can fix the printer and retry.
       setPhase("printing");
-      // Room label = child's grade / age group from directory (per admin spec).
-      // Fall back to auto-assigned room only when the child has no grade set.
-      let roomName = child.grade_group || assignedRoom?.name || "TBD";
-      if (!isOnline && !child.grade_group && !assignedRoom) {
-        const offlineRooms = await getRoomsOffline();
-        const match = offlineRooms.find((r) => r.grade_group);
-        if (match) roomName = match.name;
-      }
-      await printCheckInLabels({
-        childName: `${child.first_name} ${child.last_name}`,
-        roomName,
-        allergies: child.allergies,
-        parentName: child.families?.parent1_name,
-        parentPhone: child.families?.parent1_phone,
-        securityCode,
-      });
+      await printCheckInLabels(previewBase);
 
       // STEP 3: Only after the printer confirms the send, record the check-in.
       setPhase("saving");
