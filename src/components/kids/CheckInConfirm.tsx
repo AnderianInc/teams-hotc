@@ -105,6 +105,18 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         checked_in_at: new Date().toISOString(),
       };
 
+      // STEP 0: Never double check-in the same child for the same service.
+      if (isOnline && activeService?.id) {
+        const { data: dup } = await supabase
+          .from("check_ins")
+          .select("id")
+          .eq("child_id", child.id)
+          .eq("service_id", activeService.id)
+          .is("checked_out_at", null)
+          .maybeSingle();
+        if (dup) throw new Error(`${child.first_name} is already checked in for this service.`);
+      }
+
       // STEP 1: Printer is mandatory. Verify it's actually reachable right now
       // (a stale connection object is not enough — the bridge PC may have slept,
       // the printer may be powered off, etc.).
