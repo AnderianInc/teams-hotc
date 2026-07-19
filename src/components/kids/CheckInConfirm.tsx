@@ -248,7 +248,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <div
             className={`flex items-center gap-2 rounded-md border p-2 text-sm ${
               printerStatus.connected
-                ? "border-success/40 bg-success/5 text-success-foreground"
+                ? "border-success/40 bg-success/5 text-success"
                 : "border-destructive/40 bg-destructive/5 text-destructive"
             }`}
           >
