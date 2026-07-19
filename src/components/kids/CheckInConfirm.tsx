@@ -205,14 +205,42 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
+          {/* Printer status — MUST be connected to check in */}
+          <div
+            className={`flex items-center gap-2 rounded-md border p-2 text-sm ${
+              printerStatus.connected
+                ? "border-success/40 bg-success/5 text-success-foreground"
+                : "border-destructive/40 bg-destructive/5 text-destructive"
+            }`}
+          >
+            {printerStatus.connected ? (
+              <>
+                <PrinterCheck className="h-4 w-4 text-success" />
+                <span>Printer ready: <b>{printerStatus.name}</b></span>
+              </>
+            ) : (
+              <>
+                <PrinterIcon className="h-4 w-4" />
+                <span>No printer connected. Connect one (top of page) before checking in.</span>
+              </>
+            )}
+          </div>
+
           <Button
             className="w-full h-12 text-base"
             onClick={() => checkIn.mutate()}
-            disabled={checkIn.isPending}
+            disabled={checkIn.isPending || !printerStatus.connected}
           >
             <Printer className="h-5 w-5 mr-2" />
-            {checkIn.isPending ? "Checking in..." : "Check In & Print Tag"}
+            {phase === "verifying"
+              ? "Checking printer…"
+              : phase === "printing"
+              ? "Printing label…"
+              : phase === "saving"
+              ? "Saving check-in…"
+              : "Check In & Print Tag"}
           </Button>
+
         </CardContent>
       </Card>
     </div>
