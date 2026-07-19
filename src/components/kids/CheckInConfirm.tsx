@@ -280,7 +280,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
 
           <Button
             className="w-full h-12 text-base"
-            onClick={() => checkIn.mutate()}
+            onClick={() => setPreviewOpen(true)}
             disabled={checkIn.isPending || !printerStatus.connected || alreadyCheckedIn}
           >
             <Printer className="h-5 w-5 mr-2" />
@@ -292,8 +292,19 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
               ? "Printing label…"
               : phase === "saving"
               ? "Saving check-in…"
-              : "Check In & Print Tag"}
+              : "Preview & Print Tags"}
           </Button>
+
+          <LabelPreviewDialog
+            open={previewOpen}
+            onOpenChange={(v) => !checkIn.isPending && setPreviewOpen(v)}
+            base={previewBase}
+            printing={checkIn.isPending}
+            onConfirm={() => {
+              setPreviewOpen(false);
+              checkIn.mutate();
+            }}
+          />
 
         </CardContent>
       </Card>
