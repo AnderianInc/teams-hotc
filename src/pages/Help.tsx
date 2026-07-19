@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import BridgeDownloadPanel from "@/components/kids/BridgeDownloadPanel";
 
 function useUserRole(): ArticleRole {
   const { user } = useAuth();
@@ -142,6 +143,11 @@ export default function Help() {
                     <Badge variant="outline">{current.section}</Badge>
                     {current.role !== "public" && <Badge variant="secondary">{current.role}</Badge>}
                   </div>
+                  {current.slug === "kids-setup" && (
+                    <div className="not-prose mb-6">
+                      <BridgeDownloadPanel />
+                    </div>
+                  )}
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{current.content}</ReactMarkdown>
                   <div className="mt-8 flex items-center gap-2 not-prose">
                     <span className="text-sm text-muted-foreground">Was this helpful?</span>
