@@ -56,6 +56,36 @@ export function getPrinterStatus(): PrinterStatus {
   return { connected: true, type: currentConnection.type, name: currentConnection.name };
 }
 
+/**
+ * Actively verify the printer is still reachable RIGHT NOW.
+ * - Bridge: pings `/status` (catches "bridge PC went to sleep" etc.)
+ * - USB/BT: relies on the live device handle
+ * Throws with a human-readable message if unreachable.
+ */
+export async function verifyPrinterOnline(): Promise<PrinterStatus> {
+  if (!currentConnection) throw new Error("No printer connected. Connect a printer before checking in.");
+  if (currentConnection.type === "bridge") {
+    const saved = getSavedBridgeUrl();
+    if (!saved) throw new Error("Bridge URL missing");
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    try {
+      const r = await fetch(`${saved}/status`, { method: "GET", signal: ctrl.signal });
+      if (!r.ok) throw new Error(`Bridge unreachable (HTTP ${r.status})`);
+      const info = await r.json().catch(() => ({}));
+      if (info && info.printerConnected === false) {
+        throw new Error("Bridge is up but the printer is not connected to it. Check USB/Wi-Fi.");
+      }
+    } catch (e: any) {
+      if (e.name === "AbortError") throw new Error("Printer bridge did not respond (timeout).");
+      throw new Error(e.message || "Printer bridge unreachable");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return getPrinterStatus();
+}
+
 export function getSavedBridgeUrl(): string {
   try { return localStorage.getItem(BRIDGE_URL_KEY) || ""; } catch { return ""; }
 }
