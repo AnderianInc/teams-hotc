@@ -44,19 +44,17 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
     },
   });
 
-  // Get active service
+  // Get (or auto-create) today's active service
   const { data: activeService } = useQuery({
     queryKey: ["active-service"],
     enabled: isOnline,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("services")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
+      const { data, error } = await supabase.rpc("ensure_todays_service" as any);
+      if (error) {
+        console.error("ensure_todays_service failed", error);
+        return null;
+      }
+      return data as any;
     },
   });
 
@@ -181,12 +179,6 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
-          {!activeService && isOnline && (
-            <p className="text-sm text-warning">
-              ⚠ No active service. Ask an admin to create one in Settings.
-            </p>
-          )}
-
           {!isOnline && (
             <Badge variant="secondary" className="gap-1">
               Offline mode — check-in will sync when back online
@@ -196,7 +188,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <Button
             className="w-full h-12 text-base"
             onClick={() => checkIn.mutate()}
-            disabled={checkIn.isPending || (isOnline && !activeService)}
+            disabled={checkIn.isPending}
           >
             <Printer className="h-5 w-5 mr-2" />
             {checkIn.isPending ? "Checking in..." : "Check In & Print Tag"}
