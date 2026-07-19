@@ -65,6 +65,23 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
     (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
   );
 
+  // Check for existing open check-in for this child + service (prevents duplicates)
+  const { data: existingCheckIn } = useQuery({
+    queryKey: ["existing-check-in", child.id, activeService?.id],
+    enabled: !!activeService?.id && isOnline,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("check_ins")
+        .select("id, checked_in_at")
+        .eq("child_id", child.id)
+        .eq("service_id", activeService!.id)
+        .is("checked_out_at", null)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const alreadyCheckedIn = !!existingCheckIn;
+
   const serviceDateLabel = activeService?.service_date
     ? new Date(activeService.service_date + "T00:00:00").toLocaleDateString(undefined, {
         weekday: "long",
