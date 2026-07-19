@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterIcon } from "lucide-react";
 import EditFamily from "./EditFamily";
-import { printNameTag, getPrinterStatus, verifyPrinterOnline } from "@/lib/brotherPrinter";
+import { printCheckInLabels, getPrinterStatus, verifyPrinterOnline, generateSecurityCode } from "@/lib/brotherPrinter";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 
 interface CheckInConfirmProps {
