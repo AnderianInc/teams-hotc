@@ -17,12 +17,12 @@ export default function KidsSetupGuide() {
   const [purging, setPurging] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     if (!user) return;
     supabase
       .rpc("has_role", { _user_id: user.id, _role: "admin" as any })
       .then(({ data }) => setIsAdmin(!!data));
-  });
+  }, [user]);
 
   const purgeOld = async () => {
     if (!confirm("Delete all check-in records older than 30 days?")) return;
