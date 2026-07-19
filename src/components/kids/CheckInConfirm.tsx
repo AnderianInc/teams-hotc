@@ -137,11 +137,13 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         );
         if (match) roomName = match.name;
       }
-      await printNameTag({
+      await printCheckInLabels({
         childName: `${child.first_name} ${child.last_name}`,
         roomName,
         allergies: child.allergies,
         parentName: child.families?.parent1_name,
+        parentPhone: child.families?.parent1_phone,
+        securityCode,
       });
 
       // STEP 3: Only after the printer confirms the send, record the check-in.
@@ -152,16 +154,20 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           service_id: checkInData.service_id as any,
           room_id: checkInData.room_id,
           checked_in_by: checkInData.checked_in_by,
-        });
+          security_code: securityCode,
+        } as any);
         if (error) throw error;
       } else {
-        await queueCheckIn(checkInData);
+        await queueCheckIn({ ...checkInData, security_code: securityCode } as any);
       }
     },
     onSuccess: () => {
       setPhase("idle");
+      setIssuedCode(securityCode);
       setSuccess(true);
-      toast.success(`${child.first_name} checked in & label printed!${!isOnline ? " (offline — will sync later)" : ""}`);
+      queryClient.invalidateQueries({ queryKey: ["check-ins-today"] });
+      queryClient.invalidateQueries({ queryKey: ["todays-checkins"] });
+      toast.success(`${child.first_name} checked in & 3 labels printed!${!isOnline ? " (offline — will sync later)" : ""}`);
     },
     onError: (e: Error) => {
       setPhase("idle");
