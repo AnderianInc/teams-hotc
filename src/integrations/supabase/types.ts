@@ -2073,6 +2073,23 @@ export type Database = {
       }
     }
     Functions: {
+      ensure_todays_service: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          service_date: string
+          service_time: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "services"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
