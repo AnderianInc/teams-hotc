@@ -167,7 +167,7 @@ export default function PrinterConnect() {
           <Input
             value={bridgeUrl}
             onChange={(e) => setBridgeUrl(e.target.value)}
-            placeholder="https://hotc-print-bridge.local:9443"
+            placeholder="http://localhost:9999  (same PC)  or  https://192.168.x.x:9443"
             autoComplete="off"
           />
           <div className="flex gap-2">
