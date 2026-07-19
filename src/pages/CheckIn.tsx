@@ -383,6 +383,7 @@ export default function CheckIn() {
             </div>
             <h2 className="text-xl font-bold mb-1">You're checked in!</h2>
             <p className="text-muted-foreground">{checkedInName}</p>
+            <p className="text-xs text-muted-foreground mt-1">{serviceDateLabel}</p>
             <Button variant="outline" onClick={reset} className="mt-8">
               Check in someone else
             </Button>
@@ -396,7 +397,8 @@ export default function CheckIn() {
               <Check className="h-10 w-10 text-primary" />
             </div>
             <h2 className="text-xl font-bold mb-1">Already checked in!</h2>
-            <p className="text-muted-foreground">{checkedInName} is already checked in for this week.</p>
+            <p className="text-muted-foreground">{checkedInName} is already checked in.</p>
+            <p className="text-xs text-muted-foreground mt-1">{serviceDateLabel}</p>
             <Button variant="outline" onClick={reset} className="mt-8">
               Check in someone else
             </Button>
