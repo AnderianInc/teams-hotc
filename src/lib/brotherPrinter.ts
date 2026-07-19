@@ -298,10 +298,12 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
   if (!currentConnection) throw new Error("No printer connected");
 
   // Raster geometry: WIDTH must stay at 720 dots (90 bytes) for 62mm tape.
-  // HEIGHT is the feed length; 1200 rows makes the landscape tag twice as wide
-  // while keeping the physical tape height unchanged.
+  // HEIGHT is feed length (rows).
+  //   - Child copy: LANDSCAPE, full length (1200 rows) — big, easy-to-read name.
+  //   - Parent/Teacher copies: PORTRAIT, half length (600 rows) to save paper.
   const WIDTH = 720;
-  const HEIGHT = 1200;
+  const isLandscape = opts.copy === "child";
+  const HEIGHT = isLandscape ? 1200 : 600;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -309,16 +311,22 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // Landscape mapping: logical label width runs with the feed direction, and
-  // logical label height stays the fixed 62mm tape height. Rotating clockwise
-  // keeps left-to-right text from being mirrored along the feed direction.
-  const labelLength = HEIGHT;
-  const tapeWidth = WIDTH;
-  ctx.save();
-  ctx.translate(WIDTH, 0);
-  ctx.rotate(Math.PI / 2);
-  drawLabel(ctx, labelLength, tapeWidth, opts);
-  ctx.restore();
+  if (isLandscape) {
+    // Landscape: text runs along feed direction. Rotate -90° (counter-clockwise)
+    // and translate so local (0,0) is at canvas (0, HEIGHT). This produces
+    // non-mirrored text that reads correctly when the tape exits the printer.
+    const labelLength = HEIGHT; // reading-direction length
+    const tapeWidth = WIDTH;    // physical 62mm tape height
+    ctx.save();
+    ctx.translate(0, HEIGHT);
+    ctx.rotate(-Math.PI / 2);
+    drawLabel(ctx, labelLength, tapeWidth, opts);
+    ctx.restore();
+  } else {
+    // Portrait: no rotation. Draw directly — width is the 62mm tape width,
+    // height is the (halved) feed length.
+    drawLabel(ctx, WIDTH, HEIGHT, opts);
+  }
 
   const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
   const rasterData = buildBrotherRaster(imageData, WIDTH, HEIGHT);
