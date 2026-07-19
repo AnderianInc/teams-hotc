@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterIcon } from "lucide-react";
 import EditFamily from "./EditFamily";
-import { printNameTag, getPrinterStatus } from "@/lib/brotherPrinter";
+import { printNameTag, getPrinterStatus, verifyPrinterOnline } from "@/lib/brotherPrinter";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 
 interface CheckInConfirmProps {
@@ -32,7 +32,9 @@ interface CheckInConfirmProps {
 export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const { user } = useAuth();
   const [success, setSuccess] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "verifying" | "printing" | "saving">("idle");
   const isOnline = navigator.onLine;
+  const printerStatus = getPrinterStatus();
 
   // Find matching room by grade_group
   const { data: rooms } = useQuery({
@@ -86,29 +88,32 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         checked_in_at: new Date().toISOString(),
       };
 
-      // Try printing FIRST — if the printer is connected but fails,
-      // abort the check-in so staff can retry rather than have an
-      // unlabeled child.
-      const printerStatus = getPrinterStatus();
-      if (printerStatus.connected) {
-        let roomName = assignedRoom?.name || "TBD";
-        if (!isOnline && !assignedRoom) {
-          const offlineRooms = await getRoomsOffline();
-          const match = offlineRooms.find(
-            (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
-          );
-          if (match) roomName = match.name;
-        }
-        await printNameTag({
-          childName: `${child.first_name} ${child.last_name}`,
-          roomName,
-          allergies: child.allergies,
-          parentName: child.families?.parent1_name,
-        });
-        toast.success("Label printed!");
-      }
+      // STEP 1: Printer is mandatory. Verify it's actually reachable right now
+      // (a stale connection object is not enough — the bridge PC may have slept,
+      // the printer may be powered off, etc.).
+      setPhase("verifying");
+      await verifyPrinterOnline();
 
-      // Now record the check-in
+      // STEP 2: Print the label. If this throws, we do NOT save the check-in
+      // so staff can fix the printer and retry.
+      setPhase("printing");
+      let roomName = assignedRoom?.name || "TBD";
+      if (!isOnline && !assignedRoom) {
+        const offlineRooms = await getRoomsOffline();
+        const match = offlineRooms.find(
+          (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
+        );
+        if (match) roomName = match.name;
+      }
+      await printNameTag({
+        childName: `${child.first_name} ${child.last_name}`,
+        roomName,
+        allergies: child.allergies,
+        parentName: child.families?.parent1_name,
+      });
+
+      // STEP 3: Only after the printer confirms the send, record the check-in.
+      setPhase("saving");
       if (isOnline) {
         const { error } = await supabase.from("check_ins").insert({
           child_id: checkInData.child_id,
@@ -122,10 +127,14 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       }
     },
     onSuccess: () => {
+      setPhase("idle");
       setSuccess(true);
-      toast.success(`${child.first_name} checked in!${!isOnline ? " (offline — will sync later)" : ""}`);
+      toast.success(`${child.first_name} checked in & label printed!${!isOnline ? " (offline — will sync later)" : ""}`);
     },
-    onError: (e: Error) => toast.error(`Check-in aborted: ${e.message}`),
+    onError: (e: Error) => {
+      setPhase("idle");
+      toast.error(`Check-in aborted: ${e.message}`);
+    },
   });
 
   if (success) {
@@ -196,14 +205,42 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
+          {/* Printer status — MUST be connected to check in */}
+          <div
+            className={`flex items-center gap-2 rounded-md border p-2 text-sm ${
+              printerStatus.connected
+                ? "border-success/40 bg-success/5 text-success-foreground"
+                : "border-destructive/40 bg-destructive/5 text-destructive"
+            }`}
+          >
+            {printerStatus.connected ? (
+              <>
+                <PrinterCheck className="h-4 w-4 text-success" />
+                <span>Printer ready: <b>{printerStatus.name}</b></span>
+              </>
+            ) : (
+              <>
+                <PrinterIcon className="h-4 w-4" />
+                <span>No printer connected. Connect one (top of page) before checking in.</span>
+              </>
+            )}
+          </div>
+
           <Button
             className="w-full h-12 text-base"
             onClick={() => checkIn.mutate()}
-            disabled={checkIn.isPending}
+            disabled={checkIn.isPending || !printerStatus.connected}
           >
             <Printer className="h-5 w-5 mr-2" />
-            {checkIn.isPending ? "Checking in..." : "Check In & Print Tag"}
+            {phase === "verifying"
+              ? "Checking printer…"
+              : phase === "printing"
+              ? "Printing label…"
+              : phase === "saving"
+              ? "Saving check-in…"
+              : "Check In & Print Tag"}
           </Button>
+
         </CardContent>
       </Card>
     </div>
