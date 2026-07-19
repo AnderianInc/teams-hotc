@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.dispatch-scheduled-emails]
 verify_jwt = false
+
+[functions.upload-bridge-release]
+verify_jwt = false
+
+[functions.bridge-download]
+verify_jwt = false
