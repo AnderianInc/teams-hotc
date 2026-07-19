@@ -35,6 +35,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const queryClient = useQueryClient();
   const [success, setSuccess] = useState(false);
   const [phase, setPhase] = useState<"idle" | "verifying" | "printing" | "saving">("idle");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [issuedCode, setIssuedCode] = useState<string | null>(null);
   const securityCode = useMemo(() => generateSecurityCode(), [child.id]);
   const isOnline = navigator.onLine;
