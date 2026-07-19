@@ -59,6 +59,10 @@ function loadEnvFiles() {
 
 loadEnvFiles();
 
+// Prevent late mDNS/socket errors from killing the bridge — just log them.
+process.on("uncaughtException", (err) => log("uncaughtException:", err.message));
+process.on("unhandledRejection", (err) => log("unhandledRejection:", err && err.message ? err.message : err));
+
 // Optional: bonjour-service for mDNS/Bonjour advertisement (auto-discovery
 // from kiosks on the same wifi). If the dep isn't installed, the bridge
 // still works — kiosks just have to enter the IP manually.
