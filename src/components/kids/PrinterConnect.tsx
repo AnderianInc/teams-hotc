@@ -178,6 +178,13 @@ export default function PrinterConnect() {
           <p className="text-[11px] text-muted-foreground">
             First time on this device, open status and approve the certificate warning. If status shows reachable: false, the bridge is running but the printer is not ready.
           </p>
+          <div className="rounded-md border bg-muted/40 p-2 text-[11px] text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground">Bridge works on the host PC but not from other devices?</p>
+            <p>1. <b>Windows firewall:</b> allow inbound TCP 9443 on the Private profile.</p>
+            <p>2. <b>macOS firewall:</b> System Settings → Network → Firewall → allow incoming for the bridge app.</p>
+            <p>3. <b>Wifi client isolation:</b> many church/guest APs block device-to-device traffic — ask IT to disable it on the kiosk SSID.</p>
+            <p>4. Windows without Bonjour cannot resolve <code>hotc-print-bridge.local</code> — use the LAN IP shown in the bridge console.</p>
+          </div>
 
         </PopoverContent>
       </Popover>
