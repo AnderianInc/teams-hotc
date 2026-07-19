@@ -10,6 +10,7 @@ import RegisterChild from "./RegisterChild";
 import CheckInConfirm from "./CheckInConfirm";
 import PrinterConnect from "./PrinterConnect";
 import OfflineStatusBar from "./OfflineStatusBar";
+import CheckedInToday from "./CheckedInToday";
 import { searchChildrenOffline, hasLocalData } from "@/lib/offlineSync";
 
 interface ChildResult {
