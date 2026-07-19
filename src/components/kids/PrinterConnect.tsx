@@ -15,6 +15,7 @@ import {
   getSavedBridgeUrl,
   isUSBAvailable,
   isBluetoothAvailable,
+  normalizeBridgeUrl,
   printTestLabel,
   tryAutoConnectBridge,
   type PrinterStatus,
@@ -65,19 +66,29 @@ export default function PrinterConnect() {
   const handleBridge = async () => {
     if (!bridgeUrl.trim()) { toast.error("Enter the bridge URL"); return; }
     try {
-      const s = await connectBridge(bridgeUrl.trim());
+      const normalized = normalizeBridgeUrl(bridgeUrl);
+      const s = await connectBridge(normalized);
       setStatus(s);
+      setBridgeUrl(normalized);
       toast.success(`Connected to ${s.name}`);
     } catch (e: any) {
       toast.error(e.message || "Could not reach bridge");
     }
   };
 
+  const openBridgeStatus = () => {
+    const normalized = normalizeBridgeUrl(bridgeUrl || "https://hotc-print-bridge.local:9443");
+    window.open(`${normalized}/status`, "_blank", "noopener,noreferrer");
+  };
+
   const handleScan = async () => {
     setScanning(true);
     try {
       const found = await discoverBridge(bridgeUrl.trim() ? [bridgeUrl.trim()] : []);
-      if (!found) { toast.error("No bridge found on this network"); return; }
+      if (!found) {
+        toast.error("No bridge found. Open the bridge status page once to approve the certificate, then try again.");
+        return;
+      }
       setBridgeUrl(found);
       const s = await connectBridge(found);
       setStatus(s);
@@ -160,9 +171,12 @@ export default function PrinterConnect() {
             <Button size="sm" onClick={handleBridge} className="flex-1">
               <Wifi className="h-3.5 w-3.5 mr-1" /> Connect
             </Button>
+            <Button size="sm" variant="outline" onClick={openBridgeStatus}>
+              Open status
+            </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            First time on this device, visit the URL directly in the browser and accept the certificate warning.
+            First time on this device, open status and approve the certificate warning. If status shows reachable: false, the bridge is running but the printer is not ready.
           </p>
 
         </PopoverContent>
