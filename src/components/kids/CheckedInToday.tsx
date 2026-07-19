@@ -22,7 +22,7 @@ export default function CheckedInToday() {
       const { data, error } = await supabase
         .from("check_ins")
         .select(
-          "id, checked_in_at, checked_out_at, children(first_name, last_name, grade_group), rooms(name)"
+          "id, checked_in_at, checked_out_at, security_code, children(first_name, last_name, grade_group), rooms(name)"
         )
         .gte("checked_in_at", start)
         .lte("checked_in_at", end)
@@ -69,6 +69,11 @@ export default function CheckedInToday() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {c.security_code && (
+                    <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">
+                      {c.security_code}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {new Date(c.checked_in_at).toLocaleTimeString([], {
                       hour: "numeric",

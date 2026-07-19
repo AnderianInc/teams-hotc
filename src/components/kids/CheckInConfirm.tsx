@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterIcon } from "lucide-react";
 import EditFamily from "./EditFamily";
-import { printNameTag, getPrinterStatus, verifyPrinterOnline } from "@/lib/brotherPrinter";
+import { printCheckInLabels, getPrinterStatus, verifyPrinterOnline, generateSecurityCode } from "@/lib/brotherPrinter";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 
 interface CheckInConfirmProps {
@@ -31,8 +31,11 @@ interface CheckInConfirmProps {
 
 export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [success, setSuccess] = useState(false);
   const [phase, setPhase] = useState<"idle" | "verifying" | "printing" | "saving">("idle");
+  const [issuedCode, setIssuedCode] = useState<string | null>(null);
+  const securityCode = useMemo(() => generateSecurityCode(), [child.id]);
   const isOnline = navigator.onLine;
   const printerStatus = getPrinterStatus();
 
@@ -134,11 +137,13 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
         );
         if (match) roomName = match.name;
       }
-      await printNameTag({
+      await printCheckInLabels({
         childName: `${child.first_name} ${child.last_name}`,
         roomName,
         allergies: child.allergies,
         parentName: child.families?.parent1_name,
+        parentPhone: child.families?.parent1_phone,
+        securityCode,
       });
 
       // STEP 3: Only after the printer confirms the send, record the check-in.
@@ -149,16 +154,20 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           service_id: checkInData.service_id as any,
           room_id: checkInData.room_id,
           checked_in_by: checkInData.checked_in_by,
-        });
+          security_code: securityCode,
+        } as any);
         if (error) throw error;
       } else {
-        await queueCheckIn(checkInData);
+        await queueCheckIn({ ...checkInData, security_code: securityCode } as any);
       }
     },
     onSuccess: () => {
       setPhase("idle");
+      setIssuedCode(securityCode);
       setSuccess(true);
-      toast.success(`${child.first_name} checked in & label printed!${!isOnline ? " (offline — will sync later)" : ""}`);
+      queryClient.invalidateQueries({ queryKey: ["check-ins-today"] });
+      queryClient.invalidateQueries({ queryKey: ["todays-checkins"] });
+      toast.success(`${child.first_name} checked in & 3 labels printed!${!isOnline ? " (offline — will sync later)" : ""}`);
     },
     onError: (e: Error) => {
       setPhase("idle");
@@ -179,6 +188,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <p className="text-sm text-muted-foreground mt-1">{serviceDateLabel}</p>
           {assignedRoom && (
             <p className="text-muted-foreground mt-1">Room: {assignedRoom.name}</p>
+          )}
+          {issuedCode && (
+            <div className="mt-4 rounded-md border bg-muted p-3">
+              <p className="text-xs uppercase text-muted-foreground">Pickup code (parent + child + teacher)</p>
+              <p className="text-3xl font-mono font-bold tracking-widest">{issuedCode}</p>
+            </div>
           )}
           {!isOnline && (
             <Badge variant="outline" className="mt-2">Queued for sync</Badge>

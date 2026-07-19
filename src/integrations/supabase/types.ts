@@ -232,6 +232,7 @@ export type Database = {
           child_id: string
           id: string
           room_id: string | null
+          security_code: string | null
           service_id: string
         }
         Insert: {
@@ -241,6 +242,7 @@ export type Database = {
           child_id: string
           id?: string
           room_id?: string | null
+          security_code?: string | null
           service_id: string
         }
         Update: {
@@ -250,6 +252,7 @@ export type Database = {
           child_id?: string
           id?: string
           room_id?: string | null
+          security_code?: string | null
           service_id?: string
         }
         Relationships: [
@@ -2073,6 +2076,7 @@ export type Database = {
       }
     }
     Functions: {
+      auto_close_stale_check_ins: { Args: never; Returns: number }
       ensure_todays_service: {
         Args: never
         Returns: {
@@ -2112,6 +2116,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      purge_old_check_ins: { Args: { _days?: number }; Returns: number }
       resolve_contact_group: {
         Args: { _group_id: string }
         Returns: {
