@@ -30,13 +30,13 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // Manifest endpoint — returns version.json as JSON (or 404 if not uploaded yet)
+  // Manifest endpoint — returns version.json as JSON, or { tag: null } if not uploaded yet.
+  // We intentionally return 200 so clients don't log a spurious error before the first release.
   if (url.searchParams.get("manifest") === "1") {
     const { data, error } = await supabase.storage.from(BUCKET).download("latest/version.json");
     if (error || !data) {
-      return new Response(JSON.stringify({ error: "no manifest yet" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ tag: null, released_at: null, notes_url: null }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=60" },
       });
     }
     return new Response(await data.text(), {

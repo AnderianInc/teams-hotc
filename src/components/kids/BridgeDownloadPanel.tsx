@@ -35,10 +35,13 @@ export default function BridgeDownloadPanel() {
 
   useEffect(() => {
     setPrimary(detectPlatform());
+    // Manifest may 404 until the first release is mirrored — swallow silently.
     fetch(`${SUPABASE_URL}/functions/v1/bridge-download?manifest=1`)
       .then((r) => (r.ok ? r.json() : null))
       .then((m) => m?.tag && setVersion(m.tag))
-      .catch(() => {});
+      .catch(() => {
+        /* no manifest yet — ignore */
+      });
   }, []);
 
   const others = (Object.keys(LABELS) as Platform[]).filter((p) => p !== primary);
