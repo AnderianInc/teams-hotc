@@ -36,13 +36,15 @@ The bridge is open source: **[github.com/AnderianInc/teams-hotc](https://github.
 
 ### Option A — Download a prebuilt binary (easiest, no Node.js required)
 
-1. Go to [Releases](https://github.com/AnderianInc/teams-hotc/releases) on GitHub.
-2. Download the file for your OS:
+**Fastest path:** scroll to the top of this Setup & Guide page — the **Download the Print Bridge** panel auto-detects your OS and gives you a one-click download. That's the same file as GitHub Releases, just hosted in-app so you don't have to leave.
+
+If you prefer GitHub: go to [Releases](https://github.com/AnderianInc/teams-hotc/releases) and grab the file for your OS:
    - Windows: `hotc-print-bridge-win.exe` — double-click to run.
    - macOS Apple Silicon (M1/M2/M3): `hotc-print-bridge-macos-arm64.zip` — unzip, then **right-click** `run.command` → **Open** → **Open** (needed once because the app is unsigned).
    - macOS Intel: `hotc-print-bridge-macos-intel.zip` — same steps as Apple Silicon.
    - Linux: `hotc-print-bridge-linux.zip` — unzip, `chmod +x hotc-print-bridge-linux`, run.
-3. On first launch it generates a self-signed certificate so iPads can reach it over HTTPS.
+
+On first launch it generates a self-signed certificate so iPads can reach it over HTTPS.
 
 > **macOS "gibberish file" fix:** if you downloaded a bare `hotc-print-bridge-macos` file (no `.zip`) from an older release, macOS strips the executable bit and opens it in TextEdit as random characters. Delete it and grab the current `.zip` release instead.
 
