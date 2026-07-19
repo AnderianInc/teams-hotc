@@ -281,37 +281,41 @@ export async function disconnectPrinter(): Promise<void> {
 }
 
 // ---------------- Label rendering ----------------
-export async function printNameTag(opts: {
+export type LabelCopy = "child" | "parent" | "teacher";
+
+export interface NameTagOptions {
   childName: string;
   roomName: string;
+  securityCode: string;
+  copy: LabelCopy;
   allergies?: string | null;
-  parentName?: string;
+  parentName?: string | null;
+  parentPhone?: string | null;
   date?: string;
-}): Promise<void> {
+}
+
+export async function printNameTag(opts: NameTagOptions): Promise<void> {
   if (!currentConnection) throw new Error("No printer connected");
 
-  const canvas = document.createElement("canvas");
-  // Brother QL raster data is always sent as: print-head width × feed length.
-  // For the QL-820NWB roll shown in Brother's editor (2.4" Black/Red), that is
-  // 62mm tape width = 720 dots, and a compact 1.5" name tag = 450 feed rows.
+  // Raster geometry: WIDTH must stay at 720 dots (90 bytes) for 62mm tape.
+  // HEIGHT is the feed length (~50mm at 300dpi ≈ 600 rows).
   const WIDTH = 720;
-  const HEIGHT = 450;
+  const HEIGHT = 600;
+  const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const ctx = canvas.getContext("2d")!;
-
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // Match Brother Editor's landscape layout: label length is horizontal and
-  // tape width is vertical. Raster coordinates are the opposite, so rotate the
-  // canvas before drawing the simple name-only tag.
+  // Landscape: rotate CCW so the label reads along the tape as it emerges.
+  // Replaces the previous CW rotation that produced mirrored / portrait output.
   const labelLength = HEIGHT;
   const tapeWidth = WIDTH;
   ctx.save();
-  ctx.translate(WIDTH, 0);
-  ctx.rotate(Math.PI / 2);
-  drawCenteredName(ctx, opts.childName, labelLength, tapeWidth);
+  ctx.translate(0, HEIGHT);
+  ctx.rotate(-Math.PI / 2);
+  drawLabel(ctx, labelLength, tapeWidth, opts);
   ctx.restore();
 
   const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
@@ -319,78 +323,177 @@ export async function printNameTag(opts: {
   await currentConnection.send(rasterData);
 }
 
+/** Print child + parent + teacher copies for a single check-in. */
+export async function printCheckInLabels(base: Omit<NameTagOptions, "copy">): Promise<void> {
+  const copies: LabelCopy[] = ["child", "parent", "teacher"];
+  for (const copy of copies) {
+    await printNameTag({ ...base, copy });
+    await new Promise((r) => setTimeout(r, 400));
+  }
+}
+
 /** Test print without check-in context — for the Settings UI. */
 export async function printTestLabel(): Promise<void> {
   await printNameTag({
+    copy: "child",
     childName: "Test Print",
     roomName: "Test Room",
+    securityCode: "TEST01",
     parentName: "HOTC Print Bridge",
     date: new Date().toLocaleString(),
   });
 }
 
-function drawCenteredName(
+/** Short human-readable security code (6 chars, no ambiguous glyphs). */
+export function generateSecurityCode(): string {
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
+
+function drawLabel(
   ctx: CanvasRenderingContext2D,
-  rawName: string,
   labelLength: number,
   tapeWidth: number,
+  opts: NameTagOptions,
+) {
+  const padding = 24;
+  const innerW = labelLength - padding * 2;
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+
+  const headerLabel =
+    opts.copy === "parent" ? "PARENT PICKUP" : opts.copy === "teacher" ? "TEACHER COPY" : "CHILD";
+  ctx.font = "700 28px Arial, sans-serif";
+  ctx.fillText(headerLabel, padding, padding);
+  ctx.fillRect(padding, padding + 34, innerW, 3);
+
+  const contentTop = padding + 52;
+  const contentBottom = tapeWidth - padding;
+  const contentH = contentBottom - contentTop;
+
+  if (opts.copy === "parent") {
+    drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 60, 700, 56, 32);
+    ctx.font = "500 22px Arial, sans-serif";
+    ctx.fillText(`Room: ${opts.roomName}`, padding, contentTop + 72);
+    ctx.font = "500 18px Arial, sans-serif";
+    ctx.fillText("PICKUP CODE — must match child's tag", padding, contentTop + 108);
+    ctx.font = "800 96px 'Courier New', monospace";
+    ctx.fillText(opts.securityCode, padding, contentTop + 130);
+    return;
+  }
+
+  if (opts.copy === "teacher") {
+    drawFittedText(ctx, opts.childName, padding, contentTop, innerW, 60, 700, 56, 32);
+    ctx.font = "500 22px Arial, sans-serif";
+    ctx.fillText(`Room: ${opts.roomName}`, padding, contentTop + 72);
+    if (opts.parentName) {
+      ctx.fillText(
+        `Guardian: ${opts.parentName}${opts.parentPhone ? " · " + opts.parentPhone : ""}`,
+        padding,
+        contentTop + 100,
+      );
+    }
+    ctx.font = "700 20px 'Courier New', monospace";
+    ctx.fillText(`Code: ${opts.securityCode}`, padding, contentTop + 128);
+    if (opts.allergies) {
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(padding, contentTop + 158, innerW, 44);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "800 22px Arial, sans-serif";
+      ctx.fillText(`ALLERGIES: ${opts.allergies}`, padding + 8, contentTop + 168);
+    }
+    return;
+  }
+
+  // CHILD copy — big name centered, code small at bottom
+  const nameMaxH = contentH - 90;
+  drawFittedNameCentered(ctx, opts.childName, padding, contentTop, innerW, nameMaxH);
+  ctx.fillStyle = "#000000";
+  ctx.font = "500 22px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`Room: ${opts.roomName}`, padding + innerW / 2, contentBottom - 68);
+  ctx.font = "700 24px 'Courier New', monospace";
+  ctx.fillText(`Code ${opts.securityCode}`, padding + innerW / 2, contentBottom - 34);
+  ctx.textAlign = "left";
+}
+
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  maxH: number,
+  weight: number,
+  maxSize: number,
+  minSize: number,
+) {
+  let size = maxSize;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  while (size >= minSize) {
+    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    if (ctx.measureText(text).width <= maxW && size <= maxH) break;
+    size -= 2;
+  }
+  ctx.fillText(text, x, y, maxW);
+}
+
+function drawFittedNameCentered(
+  ctx: CanvasRenderingContext2D,
+  rawName: string,
+  x: number,
+  y: number,
+  maxW: number,
+  maxH: number,
 ) {
   const name = rawName.trim().replace(/\s+/g, " ") || "Name";
-  const maxWidth = labelLength - 42;
-  const maxHeight = tapeWidth - 96;
   const words = name.split(" ");
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#000000";
 
-  const splitTwoLines = () => {
-    if (words.length < 2) return [name];
-    let best = [name];
-    let bestScore = Number.POSITIVE_INFINITY;
-    for (let i = 1; i < words.length; i++) {
-      const candidate = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
-      const widths = candidate.map((line) => ctx.measureText(line).width);
-      const score = Math.max(...widths) + Math.abs(widths[0] - widths[1]);
-      if (score < bestScore) {
-        best = candidate;
-        bestScore = score;
+  let lines = [name];
+  let chosen = 44;
+  for (let size = 120; size >= 44; size -= 2) {
+    ctx.font = `800 ${size}px Arial, sans-serif`;
+    if (ctx.measureText(name).width <= maxW && size <= maxH) {
+      lines = [name];
+      chosen = size;
+      break;
+    }
+    if (words.length >= 2) {
+      let best: string[] | null = null;
+      let bestScore = Infinity;
+      for (let i = 1; i < words.length; i++) {
+        const cand = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
+        const w = cand.map((l) => ctx.measureText(l).width);
+        const score = Math.max(...w) + Math.abs(w[0] - w[1]);
+        if (score < bestScore) {
+          bestScore = score;
+          best = cand;
+        }
       }
-    }
-    return best;
-  };
-
-  let selectedLines = [name];
-  let selectedSize = 44;
-
-  for (let size = 96; size >= 44; size -= 2) {
-    ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`;
-    const singleFits = ctx.measureText(name).width <= maxWidth;
-    if (singleFits && size <= maxHeight) {
-      selectedLines = [name];
-      selectedSize = size;
-      break;
-    }
-
-    const twoLines = splitTwoLines();
-    const lineHeight = size * 1.08;
-    const twoLineFits =
-      twoLines.length === 2 &&
-      lineHeight * twoLines.length <= maxHeight &&
-      twoLines.every((line) => ctx.measureText(line).width <= maxWidth);
-    if (twoLineFits) {
-      selectedLines = twoLines;
-      selectedSize = size;
-      break;
+      const lh = size * 1.05;
+      if (best && lh * 2 <= maxH && best.every((l) => ctx.measureText(l).width <= maxW)) {
+        lines = best;
+        chosen = size;
+        break;
+      }
     }
   }
 
-  ctx.fillStyle = "#000000";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `700 ${selectedSize}px Arial, Helvetica, sans-serif`;
-
-  const lineHeight = selectedSize * 1.08;
-  const firstY = tapeWidth / 2 - ((selectedLines.length - 1) * lineHeight) / 2;
-  selectedLines.forEach((line, index) => {
-    ctx.fillText(line, labelLength / 2, firstY + index * lineHeight, maxWidth);
-  });
+  ctx.font = `800 ${chosen}px Arial, sans-serif`;
+  const lh = chosen * 1.05;
+  const cx = x + maxW / 2;
+  const cy = y + maxH / 2;
+  const startY = cy - ((lines.length - 1) * lh) / 2;
+  lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lh, maxW));
 }
 
 function buildBrotherRaster(imageData: ImageData, width: number, height: number): Uint8Array {
