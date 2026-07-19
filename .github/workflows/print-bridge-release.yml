@@ -118,16 +118,7 @@ jobs:
               "$BRIDGE_UPLOAD_URL?filename=$file"
             echo ""
           }
-            local file="$1"
-            local ctype="$2"
-            echo "Uploading $file..."
-            curl -sSf -X POST \
-              -H "x-upload-token: $BRIDGE_UPLOAD_TOKEN" \
-              -H "content-type: $ctype" \
-              --data-binary "@$file" \
-              "$BRIDGE_UPLOAD_URL?filename=$file"
-            echo ""
-          }
+
           upload "hotc-print-bridge-win.exe"          "application/octet-stream"
           upload "hotc-print-bridge-macos-arm64.zip"  "application/zip"
           upload "hotc-print-bridge-macos-intel.zip"  "application/zip"

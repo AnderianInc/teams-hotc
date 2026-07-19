@@ -72,8 +72,8 @@ export default function BridgeDownloadPanel() {
           automatically.
         </p>
 
-        <Button asChild size="lg" className="w-full">
-          <a href={downloadUrl(primary)}>
+        <Button asChild size="lg" className="w-full" disabled={!version}>
+          <a href={downloadUrl(primary)} target="_blank" rel="noreferrer">
             {primary.startsWith("macos") ? (
               <Apple className="h-4 w-4 mr-2" />
             ) : (
@@ -85,11 +85,27 @@ export default function BridgeDownloadPanel() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {others.map((p) => (
-            <Button key={p} asChild variant="outline" size="sm">
-              <a href={downloadUrl(p)}>{LABELS[p]}</a>
+            <Button key={p} asChild variant="outline" size="sm" disabled={!version}>
+              <a href={downloadUrl(p)} target="_blank" rel="noreferrer">{LABELS[p]}</a>
             </Button>
           ))}
         </div>
+
+        {!version && (
+          <p className="text-xs text-destructive">
+            No release mirrored to cloud yet. Grab binaries directly from{" "}
+            <a
+              className="underline"
+              href="https://github.com/AnderianInc/teams-hotc/releases"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub Releases
+            </a>{" "}
+            in the meantime.
+          </p>
+        )}
+
 
         <p className="text-xs text-muted-foreground">
           macOS: unzip, then right-click <code>run.command</code> → Open (one-time
