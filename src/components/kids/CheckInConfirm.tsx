@@ -234,6 +234,16 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
+          {alreadyCheckedIn && (
+            <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-warning" />
+              <span>
+                Already checked in for this service at{" "}
+                <b>{new Date(existingCheckIn!.checked_in_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</b>.
+              </span>
+            </div>
+          )}
+
           {/* Printer status — MUST be connected to check in */}
           <div
             className={`flex items-center gap-2 rounded-md border p-2 text-sm ${
@@ -258,10 +268,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <Button
             className="w-full h-12 text-base"
             onClick={() => checkIn.mutate()}
-            disabled={checkIn.isPending || !printerStatus.connected}
+            disabled={checkIn.isPending || !printerStatus.connected || alreadyCheckedIn}
           >
             <Printer className="h-5 w-5 mr-2" />
-            {phase === "verifying"
+            {alreadyCheckedIn
+              ? "Already checked in"
+              : phase === "verifying"
               ? "Checking printer…"
               : phase === "printing"
               ? "Printing label…"
