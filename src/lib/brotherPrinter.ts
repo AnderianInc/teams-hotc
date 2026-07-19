@@ -357,16 +357,18 @@ function buildBrotherRaster(imageData: ImageData, width: number, height: number)
   commands.push(0x1b, 0x69, 0x61, 0x01);
 
   // 4. Print information command: ESC i z {n1..n10}
-  //    n1 = valid-flag: PI_KIND|PI_WIDTH|PI_LENGTH|PI_QUALITY|PI_RECOVER = 0x8E
-  //    n2 = media type: 0x0A continuous length tape
-  //    n3 = media width in mm: 0x3E = 62
-  //    n4 = media length in mm: 0 for continuous
-  //    n5..n8 = raster row count (little-endian 32-bit)
+  //    n1 = valid-flag: 0x00 => do NOT validate media type/width/length.
+  //         The printer prints on whatever roll is currently installed. This
+  //         prevents the "wrong roll type" error that fires when a hard-coded
+  //         declaration (e.g. 62mm continuous) doesn't match what the user
+  //         actually loaded. Works for white continuous tape (DK-22205) and
+  //         die-cut address labels alike.
+  //    n2..n4 = 0 (ignored because the KIND/WIDTH/LENGTH flags are off)
+  //    n5..n8 = raster row count (little-endian 32-bit) — still required
   //    n9 = starting page (0), n10 = 0
-  //    Without a valid n1 the QL-820NWB falls back to its last media (address label).
   const rasterCount = height;
   commands.push(0x1b, 0x69, 0x7a);
-  commands.push(0x8e, 0x0a, 0x3e, 0x00);
+  commands.push(0x00, 0x00, 0x00, 0x00);
   commands.push(rasterCount & 0xff, (rasterCount >> 8) & 0xff, (rasterCount >> 16) & 0xff, (rasterCount >> 24) & 0xff);
   commands.push(0x00, 0x00);
 
