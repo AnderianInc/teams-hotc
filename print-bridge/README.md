@@ -32,8 +32,15 @@ router. Note it — e.g. `192.168.1.60`.
 **Two ways to install:**
 
 **A) Prebuilt binary (recommended for volunteers)** — grab the file for your OS from
-[GitHub Releases](https://github.com/AnderianInc/teams-hotc/releases) and double-click it.
+[GitHub Releases](https://github.com/AnderianInc/teams-hotc/releases):
+
+- **Windows** — `hotc-print-bridge-win.exe`, double-click.
+- **macOS Apple Silicon (M1/M2/M3)** — `hotc-print-bridge-macos-arm64.zip`, unzip, then **right-click** `run.command` → **Open** → **Open** (needed once because the app is unsigned; macOS quarantines unsigned bare binaries and shows them as gibberish in TextEdit, which is why we ship a `.zip` with a launcher).
+- **macOS Intel** — `hotc-print-bridge-macos-intel.zip`, same as above.
+- **Linux** — `hotc-print-bridge-linux.zip`, unzip, `chmod +x hotc-print-bridge-linux`, run.
+
 No Node.js required. Skip to the `.env` step.
+
 
 **B) From source (contributors / developers)**:
 
