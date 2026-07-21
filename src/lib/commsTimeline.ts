@@ -155,6 +155,8 @@ export async function fetchCommsTimeline(input: FetchInput): Promise<CommsItem[]
     refId: r.id,
   }));
 
-  items.sort((a, b) => (new Date(b.ts).getTime() - new Date(a.ts).getTime()));
-  return items;
+  const valid = items.filter((i) => i.ts && !isNaN(new Date(i.ts).getTime()));
+  valid.sort((a, b) => (new Date(b.ts).getTime() - new Date(a.ts).getTime()));
+  return valid;
+
 }
