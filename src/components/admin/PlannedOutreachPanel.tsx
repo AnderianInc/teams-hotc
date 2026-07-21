@@ -1400,3 +1400,73 @@ function CategorizeRecord({
     </div>
   );
 }
+
+function PurgeRunsButton({ status, count, onDone }: { status: "skipped" | "failed"; count: number; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [scope, setScope] = useState<"all" | "older">("older");
+  const [days, setDays] = useState(30);
+  const [busy, setBusy] = useState(false);
+
+  const handlePurge = async () => {
+    setBusy(true);
+    try {
+      let q = supabase.from("outreach_sequence_runs").delete().eq("status", status);
+      if (scope === "older") {
+        const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+        q = q.lt("sent_at", cutoff);
+      }
+      const { error } = await q;
+      if (error) throw error;
+      toast.success(`Purged ${status} entries`);
+      setOpen(false);
+      onDone();
+    } catch (e: any) {
+      toast.error(e.message || "Purge failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="shrink-0">
+          <Trash2 className="h-4 w-4 mr-1" /> Purge ({count})
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Purge {status} entries</DialogTitle>
+          <DialogDescription>
+            Permanently delete {status} outreach runs. This cannot be undone. Skipped entries are also auto-purged after 30 days.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" checked={scope === "older"} onChange={() => setScope("older")} />
+            Older than
+            <Input
+              type="number"
+              min={1}
+              value={days}
+              onChange={(e) => setDays(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="h-8 w-20"
+              disabled={scope !== "older"}
+            />
+            days
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" checked={scope === "all"} onChange={() => setScope("all")} />
+            All {status} entries ({count})
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
+          <Button variant="destructive" onClick={handlePurge} disabled={busy}>
+            {busy ? "Purging…" : "Purge"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
