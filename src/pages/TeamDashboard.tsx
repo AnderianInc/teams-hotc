@@ -1,8 +1,10 @@
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams, useAllTeams } from "@/hooks/useTeams";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Users, Sparkles, LogOut, BookOpen } from "lucide-react";
+import { Baby, Users, Sparkles, LogOut, BookOpen, Lock, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import KidsSetupGuide from "@/components/kids/KidsSetupGuide";
 import KidsCheckIn from "@/components/kids/KidsCheckIn";
 import KidsCheckOut from "@/components/kids/KidsCheckOut";
@@ -27,7 +29,30 @@ export default function TeamDashboard() {
   const team = allTeams?.find((t) => t.slug === slug);
 
   if (!membership && !isAdmin) {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Lock className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Access restricted</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                You don't have access to this team. Ask an admin to add you to the{" "}
+                {team?.name ?? "team"} to view Check-In, Register, and other tools.
+              </p>
+            </div>
+            <Button asChild variant="outline">
+              <Link to="/dashboard">
+                <Home className="h-4 w-4 mr-2" />
+                Back to home
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Children's Ministry: tabs for App (Kids Check-In) + Volunteers
