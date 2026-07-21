@@ -127,7 +127,7 @@ export async function fetchCommsTimeline(input: FetchInput): Promise<CommsItem[]
 
   (outreachRes.data || []).forEach((r: any) => items.push({
     id: `outreach-${r.id}`,
-    ts: r.sent_at,
+    ts: r.sent_at || r.scheduled_for,
     channel: (r.channel as CommsChannel) || "email",
     source: "sequence",
     subject: r.subject,
