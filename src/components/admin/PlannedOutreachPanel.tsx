@@ -796,11 +796,16 @@ export default function PlannedOutreachPanel() {
               const list = key === "skipped" ? skippedRuns : failedRuns;
               return (
                 <TabsContent key={key} value={key}>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {key === "skipped"
-                      ? "Steps the dispatcher reached but did not send — usually missing email, missing phone, or no SMS opt-in. Fix the underlying contact and re-run."
-                      : "Steps that errored while sending. Click a row to see the error detail."}
-                  </p>
+                  <div className="flex items-start justify-between mb-2 gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {key === "skipped"
+                        ? "Steps the dispatcher reached but did not send — usually missing email, missing phone, or no SMS opt-in. Fix the underlying contact and re-run. Skipped entries older than 30 days are purged automatically."
+                        : "Steps that errored while sending. Click a row to see the error detail."}
+                    </p>
+                    {list.length > 0 && (
+                      <PurgeRunsButton status={key} count={list.length} onDone={() => qc.invalidateQueries({ queryKey: ["outreach-runs"] })} />
+                    )}
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
