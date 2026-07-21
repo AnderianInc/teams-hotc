@@ -2077,6 +2077,7 @@ export type Database = {
     }
     Functions: {
       auto_close_stale_check_ins: { Args: never; Returns: number }
+      call_outreach_dispatch: { Args: never; Returns: undefined }
       ensure_todays_service: {
         Args: never
         Returns: {
