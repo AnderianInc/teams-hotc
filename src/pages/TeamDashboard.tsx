@@ -1,8 +1,10 @@
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams, useAllTeams } from "@/hooks/useTeams";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Users, Sparkles, LogOut, BookOpen } from "lucide-react";
+import { Baby, Users, Sparkles, LogOut, BookOpen, Lock, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import KidsSetupGuide from "@/components/kids/KidsSetupGuide";
 import KidsCheckIn from "@/components/kids/KidsCheckIn";
 import KidsCheckOut from "@/components/kids/KidsCheckOut";
