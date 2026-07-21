@@ -127,7 +127,7 @@ export async function fetchCommsTimeline(input: FetchInput): Promise<CommsItem[]
 
   (outreachRes.data || []).forEach((r: any) => items.push({
     id: `outreach-${r.id}`,
-    ts: r.sent_at,
+    ts: r.sent_at || r.scheduled_for,
     channel: (r.channel as CommsChannel) || "email",
     source: "sequence",
     subject: r.subject,
@@ -155,6 +155,8 @@ export async function fetchCommsTimeline(input: FetchInput): Promise<CommsItem[]
     refId: r.id,
   }));
 
-  items.sort((a, b) => (new Date(b.ts).getTime() - new Date(a.ts).getTime()));
-  return items;
+  const valid = items.filter((i) => i.ts && !isNaN(new Date(i.ts).getTime()));
+  valid.sort((a, b) => (new Date(b.ts).getTime() - new Date(a.ts).getTime()));
+  return valid;
+
 }
