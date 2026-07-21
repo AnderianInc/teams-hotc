@@ -29,7 +29,30 @@ export default function TeamDashboard() {
   const team = allTeams?.find((t) => t.slug === slug);
 
   if (!membership && !isAdmin) {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Lock className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Access restricted</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                You don't have access to this team. Ask an admin to add you to the{" "}
+                {team?.name ?? "team"} to view Check-In, Register, and other tools.
+              </p>
+            </div>
+            <Button asChild variant="outline">
+              <Link to="/dashboard">
+                <Home className="h-4 w-4 mr-2" />
+                Back to home
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Children's Ministry: tabs for App (Kids Check-In) + Volunteers
