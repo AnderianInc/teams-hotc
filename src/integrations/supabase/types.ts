@@ -2117,6 +2117,10 @@ export type Database = {
         Returns: boolean
       }
       purge_old_check_ins: { Args: { _days?: number }; Returns: number }
+      purge_outreach_runs: {
+        Args: { _older_than_days?: number; _status?: string }
+        Returns: number
+      }
       resolve_contact_group: {
         Args: { _group_id: string }
         Returns: {
