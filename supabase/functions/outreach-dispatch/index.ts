@@ -435,6 +435,79 @@ Deno.serve(async (req) => {
     }
   }
 
+  // === Notify admins + First Impressions team of newly-queued approvals ===
+  if (queued > 0) {
+    try {
+      // Admin user IDs
+      const { data: adminRoles = [] } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      const adminIds = new Set((adminRoles as any[]).map((r) => r.user_id));
+
+      // First Impressions team members
+      const { data: fiTeam } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("slug", "first-impressions")
+        .maybeSingle();
+      if (fiTeam?.id) {
+        const { data: fiMembers = [] } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .eq("team_id", fiTeam.id);
+        for (const m of fiMembers as any[]) adminIds.add(m.user_id);
+      }
+
+      const recipientIds = Array.from(adminIds);
+      if (recipientIds.length > 0) {
+        const { data: profiles = [] } = await supabase
+          .from("profiles")
+          .select("user_id, email, full_name")
+          .in("user_id", recipientIds);
+
+        // In-app notifications
+        const notifRows = (profiles as any[]).map((p) => ({
+          recipient_id: p.user_id,
+          type: "outreach_pending_approval",
+          title: `${queued} outreach message${queued === 1 ? "" : "s"} pending approval`,
+          body: "Review and approve in the Planned Outreach center.",
+          url: "/admin?tab=dir-outreach",
+          data: { queued },
+        }));
+        if (notifRows.length > 0) {
+          await supabase.from("notifications").insert(notifRows);
+        }
+
+        // Email digest
+        const emails = (profiles as any[])
+          .map((p) => p.email)
+          .filter((e): e is string => !!e && /.+@.+\..+/.test(e));
+        if (emails.length > 0) {
+          const subject = `${queued} outreach message${queued === 1 ? "" : "s"} pending approval`;
+          const html = `
+            <p>Hi team,</p>
+            <p><strong>${queued}</strong> new outreach message${queued === 1 ? " is" : "s are"} waiting for approval in the Planned Outreach center.</p>
+            <p><a href="https://teams.hotc.life/admin?tab=dir-outreach">Review pending approvals</a></p>
+            <p style="color:#64748b;font-size:12px;">You're receiving this because you're an admin or a First Impressions team member.</p>
+          `;
+          for (const to of emails) {
+            try {
+              await supabase.functions.invoke("send-email", {
+                body: { to, subject, html },
+              });
+            } catch (e) {
+              console.error("approval notify email failed for", to, e);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("approval notification block failed:", e);
+    }
+  }
+
+
   // === Pass 2: send previously approved rows whose scheduled_for has arrived ===
   // Filter out anything that's already been sent — protects against re-approval bugs
   // that would otherwise resend a message that already shipped.
