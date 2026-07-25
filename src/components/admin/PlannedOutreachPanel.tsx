@@ -622,7 +622,7 @@ export default function PlannedOutreachPanel() {
           >
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
-              <TabsTrigger value="upcoming">Upcoming ({upcoming.length + approvedScheduled.length})</TabsTrigger>
+              <TabsTrigger value="upcoming">Upcoming ({upcoming.length + approvedScheduled.length + manualUpcoming.length})</TabsTrigger>
               <TabsTrigger value="due">Due now ({dueNow.length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
               <TabsTrigger value="skipped">Skipped ({skippedRuns.length})</TabsTrigger>
