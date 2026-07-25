@@ -200,6 +200,52 @@ export default function PlannedOutreachPanel() {
     },
   });
 
+  // Manually scheduled emails/SMS from the composers (Pending Approvals tables)
+  const { data: manualScheduled = [] } = useQuery({
+    queryKey: ["manual-scheduled-comms"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const [emailRes, smsRes] = await Promise.all([
+        supabase
+          .from("pending_email_approvals")
+          .select("id, to_email, to_name, subject, scheduled_for, status, attendee_id, notes")
+          .eq("status", "approved")
+          .gt("scheduled_for", nowIso)
+          .order("scheduled_for", { ascending: true })
+          .limit(200),
+        supabase
+          .from("pending_sms_approvals")
+          .select("id, to_phone, to_name, body, scheduled_for, status, attendee_id, notes")
+          .eq("status", "approved")
+          .gt("scheduled_for", nowIso)
+          .order("scheduled_for", { ascending: true })
+          .limit(200),
+      ]);
+      const emails = (emailRes.data || []).map((r: any) => ({
+        kind: "email" as const,
+        id: r.id,
+        recipient: r.to_email,
+        name: r.to_name,
+        preview: r.subject,
+        scheduledFor: r.scheduled_for,
+        notes: r.notes,
+      }));
+      const sms = (smsRes.data || []).map((r: any) => ({
+        kind: "sms" as const,
+        id: r.id,
+        recipient: r.to_phone,
+        name: r.to_name,
+        preview: r.body,
+        scheduledFor: r.scheduled_for,
+        notes: r.notes,
+      }));
+      return [...emails, ...sms].sort(
+        (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
+      );
+    },
+  });
+
   const runByKey = useMemo(() => {
     const m = new Map<string, Run>();
     runs.forEach((r) => m.set(`${r.external_record_id}:${r.sequence_id}`, r));
