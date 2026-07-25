@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Zap, AlertTriangle, Users } from "lucide-react";
+import { MessageSquare, Send, Loader2, Zap, AlertTriangle, Users, CalendarClock } from "lucide-react";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { findRecentDuplicate, type DuplicateHit } from "@/lib/duplicateGuard";
 import { formatDistanceToNow } from "date-fns";
