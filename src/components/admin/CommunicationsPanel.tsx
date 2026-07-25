@@ -86,8 +86,9 @@ export default function CommunicationsPanel() {
       <TabsContent value="inbox">
         <SmsInbox />
       </TabsContent>
-      <TabsContent value="pending">
+      <TabsContent value="pending" className="space-y-6">
         <PendingEmailsPanel />
+        <ScheduledSmsPanel />
       </TabsContent>
       <TabsContent value="groups">
         <ContactGroups />
