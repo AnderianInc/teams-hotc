@@ -15,7 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Send, Sparkles, Loader2, AlertTriangle, Users } from "lucide-react";
+import { Send, Sparkles, Loader2, AlertTriangle, Users, CalendarClock } from "lucide-react";
 import { findRecentDuplicate, type DuplicateHit } from "@/lib/duplicateGuard";
 import { formatDistanceToNow } from "date-fns";
 import RecipientPicker, { type Recipient } from "@/components/comms/RecipientPicker";
