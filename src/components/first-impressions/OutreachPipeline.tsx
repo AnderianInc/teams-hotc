@@ -6,13 +6,19 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Users, ArrowRight, ArrowLeft, Calendar, Trash2 } from "lucide-react";
 
+// "member" is a terminal action — reaching it removes the person from the
+// pipeline board entirely (see advanceStage). No column is rendered for it.
 const STAGES = [
   { key: "interested", label: "Interested", color: "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800" },
   { key: "invited", label: "Invited", color: "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800" },
   { key: "visited", label: "Visited", color: "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800" },
   { key: "connected", label: "Connected", color: "bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800" },
-  { key: "member", label: "Member", color: "bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800" },
 ] as const;
+
+const NEXT_AFTER_CONNECTED = { key: "member", label: "Member" } as const;
+
+// Growth-track / visitor tags that no longer make sense once someone is a Member
+const VISITOR_TAGS = ["first-timer", "active-visitor", "growth-track"];
 
 type Stage = typeof STAGES[number]["key"];
 
