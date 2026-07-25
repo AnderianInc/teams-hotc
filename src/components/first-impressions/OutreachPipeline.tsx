@@ -106,25 +106,34 @@ export default function OutreachPipeline() {
   });
 
   const advanceStage = useMutation({
-    mutationFn: async ({ id, stage, attendeeId }: { id: string; stage: Stage; attendeeId: string }) => {
+    mutationFn: async ({ id, stage, attendeeId }: { id: string; stage: Stage | "member"; attendeeId: string }) => {
+      const becomingMember = stage === "member";
+
+      // Clear pipeline stage entirely on Member promotion; otherwise set the new stage
       const { error } = await (supabase.from as any)("follow_ups")
-        .update({ prospect_pipeline_stage: stage })
+        .update({ prospect_pipeline_stage: becomingMember ? null : stage })
         .eq("id", id);
       if (error) throw error;
 
-      // Read current tags, strip any old stage:* tag, add the new one
+      // Read current tags and rebuild
       const { data: att } = await supabase
         .from("attendees")
         .select("tags")
         .eq("id", attendeeId)
         .maybeSingle();
-      const cleaned = (att?.tags ?? []).filter((t: string) => !t.startsWith("stage:"));
-      const nextTags = Array.from(new Set([...cleaned, `stage:${stage}`]));
+      const existing = att?.tags ?? [];
+      let cleaned = existing.filter((t: string) => !t.startsWith("stage:"));
+      if (becomingMember) {
+        // Strip visitor / growth-track tags — they no longer apply to a Member
+        cleaned = cleaned.filter((t: string) => !VISITOR_TAGS.includes(t));
+      }
+      const nextTags = becomingMember
+        ? Array.from(new Set(cleaned))
+        : Array.from(new Set([...cleaned, `stage:${stage}`]));
 
-      // Sync attendee membership flag + visible stage tag with pipeline stage
       const { error: memberError } = await supabase
         .from("attendees")
-        .update({ is_member: stage === "member", tags: nextTags })
+        .update({ is_member: becomingMember, tags: nextTags })
         .eq("id", attendeeId);
       if (memberError) throw memberError;
     },
@@ -134,7 +143,7 @@ export default function OutreachPipeline() {
       queryClient.invalidateQueries({ queryKey: ["fi-attendees"] });
       queryClient.invalidateQueries({ queryKey: ["attendee-pipeline-stages"] });
       if (stage === "member") {
-        toast.success("Moved to Member — visitor record updated");
+        toast.success("Moved to Member — removed from pipeline & visitor tags cleared");
       } else {
         toast.success("Stage updated — visitor status synced");
       }
