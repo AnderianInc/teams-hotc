@@ -6,13 +6,19 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Users, ArrowRight, ArrowLeft, Calendar, Trash2 } from "lucide-react";
 
+// "member" is a terminal action — reaching it removes the person from the
+// pipeline board entirely (see advanceStage). No column is rendered for it.
 const STAGES = [
   { key: "interested", label: "Interested", color: "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800" },
   { key: "invited", label: "Invited", color: "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800" },
   { key: "visited", label: "Visited", color: "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800" },
   { key: "connected", label: "Connected", color: "bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800" },
-  { key: "member", label: "Member", color: "bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800" },
 ] as const;
+
+const NEXT_AFTER_CONNECTED = { key: "member", label: "Member" } as const;
+
+// Growth-track / visitor tags that no longer make sense once someone is a Member
+const VISITOR_TAGS = ["first-timer", "active-visitor", "growth-track"];
 
 type Stage = typeof STAGES[number]["key"];
 
@@ -100,25 +106,34 @@ export default function OutreachPipeline() {
   });
 
   const advanceStage = useMutation({
-    mutationFn: async ({ id, stage, attendeeId }: { id: string; stage: Stage; attendeeId: string }) => {
+    mutationFn: async ({ id, stage, attendeeId }: { id: string; stage: Stage | "member"; attendeeId: string }) => {
+      const becomingMember = stage === "member";
+
+      // Clear pipeline stage entirely on Member promotion; otherwise set the new stage
       const { error } = await (supabase.from as any)("follow_ups")
-        .update({ prospect_pipeline_stage: stage })
+        .update({ prospect_pipeline_stage: becomingMember ? null : stage })
         .eq("id", id);
       if (error) throw error;
 
-      // Read current tags, strip any old stage:* tag, add the new one
+      // Read current tags and rebuild
       const { data: att } = await supabase
         .from("attendees")
         .select("tags")
         .eq("id", attendeeId)
         .maybeSingle();
-      const cleaned = (att?.tags ?? []).filter((t: string) => !t.startsWith("stage:"));
-      const nextTags = Array.from(new Set([...cleaned, `stage:${stage}`]));
+      const existing = att?.tags ?? [];
+      let cleaned = existing.filter((t: string) => !t.startsWith("stage:"));
+      if (becomingMember) {
+        // Strip visitor / growth-track tags — they no longer apply to a Member
+        cleaned = cleaned.filter((t: string) => !VISITOR_TAGS.includes(t));
+      }
+      const nextTags = becomingMember
+        ? Array.from(new Set(cleaned))
+        : Array.from(new Set([...cleaned, `stage:${stage}`]));
 
-      // Sync attendee membership flag + visible stage tag with pipeline stage
       const { error: memberError } = await supabase
         .from("attendees")
-        .update({ is_member: stage === "member", tags: nextTags })
+        .update({ is_member: becomingMember, tags: nextTags })
         .eq("id", attendeeId);
       if (memberError) throw memberError;
     },
@@ -128,7 +143,7 @@ export default function OutreachPipeline() {
       queryClient.invalidateQueries({ queryKey: ["fi-attendees"] });
       queryClient.invalidateQueries({ queryKey: ["attendee-pipeline-stages"] });
       if (stage === "member") {
-        toast.success("Moved to Member — visitor record updated");
+        toast.success("Moved to Member — removed from pipeline & visitor tags cleared");
       } else {
         toast.success("Stage updated — visitor status synced");
       }
@@ -236,10 +251,10 @@ export default function OutreachPipeline() {
       )}
 
       {/* Pipeline board */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {STAGES.map((stage, idx) => {
           const items = byStage(stage.key);
-          const nextStage = STAGES[idx + 1];
+          const nextStage = idx === STAGES.length - 1 ? NEXT_AFTER_CONNECTED : STAGES[idx + 1];
           const prevStage = STAGES[idx - 1];
           return (
             <div key={stage.key} className="space-y-2">
