@@ -15,7 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Send, Sparkles, Loader2, AlertTriangle, Users } from "lucide-react";
+import { Send, Sparkles, Loader2, AlertTriangle, Users, CalendarClock } from "lucide-react";
 import { findRecentDuplicate, type DuplicateHit } from "@/lib/duplicateGuard";
 import { formatDistanceToNow } from "date-fns";
 import RecipientPicker, { type Recipient } from "@/components/comms/RecipientPicker";
@@ -58,6 +58,8 @@ export default function EmailComposer({
   const [progress, setProgress] = useState<{ done: number; ok: number; failed: number } | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; kind: string }>>([]);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduling, setScheduling] = useState(false);
 
   useEffect(() => {
     setAcknowledgedDup(false);
@@ -233,6 +235,60 @@ export default function EmailComposer({
     }
   };
 
+  const handleSchedule = async () => {
+    if (!scheduleAt) return toast.error("Pick a date and time");
+    const when = new Date(scheduleAt);
+    if (isNaN(when.getTime())) return toast.error("Invalid date");
+    if (when.getTime() < Date.now() - 60_000) return toast.error("Scheduled time is in the past");
+    if (!subject.trim() || !body.trim()) return toast.error("Subject and body are required");
+
+    let rows: Array<Record<string, any>> = [];
+    if (mode === "single") {
+      if (!to.trim()) return toast.error("Recipient email is required");
+      rows = [{
+        to_email: to.trim(),
+        to_name: toName.trim() || null,
+        subject: subject.trim(),
+        body_html: body,
+        scheduled_for: when.toISOString(),
+        status: "approved",
+        approved_by: user?.id ?? null,
+        approved_at: new Date().toISOString(),
+        attendee_id: relatedAttendeeId ?? null,
+        notes: "Manually scheduled from composer",
+      }];
+    } else {
+      if (recipients.length === 0) return toast.error("Add recipients first");
+      rows = recipients
+        .filter((r) => r.email)
+        .map((r) => ({
+          to_email: r.email!,
+          to_name: `${r.firstName} ${r.lastName}`.trim() || null,
+          subject: renderTemplate(subject, r),
+          body_html: renderTemplate(body, r),
+          scheduled_for: when.toISOString(),
+          status: "approved",
+          approved_by: user?.id ?? null,
+          approved_at: new Date().toISOString(),
+          attendee_id: r.source === "attendee" ? r.id : null,
+          notes: "Manually scheduled from composer",
+        }));
+    }
+
+    setScheduling(true);
+    try {
+      const { error } = await supabase.from("pending_email_approvals").insert(rows as any);
+      if (error) throw error;
+      toast.success(`Scheduled ${rows.length} email${rows.length === 1 ? "" : "s"} for ${when.toLocaleString()}`);
+      setTo(""); setToName(""); setSubject(""); setBody(""); setRecipients([]); setScheduleAt("");
+      onSent?.();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to schedule");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -325,13 +381,38 @@ export default function EmailComposer({
           </div>
         )}
 
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <Label className="flex items-center gap-2 text-xs font-medium">
+            <CalendarClock className="h-3.5 w-3.5" /> Schedule for later (optional)
+          </Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              className="sm:flex-1"
+            />
+            {scheduleAt && (
+              <Button variant="ghost" size="sm" onClick={() => setScheduleAt("")}>Clear</Button>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Scheduled emails appear in the Pending tab and send automatically at the chosen time.
+          </p>
+        </div>
+
         <Button
-          onClick={mode === "single" ? handleSendSingle : handleSendMulti}
-          disabled={sending}
+          onClick={scheduleAt ? handleSchedule : (mode === "single" ? handleSendSingle : handleSendMulti)}
+          disabled={sending || scheduling}
           className="w-full"
         >
-          {sending ? (
-            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...</>
+          {sending || scheduling ? (
+            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {scheduling ? "Scheduling..." : "Sending..."}</>
+          ) : scheduleAt ? (
+            <>
+              <CalendarClock className="h-4 w-4 mr-2" />
+              Schedule {mode === "multi" ? `${recipients.length} email${recipients.length === 1 ? "" : "s"}` : "email"}
+            </>
           ) : (
             <>
               <Send className="h-4 w-4 mr-2" />

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, Zap, AlertTriangle, Users } from "lucide-react";
+import { MessageSquare, Send, Loader2, Zap, AlertTriangle, Users, CalendarClock } from "lucide-react";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { findRecentDuplicate, type DuplicateHit } from "@/lib/duplicateGuard";
 import { formatDistanceToNow } from "date-fns";
@@ -60,6 +60,8 @@ export default function SmsComposer({
 
   const [groupOpen, setGroupOpen] = useState(false);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; kind: string }>>([]);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduling, setScheduling] = useState(false);
 
   useEffect(() => {
     setAcknowledgedDup(false);
@@ -241,6 +243,65 @@ export default function SmsComposer({
     toast.info("Test message ready — click Send Text to deliver");
   };
 
+  const handleSchedule = async () => {
+    if (!scheduleAt) return toast.error("Pick a date and time");
+    const when = new Date(scheduleAt);
+    if (isNaN(when.getTime())) return toast.error("Invalid date");
+    if (when.getTime() < Date.now() - 60_000) return toast.error("Scheduled time is in the past");
+    if (!body.trim()) return toast.error("Message body is required");
+
+    let rows: Array<Record<string, any>> = [];
+    if (mode === "single") {
+      if (!to.trim()) return toast.error("Recipient phone number is required");
+      rows = [{
+        to_phone: to.trim(),
+        to_name: toName.trim() || null,
+        body: body.trim(),
+        scheduled_for: when.toISOString(),
+        status: "approved",
+        approved_by: user?.id ?? null,
+        approved_at: new Date().toISOString(),
+        attendee_id: relatedAttendeeId ?? null,
+        override_consent: overrideConsent,
+        consent_note: overrideConsent ? consentNote.trim() || null : null,
+        created_by: user?.id ?? null,
+        notes: "Manually scheduled from composer",
+      }];
+    } else {
+      if (recipients.length === 0) return toast.error("Add recipients first");
+      rows = recipients
+        .filter((r) => r.phone)
+        .map((r) => ({
+          to_phone: r.phone!,
+          to_name: `${r.firstName} ${r.lastName}`.trim() || null,
+          body: renderTemplate(body.trim(), r),
+          scheduled_for: when.toISOString(),
+          status: "approved",
+          approved_by: user?.id ?? null,
+          approved_at: new Date().toISOString(),
+          attendee_id: r.source === "attendee" ? r.id : null,
+          override_consent: overrideConsent,
+          consent_note: overrideConsent ? consentNote.trim() || null : null,
+          created_by: user?.id ?? null,
+          notes: "Manually scheduled from composer",
+        }));
+    }
+
+    setScheduling(true);
+    try {
+      const { error } = await supabase.from("pending_sms_approvals").insert(rows as any);
+      if (error) throw error;
+      toast.success(`Scheduled ${rows.length} text${rows.length === 1 ? "" : "s"} for ${when.toLocaleString()}`);
+      setTo(""); setToName(""); setBody(""); setRecipients([]); setScheduleAt("");
+      setOverrideConsent(false); setConsentNote("");
+      onSent?.();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to schedule");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
   const remaining = MAX_CHARS - body.length;
 
   return (
@@ -371,14 +432,39 @@ export default function SmsComposer({
           </div>
         )}
 
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <Label className="flex items-center gap-2 text-xs font-medium">
+            <CalendarClock className="h-3.5 w-3.5" /> Schedule for later (optional)
+          </Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              className="sm:flex-1"
+            />
+            {scheduleAt && (
+              <Button variant="ghost" size="sm" onClick={() => setScheduleAt("")}>Clear</Button>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Scheduled texts appear in the Pending tab and send automatically at the chosen time.
+          </p>
+        </div>
+
         <Button
-          onClick={mode === "single" ? handleSendSingle : handleSendMulti}
-          disabled={sending || (mode === "single" ? !to.trim() : recipients.length === 0) || !body.trim()}
+          onClick={scheduleAt ? handleSchedule : (mode === "single" ? handleSendSingle : handleSendMulti)}
+          disabled={sending || scheduling || (mode === "single" ? !to.trim() : recipients.length === 0) || !body.trim()}
           className="w-full"
         >
-          {sending ? (
+          {sending || scheduling ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> {scheduling ? "Scheduling..." : "Sending..."}
+            </>
+          ) : scheduleAt ? (
+            <>
+              <CalendarClock className="h-4 w-4 mr-2" />
+              Schedule {mode === "multi" ? `${recipients.length} text${recipients.length === 1 ? "" : "s"}` : "text"}
             </>
           ) : (
             <>
