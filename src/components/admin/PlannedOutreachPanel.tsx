@@ -200,6 +200,52 @@ export default function PlannedOutreachPanel() {
     },
   });
 
+  // Manually scheduled emails/SMS from the composers (Pending Approvals tables)
+  const { data: manualScheduled = [] } = useQuery({
+    queryKey: ["manual-scheduled-comms"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const [emailRes, smsRes] = await Promise.all([
+        supabase
+          .from("pending_email_approvals")
+          .select("id, to_email, to_name, subject, scheduled_for, status, attendee_id, notes")
+          .eq("status", "approved")
+          .gt("scheduled_for", nowIso)
+          .order("scheduled_for", { ascending: true })
+          .limit(200),
+        supabase
+          .from("pending_sms_approvals")
+          .select("id, to_phone, to_name, body, scheduled_for, status, attendee_id, notes")
+          .eq("status", "approved")
+          .gt("scheduled_for", nowIso)
+          .order("scheduled_for", { ascending: true })
+          .limit(200),
+      ]);
+      const emails = (emailRes.data || []).map((r: any) => ({
+        kind: "email" as const,
+        id: r.id,
+        recipient: r.to_email,
+        name: r.to_name,
+        preview: r.subject,
+        scheduledFor: r.scheduled_for,
+        notes: r.notes,
+      }));
+      const sms = (smsRes.data || []).map((r: any) => ({
+        kind: "sms" as const,
+        id: r.id,
+        recipient: r.to_phone,
+        name: r.to_name,
+        preview: r.body,
+        scheduledFor: r.scheduled_for,
+        notes: r.notes,
+      }));
+      return [...emails, ...sms].sort(
+        (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
+      );
+    },
+  });
+
   const runByKey = useMemo(() => {
     const m = new Map<string, Run>();
     runs.forEach((r) => m.set(`${r.external_record_id}:${r.sequence_id}`, r));
@@ -301,6 +347,20 @@ export default function PlannedOutreachPanel() {
   const upcoming = planned.filter((p) => !p.ran && p.dueAt > now && matchPlanned(p));
   const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now && matchPlanned(p));
   const completed = planned.filter((p) => p.ran && p.ran.status === "sent" && matchPlanned(p));
+
+  // Filter manual scheduled comms by active channel/search filters
+  const manualUpcoming = (manualScheduled as Array<any>).filter((m) => {
+    if (channels.length && !channels.includes(m.kind)) return false;
+    if (audiences.length) return false; // manual sends have no audience concept
+    const when = new Date(m.scheduledFor).getTime();
+    if (fromTs && when < fromTs) return false;
+    if (toTs && when > toTs) return false;
+    if (term) {
+      const hay = `${m.name || ""} ${m.recipient || ""} ${m.preview || ""}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  });
 
   const totalCount = planned.length + runs.filter((r) => ["pending_approval", "approved", "skipped", "failed"].includes(r.status)).length;
   const shownCount = pendingApproval.length + approvedScheduled.length + skippedRuns.length + failedRuns.length + upcoming.length + dueNow.length + completed.length;
@@ -562,7 +622,7 @@ export default function PlannedOutreachPanel() {
           >
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="pending">Needs review ({pendingApproval.length})</TabsTrigger>
-              <TabsTrigger value="upcoming">Upcoming ({upcoming.length + approvedScheduled.length})</TabsTrigger>
+              <TabsTrigger value="upcoming">Upcoming ({upcoming.length + approvedScheduled.length + manualUpcoming.length})</TabsTrigger>
               <TabsTrigger value="due">Due now ({dueNow.length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
               <TabsTrigger value="skipped">Skipped ({skippedRuns.length})</TabsTrigger>
@@ -779,8 +839,47 @@ export default function PlannedOutreachPanel() {
                           </TableRow>
                         );
                       })}
+                      {key === "upcoming" && manualUpcoming.map((m: any) => {
+                        const sched = new Date(m.scheduledFor);
+                        return (
+                          <TableRow key={`manual-${m.kind}-${m.id}`} className="bg-sky-50/40 dark:bg-sky-950/10">
+                            <TableCell><Badge variant="outline">Manual</Badge></TableCell>
+                            <TableCell className="font-medium">
+                              {m.name || "—"}
+                              <div className="text-xs text-muted-foreground">{m.recipient || "no recipient"}</div>
+                            </TableCell>
+                            <TableCell className="text-xs truncate max-w-[280px]" title={m.preview || ""}>{m.preview || "—"}</TableCell>
+                            <TableCell><Badge variant="secondary" className="text-xs">{m.kind}</Badge></TableCell>
+                            <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                            <TableCell className="text-xs">{formatInChurchTz(sched, "MMM d, h:mm a", churchTz)}</TableCell>
+                            <TableCell className="text-xs font-medium text-sky-700 dark:text-sky-400 whitespace-nowrap">
+                              {formatDistanceToNow(sched, { addSuffix: true })}
+                            </TableCell>
+                            <TableCell><Badge variant="secondary" className="text-xs">scheduled</Badge></TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={async () => {
+                                  if (!confirm(`Cancel this scheduled ${m.kind}?`)) return;
+                                  const table = m.kind === "email" ? "pending_email_approvals" : "pending_sms_approvals";
+                                  const { error } = await supabase.from(table).update({ status: "cancelled" } as any).eq("id", m.id);
+                                  if (error) toast.error(error.message);
+                                  else {
+                                    toast.success("Cancelled");
+                                    qc.invalidateQueries({ queryKey: ["manual-scheduled-comms"] });
+                                  }
+                                }}
+                              >
+                                <Ban className="h-3.5 w-3.5 mr-1" /> Cancel
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {list.slice(0, 200).map(renderPlannedRow)}
-                      {list.length === 0 && approvedScheduled.length === 0 && key === "upcoming" && (
+                      {list.length === 0 && approvedScheduled.length === 0 && manualUpcoming.length === 0 && key === "upcoming" && (
                         <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nothing here</TableCell></TableRow>
                       )}
                       {list.length === 0 && key !== "upcoming" && (
