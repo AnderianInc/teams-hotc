@@ -235,6 +235,60 @@ export default function EmailComposer({
     }
   };
 
+  const handleSchedule = async () => {
+    if (!scheduleAt) return toast.error("Pick a date and time");
+    const when = new Date(scheduleAt);
+    if (isNaN(when.getTime())) return toast.error("Invalid date");
+    if (when.getTime() < Date.now() - 60_000) return toast.error("Scheduled time is in the past");
+    if (!subject.trim() || !body.trim()) return toast.error("Subject and body are required");
+
+    let rows: Array<Record<string, any>> = [];
+    if (mode === "single") {
+      if (!to.trim()) return toast.error("Recipient email is required");
+      rows = [{
+        to_email: to.trim(),
+        to_name: toName.trim() || null,
+        subject: subject.trim(),
+        body_html: body,
+        scheduled_for: when.toISOString(),
+        status: "approved",
+        approved_by: user?.id ?? null,
+        approved_at: new Date().toISOString(),
+        attendee_id: relatedAttendeeId ?? null,
+        notes: "Manually scheduled from composer",
+      }];
+    } else {
+      if (recipients.length === 0) return toast.error("Add recipients first");
+      rows = recipients
+        .filter((r) => r.email)
+        .map((r) => ({
+          to_email: r.email!,
+          to_name: `${r.firstName} ${r.lastName}`.trim() || null,
+          subject: renderTemplate(subject, r),
+          body_html: renderTemplate(body, r),
+          scheduled_for: when.toISOString(),
+          status: "approved",
+          approved_by: user?.id ?? null,
+          approved_at: new Date().toISOString(),
+          attendee_id: r.source === "attendee" ? r.id : null,
+          notes: "Manually scheduled from composer",
+        }));
+    }
+
+    setScheduling(true);
+    try {
+      const { error } = await supabase.from("pending_email_approvals").insert(rows);
+      if (error) throw error;
+      toast.success(`Scheduled ${rows.length} email${rows.length === 1 ? "" : "s"} for ${when.toLocaleString()}`);
+      setTo(""); setToName(""); setSubject(""); setBody(""); setRecipients([]); setScheduleAt("");
+      onSent?.();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to schedule");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
