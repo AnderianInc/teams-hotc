@@ -432,14 +432,39 @@ export default function SmsComposer({
           </div>
         )}
 
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <Label className="flex items-center gap-2 text-xs font-medium">
+            <CalendarClock className="h-3.5 w-3.5" /> Schedule for later (optional)
+          </Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              className="sm:flex-1"
+            />
+            {scheduleAt && (
+              <Button variant="ghost" size="sm" onClick={() => setScheduleAt("")}>Clear</Button>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Scheduled texts appear in the Pending tab and send automatically at the chosen time.
+          </p>
+        </div>
+
         <Button
-          onClick={mode === "single" ? handleSendSingle : handleSendMulti}
-          disabled={sending || (mode === "single" ? !to.trim() : recipients.length === 0) || !body.trim()}
+          onClick={scheduleAt ? handleSchedule : (mode === "single" ? handleSendSingle : handleSendMulti)}
+          disabled={sending || scheduling || (mode === "single" ? !to.trim() : recipients.length === 0) || !body.trim()}
           className="w-full"
         >
-          {sending ? (
+          {sending || scheduling ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> {scheduling ? "Scheduling..." : "Sending..."}
+            </>
+          ) : scheduleAt ? (
+            <>
+              <CalendarClock className="h-4 w-4 mr-2" />
+              Schedule {mode === "multi" ? `${recipients.length} text${recipients.length === 1 ? "" : "s"}` : "text"}
             </>
           ) : (
             <>
