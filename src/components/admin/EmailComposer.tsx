@@ -58,6 +58,8 @@ export default function EmailComposer({
   const [progress, setProgress] = useState<{ done: number; ok: number; failed: number } | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; kind: string }>>([]);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduling, setScheduling] = useState(false);
 
   useEffect(() => {
     setAcknowledgedDup(false);
