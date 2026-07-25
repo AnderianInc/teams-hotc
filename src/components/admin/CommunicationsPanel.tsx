@@ -8,6 +8,7 @@ import SmsLog from "./SmsLog";
 import SmsOptInManager from "./SmsOptInManager";
 import SmsInbox from "./SmsInbox";
 import PendingEmailsPanel from "./PendingEmailsPanel";
+import ScheduledSmsPanel from "./ScheduledSmsPanel";
 import ContactGroups from "./ContactGroups";
 import SmsTemplates from "./SmsTemplates";
 import { useQueryClient } from "@tanstack/react-query";
