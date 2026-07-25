@@ -251,10 +251,10 @@ export default function OutreachPipeline() {
       )}
 
       {/* Pipeline board */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {STAGES.map((stage, idx) => {
           const items = byStage(stage.key);
-          const nextStage = STAGES[idx + 1];
+          const nextStage = idx === STAGES.length - 1 ? NEXT_AFTER_CONNECTED : STAGES[idx + 1];
           const prevStage = STAGES[idx - 1];
           return (
             <div key={stage.key} className="space-y-2">
