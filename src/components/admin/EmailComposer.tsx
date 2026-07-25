@@ -277,7 +277,7 @@ export default function EmailComposer({
 
     setScheduling(true);
     try {
-      const { error } = await supabase.from("pending_email_approvals").insert(rows);
+      const { error } = await supabase.from("pending_email_approvals").insert(rows as any);
       if (error) throw error;
       toast.success(`Scheduled ${rows.length} email${rows.length === 1 ? "" : "s"} for ${when.toLocaleString()}`);
       setTo(""); setToName(""); setSubject(""); setBody(""); setRecipients([]); setScheduleAt("");
