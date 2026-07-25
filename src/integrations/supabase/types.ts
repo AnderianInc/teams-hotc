@@ -977,6 +977,69 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_sms_approvals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          attendee_id: string | null
+          body: string
+          consent_note: string | null
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          notes: string | null
+          override_consent: boolean
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          template_slug: string | null
+          to_name: string | null
+          to_phone: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attendee_id?: string | null
+          body: string
+          consent_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          notes?: string | null
+          override_consent?: boolean
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string
+          template_slug?: string | null
+          to_name?: string | null
+          to_phone: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attendee_id?: string | null
+          body?: string
+          consent_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          notes?: string | null
+          override_consent?: boolean
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          template_slug?: string | null
+          to_name?: string | null
+          to_phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       phone_normalization_issues: {
         Row: {
           created_at: string
