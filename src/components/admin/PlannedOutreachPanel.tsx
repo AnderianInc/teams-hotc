@@ -348,6 +348,20 @@ export default function PlannedOutreachPanel() {
   const dueNow = planned.filter((p) => !p.ran && p.dueAt <= now && matchPlanned(p));
   const completed = planned.filter((p) => p.ran && p.ran.status === "sent" && matchPlanned(p));
 
+  // Filter manual scheduled comms by active channel/search filters
+  const manualUpcoming = (manualScheduled as Array<any>).filter((m) => {
+    if (channels.length && !channels.includes(m.kind)) return false;
+    if (audiences.length) return false; // manual sends have no audience concept
+    const when = new Date(m.scheduledFor).getTime();
+    if (fromTs && when < fromTs) return false;
+    if (toTs && when > toTs) return false;
+    if (term) {
+      const hay = `${m.name || ""} ${m.recipient || ""} ${m.preview || ""}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  });
+
   const totalCount = planned.length + runs.filter((r) => ["pending_approval", "approved", "skipped", "failed"].includes(r.status)).length;
   const shownCount = pendingApproval.length + approvedScheduled.length + skippedRuns.length + failedRuns.length + upcoming.length + dueNow.length + completed.length;
 
