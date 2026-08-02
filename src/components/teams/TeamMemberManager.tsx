@@ -20,6 +20,18 @@ interface TeamMemberManagerProps {
   teamName: string;
 }
 
+interface DirectoryPerson {
+  key: string;
+  user_id: string | null;
+  attendee_id: string | null;
+  full_name: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  hasLogin: boolean;
+}
+
+
 export default function TeamMemberManager({ teamId, teamName }: TeamMemberManagerProps) {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
