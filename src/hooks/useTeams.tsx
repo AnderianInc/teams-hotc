@@ -68,6 +68,7 @@ export function useAllTeams() {
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: "always",
+    refetchInterval: 15_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("teams")
