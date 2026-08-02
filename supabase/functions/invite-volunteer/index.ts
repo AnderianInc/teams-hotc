@@ -168,6 +168,71 @@ serve(async (req) => {
       });
     }
 
+    // ---- Directory linking: reuse the existing attendee record, never duplicate ----
+    const { data: profileRow } = await adminClient
+      .from("profiles")
+      .select("id, attendee_id, full_name")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    let linkedAttendeeId: string | null = profileRow?.attendee_id ?? null;
+
+    if (!linkedAttendeeId && attendeeId) {
+      const { data: byId } = await adminClient
+        .from("attendees")
+        .select("id")
+        .eq("id", attendeeId)
+        .maybeSingle();
+      linkedAttendeeId = byId?.id ?? null;
+    }
+
+    if (!linkedAttendeeId) {
+      const { data: byEmail } = await adminClient
+        .from("attendees")
+        .select("id")
+        .ilike("email", email)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      linkedAttendeeId = byEmail?.[0]?.id ?? null;
+    }
+
+    if (!linkedAttendeeId) {
+      const fallback = (profileRow?.full_name || "").trim().split(/\s+/);
+      const first = (firstName || fallback[0] || email.split("@")[0]).trim();
+      const last = (lastName || fallback.slice(1).join(" ") || "").trim();
+      const { data: created } = await adminClient
+        .from("attendees")
+        .insert({ first_name: first, last_name: last, email, is_member: true })
+        .select("id")
+        .single();
+      linkedAttendeeId = created?.id ?? null;
+    }
+
+    if (linkedAttendeeId && profileRow && profileRow.attendee_id !== linkedAttendeeId) {
+      await adminClient
+        .from("profiles")
+        .update({ attendee_id: linkedAttendeeId })
+        .eq("user_id", userId);
+    }
+
+    // Backfill profile name from the directory record when it's blank
+    if (linkedAttendeeId && !(profileRow?.full_name || "").trim()) {
+      const { data: att } = await adminClient
+        .from("attendees")
+        .select("first_name, last_name, phone")
+        .eq("id", linkedAttendeeId)
+        .maybeSingle();
+      const fullName = `${att?.first_name || ""} ${att?.last_name || ""}`.trim();
+      if (fullName) {
+        await adminClient
+          .from("profiles")
+          .update({ full_name: fullName, phone: att?.phone ?? null })
+          .eq("user_id", userId);
+      }
+    }
+
+
+
     const { error: teamError } = await adminClient.from("team_members").upsert(
       { team_id: teamId, user_id: userId, role: role || "member" },
       { onConflict: "team_id,user_id" }
