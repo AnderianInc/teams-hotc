@@ -297,7 +297,7 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
 
                 {inviteMode === "search" && (
                   <div className="space-y-2">
-                    <Label>Search by name or email</Label>
+                    <Label>Search the directory by name or email</Label>
                     <Input
                       placeholder="Type a name or email..."
                       value={searchQuery}
@@ -307,27 +307,31 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
                       <div className="border rounded-md max-h-40 overflow-auto">
                         {searchResults.map((p) => (
                           <button
-                            key={p.user_id}
+                            key={p.key}
                             type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-muted/50 flex items-center justify-between text-sm"
+                            className="w-full text-left px-3 py-2 hover:bg-muted/50 flex items-center justify-between gap-2 text-sm"
                             onClick={() => setSelectedExisting(p)}
                           >
-                            <div>
-                              <div className="font-medium">{p.full_name || "Unnamed"}</div>
-                              <div className="text-xs text-muted-foreground">{p.email}</div>
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{p.full_name}</div>
+                              <div className="text-xs text-muted-foreground truncate">{p.email || "No email on file"}</div>
                             </div>
+                            <Badge variant={p.hasLogin ? "secondary" : "outline"} className="text-xs shrink-0">
+                              {p.hasLogin ? "Has login" : "Needs invite"}
+                            </Badge>
                           </button>
                         ))}
                       </div>
                     )}
-                    {searchQuery.length >= 2 && searchResults?.length === 0 && (
+                    {searchQuery.trim().length >= 2 && searchResults?.length === 0 && (
                       <p className="text-sm text-muted-foreground">
-                        No matching volunteers found.{" "}
+                        Nobody in the directory matches that.{" "}
                         <button type="button" className="text-primary underline" onClick={() => setInviteMode("email")}>
                           Invite by email instead
                         </button>
                       </p>
                     )}
+
                     {selectedExisting && (
                       <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                         <Check className="h-4 w-4 text-green-600" />
