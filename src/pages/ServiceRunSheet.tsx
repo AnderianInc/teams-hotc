@@ -139,19 +139,6 @@ export default function ServiceRunSheet() {
   const { data: assignments = [] } = useSlotAssignments(instanceId!);
   const { data: teams = [] } = useAllTeams();
   const { data: myTeams = [] } = useMyTeams();
-  const { data: scheduledTeams = [] } = useQuery({
-    queryKey: ["run-sheet-scheduled-teams", instance?.roster_event_id],
-    enabled: !!instance?.roster_event_id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("roster_event_teams")
-        .select("team_id, teams(name)")
-        .eq("event_id", instance!.roster_event_id!);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
   const [newTitle, setNewTitle] = useState("");
   const [newDuration, setNewDuration] = useState(5);
   const [newTeamId, setNewTeamId] = useState("");
@@ -178,7 +165,6 @@ export default function ServiceRunSheet() {
   });
 
   const teamName = (id: string | null) => teams.find((t) => t.id === id)?.name;
-  const allowedTeamIds = scheduledTeams.map((team: any) => team.team_id).filter(Boolean);
   const myTeamIds = useMemo(() => myTeams.map((item) => item.team_id).filter(Boolean), [myTeams]);
 
   const addSlot = useMutation({
@@ -458,11 +444,9 @@ export default function ServiceRunSheet() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">No team</SelectItem>
-                            {(scheduledTeams.length ? scheduledTeams : teams).map((item: any) => {
-                              const id = item.team_id || item.id;
-                              const name = item.teams?.name || item.name;
-                              return <SelectItem key={id} value={id}>{name}</SelectItem>;
-                            })}
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       ) : (
@@ -494,7 +478,6 @@ export default function ServiceRunSheet() {
                             slot={slot}
                             rosterEventId={instance.roster_event_id}
                             serviceDate={instance.service_date}
-                            allowedTeamIds={slot.team_id && (!allowedTeamIds.length || allowedTeamIds.includes(slot.team_id)) ? [slot.team_id] : allowedTeamIds}
                           />
                         )}
                       </div>
@@ -546,11 +529,9 @@ export default function ServiceRunSheet() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No team</SelectItem>
-                  {(scheduledTeams.length ? scheduledTeams : teams).map((item: any) => {
-                    const id = item.team_id || item.id;
-                    const name = item.teams?.name || item.name;
-                    return <SelectItem key={id} value={id}>{name}</SelectItem>;
-                  })}
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button onClick={() => addSlot.mutate()} disabled={!newTitle.trim()}>
