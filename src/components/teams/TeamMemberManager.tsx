@@ -248,7 +248,7 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedExisting) {
-      addExistingMutation.mutate({ userId: selectedExisting.user_id, role: inviteRole });
+      addExistingMutation.mutate({ person: selectedExisting, role: inviteRole });
     } else if (inviteMode === "email" && inviteEmail) {
       inviteMutation.mutate({ email: inviteEmail, role: inviteRole });
     }
