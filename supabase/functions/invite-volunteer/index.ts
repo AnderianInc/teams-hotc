@@ -147,23 +147,9 @@ serve(async (req) => {
       if (createError) throw createError;
       userId = newUser.user.id;
 
-      const { data: attendee } = await adminClient
-        .from("attendees")
-        .insert({
-          first_name: email.split("@")[0],
-          last_name: "",
-          email,
-          is_member: true,
-        })
-        .select("id")
-        .single();
+      // Directory linking happens after this branch — never insert blindly here.
 
-      if (attendee) {
-        await adminClient
-          .from("profiles")
-          .update({ attendee_id: attendee.id })
-          .eq("user_id", userId);
-      }
+
 
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: "magiclink",
