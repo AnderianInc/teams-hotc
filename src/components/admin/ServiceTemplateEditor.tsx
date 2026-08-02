@@ -67,19 +67,23 @@ function MemberPicker({
 }) {
   const { data: teamMembers = [] } = useTeamMembers(slot.default_team_id);
   const { data: allProfiles = [] } = useAllProfiles();
+  const [scope, setScope] = useState<"team" | "all">(slot.default_team_id ? "team" : "all");
+  const [search, setSearch] = useState("");
 
   const candidates = useMemo(() => {
-    if (slot.default_team_id && teamMembers.length) {
-      return teamMembers.map((m: any) => ({
-        id: m.profiles?.id || m.user_id,
-        name: m.profiles?.full_name || m.profiles?.email || "Unknown",
-      }));
-    }
-    return (allProfiles as any[]).map((p) => ({
-      id: p.id,
-      name: p.full_name || p.email || "Unknown",
-    }));
-  }, [slot.default_team_id, teamMembers, allProfiles]);
+    const list = slot.default_team_id && scope === "team"
+      ? teamMembers.map((m: any) => ({
+          id: m.profiles?.id || m.user_id,
+          name: m.profiles?.full_name || m.profiles?.email || "Unknown",
+        }))
+      : (allProfiles as any[]).map((p) => ({
+          id: p.id,
+          name: p.full_name || p.email || "Unknown",
+        }));
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((c) => c.name.toLowerCase().includes(q));
+  }, [slot.default_team_id, scope, teamMembers, allProfiles, search]);
 
   const selected = slot.default_profile_ids || [];
   const nameById = new Map<string, string>();
@@ -105,13 +109,40 @@ function MemberPicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-2" align="end">
+        {slot.default_team_id && (
+          <div className="flex gap-1 pb-2">
+            <Button
+              size="sm"
+              variant={scope === "team" ? "default" : "outline"}
+              className="flex-1 h-7 text-xs"
+              onClick={() => setScope("team")}
+            >
+              Team
+            </Button>
+            <Button
+              size="sm"
+              variant={scope === "all" ? "default" : "outline"}
+              className="flex-1 h-7 text-xs"
+              onClick={() => setScope("all")}
+            >
+              Whole directory
+            </Button>
+          </div>
+        )}
+        <Input
+          className="h-8 mb-2"
+          placeholder="Search directory…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <p className="text-xs text-muted-foreground px-1 pb-1">
-          {slot.default_team_id ? "Members from selected team" : "All directory profiles"}
+          {slot.default_team_id && scope === "team" ? "Members from selected team" : "All directory profiles"}
         </p>
         <div className="max-h-[240px] overflow-y-auto space-y-0.5">
           {candidates.length === 0 && (
             <p className="text-sm text-muted-foreground px-1 py-2">No members available.</p>
           )}
+
           {candidates.map((c) => (
             <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-1">
               <Checkbox checked={selected.includes(c.id)} onCheckedChange={() => toggle(c.id)} />
