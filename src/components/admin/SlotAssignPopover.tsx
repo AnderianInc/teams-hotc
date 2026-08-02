@@ -62,21 +62,22 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
           team_id: teamId,
         }));
       }
-      // everyone: search profiles + attendees
+      // everyone: search whole directory (profiles + attendees)
       const q = search.trim();
       if (q.length < 2) return [];
       const [{ data: profiles }, { data: attendees }] = await Promise.all([
         supabase
           .from("profiles")
           .select("id, full_name, email")
-          .ilike("full_name", `%${q}%`)
-          .limit(15),
+          .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(25),
         supabase
           .from("attendees")
-          .select("id, first_name, last_name")
-          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
-          .limit(15),
+          .select("id, first_name, last_name, email")
+          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(25),
       ]);
+
       return [
         ...(profiles || []).map((p: any) => ({
           kind: "profile" as const,
@@ -155,16 +156,15 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
             >
               <Users className="h-3 w-3 mr-1" /> By team
             </Button>
-            {!allowedTeamIds?.length && (
-              <Button
-                size="sm"
-                variant={mode === "everyone" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setMode("everyone")}
-              >
-                <Search className="h-3 w-3 mr-1" /> Search all
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant={mode === "everyone" ? "default" : "outline"}
+              className="flex-1"
+              onClick={() => setMode("everyone")}
+            >
+              <Search className="h-3 w-3 mr-1" /> Search directory
+            </Button>
+
           </div>
 
           {mode === "team" ? (
