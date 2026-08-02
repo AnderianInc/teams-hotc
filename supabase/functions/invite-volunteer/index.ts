@@ -168,12 +168,24 @@ serve(async (req) => {
       });
     }
 
-    // ---- Directory linking: reuse the existing attendee record, never duplicate ----
-    const { data: profileRow } = await adminClient
+    // ---- Ensure a profile row exists (team_members.user_id references profiles.user_id) ----
+    let { data: profileRow } = await adminClient
       .from("profiles")
       .select("id, attendee_id, full_name")
       .eq("user_id", userId)
       .maybeSingle();
+
+    if (!profileRow) {
+      const guessName = `${(firstName || "").trim()} ${(lastName || "").trim()}`.trim();
+      const { data: createdProfile, error: profileErr } = await adminClient
+        .from("profiles")
+        .insert({ user_id: userId, email, full_name: guessName })
+        .select("id, attendee_id, full_name")
+        .single();
+      if (profileErr) throw profileErr;
+      profileRow = createdProfile;
+    }
+
 
     let linkedAttendeeId: string | null = profileRow?.attendee_id ?? null;
 
