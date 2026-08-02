@@ -50,7 +50,7 @@ export function useAllTeams() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("all-teams-changes")
+      .channel(`all-teams-changes-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "teams" },
@@ -62,6 +62,7 @@ export function useAllTeams() {
       supabase.removeChannel(channel);
     };
   }, [queryClient]);
+
 
   return useQuery({
     queryKey: ["all-teams"],
