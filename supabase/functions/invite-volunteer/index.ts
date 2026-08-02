@@ -112,8 +112,19 @@ serve(async (req) => {
       });
     };
 
-    if (existingUsers && existingUsers.length > 0) {
-      userId = existingUsers[0].user_id;
+    // A profile row may be missing even when the auth user exists — resolve
+    // the auth user directly so we never try to re-create an existing account.
+    let existingUserId: string | null = existingUsers?.[0]?.user_id ?? null;
+    if (!existingUserId) {
+      const { data: authList } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const match = authList?.users?.find(
+        (u: any) => (u.email || "").toLowerCase() === String(email).toLowerCase()
+      );
+      existingUserId = match?.id ?? null;
+    }
+
+    if (existingUserId) {
+      userId = existingUserId;
 
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: "magiclink",
