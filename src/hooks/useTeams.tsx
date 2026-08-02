@@ -47,6 +47,8 @@ export function useMyTeams() {
 export function useAllTeams() {
   return useQuery({
     queryKey: ["all-teams"],
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("teams")
@@ -57,3 +59,4 @@ export function useAllTeams() {
     },
   });
 }
+
