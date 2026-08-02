@@ -42,7 +42,7 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
   const [editRoleTarget, setEditRoleTarget] = useState<{ id: string; name: string; current: string } | null>(null);
   const [editRoleValue, setEditRoleValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedExisting, setSelectedExisting] = useState<{ user_id: string; full_name: string; email: string } | null>(null);
+  const [selectedExisting, setSelectedExisting] = useState<DirectoryPerson | null>(null);
   const [inviteMode, setInviteMode] = useState<"search" | "email">("search");
 
   const { data: members, isLoading } = useQuery({
