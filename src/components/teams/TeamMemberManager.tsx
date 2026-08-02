@@ -62,33 +62,97 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
     enabled: memberUserIds.length > 0,
   });
 
-  // Search existing profiles (volunteers) not already in this team
+  // Search the WHOLE directory: profiles (with logins) + attendees (no login yet)
   const { data: searchResults } = useQuery({
-    queryKey: ["search-profiles", searchQuery, teamId],
-    queryFn: async () => {
-      if (!searchQuery || searchQuery.length < 2) return [];
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, email")
-        .or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
-        .limit(10);
-      if (error) throw error;
-      // Filter out existing team members
-      return (data || []).filter((p) => !memberUserIds.includes(p.user_id));
+    queryKey: ["search-directory", searchQuery, teamId, memberUserIds.length],
+    queryFn: async (): Promise<DirectoryPerson[]> => {
+      const q = searchQuery.trim();
+      if (q.length < 2) return [];
+      const [{ data: profiles, error: pErr }, { data: attendees, error: aErr }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("user_id, full_name, email, attendee_id")
+          .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(25),
+        supabase
+          .from("attendees")
+          .select("id, first_name, last_name, email")
+          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(25),
+      ]);
+      if (pErr) throw pErr;
+      if (aErr) throw aErr;
+
+      const people: DirectoryPerson[] = [];
+      const linkedAttendeeIds = new Set<string>();
+      const seenEmails = new Set<string>();
+
+      (profiles || []).forEach((p: any) => {
+        if (memberUserIds.includes(p.user_id)) return;
+        if (p.attendee_id) linkedAttendeeIds.add(p.attendee_id);
+        if (p.email) seenEmails.add(String(p.email).toLowerCase());
+        people.push({
+          key: `profile-${p.user_id}`,
+          user_id: p.user_id,
+          attendee_id: p.attendee_id ?? null,
+          full_name: p.full_name || p.email || "Unnamed",
+          email: p.email || "",
+          hasLogin: true,
+        });
+      });
+
+      (attendees || []).forEach((a: any) => {
+        if (linkedAttendeeIds.has(a.id)) return;
+        const email = (a.email || "").toLowerCase();
+        if (email && seenEmails.has(email)) return;
+        if (email) seenEmails.add(email);
+        people.push({
+          key: `attendee-${a.id}`,
+          user_id: null,
+          attendee_id: a.id,
+          full_name: `${a.first_name || ""} ${a.last_name || ""}`.trim() || a.email || "Unnamed",
+          email: a.email || "",
+          first_name: a.first_name || "",
+          last_name: a.last_name || "",
+          hasLogin: false,
+        });
+      });
+
+      return people;
     },
-    enabled: searchQuery.length >= 2 && inviteMode === "search",
+    enabled: searchQuery.trim().length >= 2 && inviteMode === "search",
   });
 
   const getOtherTeams = (userId: string) =>
     (allMemberships || []).filter((m: any) => m.user_id === userId);
 
-  // Direct add existing user to team (no email needed)
+  // Add an existing directory person to the team.
+  // Has a login -> direct team_members insert. No login -> provision from their
+  // existing directory record (never creates a second directory entry).
   const addExistingMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const { error } = await supabase
-        .from("team_members")
-        .insert({ team_id: teamId, user_id: userId, role: role as any });
+    mutationFn: async ({ person, role }: { person: DirectoryPerson; role: string }) => {
+      if (person.user_id) {
+        const { error } = await supabase
+          .from("team_members")
+          .insert({ team_id: teamId, user_id: person.user_id, role: role as any });
+        if (error) throw error;
+        return;
+      }
+      if (!person.email) {
+        throw new Error("This directory record has no email address — add one before assigning a team.");
+      }
+      const { data, error } = await supabase.functions.invoke("invite-volunteer", {
+        body: {
+          email: person.email,
+          teamId,
+          role,
+          attendeeId: person.attendee_id,
+          firstName: person.first_name,
+          lastName: person.last_name,
+        },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       toast.success("Member added to team!");
@@ -97,6 +161,7 @@ export default function TeamMemberManager({ teamId, teamName }: TeamMemberManage
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const inviteMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
