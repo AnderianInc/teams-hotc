@@ -62,21 +62,22 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
           team_id: teamId,
         }));
       }
-      // everyone: search profiles + attendees
+      // everyone: search whole directory (profiles + attendees)
       const q = search.trim();
       if (q.length < 2) return [];
       const [{ data: profiles }, { data: attendees }] = await Promise.all([
         supabase
           .from("profiles")
           .select("id, full_name, email")
-          .ilike("full_name", `%${q}%`)
-          .limit(15),
+          .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(25),
         supabase
           .from("attendees")
-          .select("id, first_name, last_name")
-          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
-          .limit(15),
+          .select("id, first_name, last_name, email")
+          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(25),
       ]);
+
       return [
         ...(profiles || []).map((p: any) => ({
           kind: "profile" as const,
