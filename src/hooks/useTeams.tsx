@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -46,22 +46,7 @@ export function useMyTeams() {
 }
 
 export function useAllTeams() {
-  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const channel = supabase
-      .channel(`all-teams-changes-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "teams" },
-        () => queryClient.invalidateQueries({ queryKey: ["all-teams"] }),
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
 
 
   return useQuery({
