@@ -33,7 +33,9 @@ serve(async (req) => {
     if (!user) throw new Error("Not authenticated");
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { email, teamId, role } = await req.json();
+    const { email, teamId, role, attendeeId, firstName, lastName } = await req.json();
+    if (!email || typeof email !== "string") throw new Error("Email is required");
+    if (!teamId || typeof teamId !== "string") throw new Error("Team is required");
 
     // Check if caller is admin OR team lead
     const { data: callerRoles } = await adminClient
