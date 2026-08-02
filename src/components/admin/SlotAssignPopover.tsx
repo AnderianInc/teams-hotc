@@ -156,16 +156,15 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
             >
               <Users className="h-3 w-3 mr-1" /> By team
             </Button>
-            {!allowedTeamIds?.length && (
-              <Button
-                size="sm"
-                variant={mode === "everyone" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setMode("everyone")}
-              >
-                <Search className="h-3 w-3 mr-1" /> Search all
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant={mode === "everyone" ? "default" : "outline"}
+              className="flex-1"
+              onClick={() => setMode("everyone")}
+            >
+              <Search className="h-3 w-3 mr-1" /> Search directory
+            </Button>
+
           </div>
 
           {mode === "team" ? (
