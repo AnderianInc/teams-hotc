@@ -819,6 +819,29 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!copyEvent} onOpenChange={(open) => !open && setCopyEvent(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Copy "{copyEvent?.name}" forward</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Duplicates this service (time, notes and required teams) onto the following weeks, same weekday.
+            </p>
+            <div className="space-y-1">
+              <Label>Number of following weeks</Label>
+              <Input type="number" min={1} max={52} value={copyWeeks} onChange={(event) => setCopyWeeks(Number(event.target.value))} />
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox checked={copyAssignments} onCheckedChange={(value) => setCopyAssignments(!!value)} />
+              Also copy volunteer assignments (reset to pending)
+            </label>
+            <Button className="w-full" onClick={() => copyEventForward.mutate()} disabled={copyEventForward.isPending}>
+              {copyEventForward.isPending ? "Copying…" : "Copy schedule"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editingEvent ? "Edit master schedule service" : "Add service to master schedule"}</DialogTitle></DialogHeader>
@@ -828,6 +851,15 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
               <div className="space-y-1"><Label>Date</Label><Input type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} required /></div>
               <div className="space-y-1"><Label>Time</Label><Input type="time" value={eventTime} onChange={(event) => setEventTime(event.target.value)} /></div>
             </div>
+            {!editingEvent && (
+              <div className="space-y-1">
+                <Label>Repeat weekly</Label>
+                <Input type="number" min={1} max={52} value={repeatWeeks} onChange={(event) => setRepeatWeeks(Number(event.target.value))} />
+                <p className="text-xs text-muted-foreground">
+                  {repeatWeeks > 1 ? `Creates this service on ${repeatWeeks} consecutive weeks` : "Creates this service on one date"} starting from the date above.
+                </p>
+              </div>
+            )}
             <div className="space-y-1"><Label>Notes</Label><Textarea value={eventDesc} onChange={(event) => setEventDesc(event.target.value)} placeholder="Optional details for team leaders" rows={3} /></div>
             <div className="space-y-2">
               <div className="flex items-center justify-between"><Label>Required teams</Label><span className="text-xs text-muted-foreground">{selectedTeamIds.length} selected</span></div>
