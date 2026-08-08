@@ -77,6 +77,7 @@ export function AppSidebar() {
 
   const profile = user?.email ?? "";
   const isOnAdmin = location.pathname.startsWith("/admin");
+  const isOnTeam = location.pathname.startsWith("/team");
 
   // Extract active tab from URL search params
   const searchParams = new URLSearchParams(location.search);
