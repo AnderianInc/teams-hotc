@@ -761,6 +761,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                         {!teamId && <Button size="sm" variant="outline" onClick={() => openAssign(event)}><UserPlus className="h-4 w-4 mr-1" /> Assign</Button>}
                         {visibleRunSheet && <Button size="sm" variant="outline" onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${visibleRunSheet.id}`)}><ClipboardList className="h-4 w-4 mr-1" /> Run sheet</Button>}
                         {!runSheet && canManageMasterSchedule && <Button size="sm" variant="outline" onClick={() => openRunSheetCreate(event)}><ClipboardList className="h-4 w-4 mr-1" /> Create run sheet</Button>}
+                        {canManageMasterSchedule && <Button size="sm" variant="outline" onClick={() => { setCopyEvent(event); setCopyWeeks(4); setCopyAssignments(true); }}><Copy className="h-4 w-4 mr-1" /> Copy forward</Button>}
                         {canManageMasterSchedule && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(event)}><Pencil className="h-4 w-4" /></Button>}
                         {canManageMasterSchedule && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => deleteEvent.mutate(event.id)}><Trash2 className="h-4 w-4" /></Button>}
                       </div>
