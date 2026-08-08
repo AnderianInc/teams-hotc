@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Copy, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
 import { generateServiceFromTemplate, useTemplates } from "@/hooks/useOrderOfService";
