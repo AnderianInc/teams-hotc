@@ -819,7 +819,21 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
           </div>
         </DialogContent>
       </Dialog>
-
+            {!editingEvent && (
+              <div className="space-y-1">
+                <Label>Repeat weekly</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={52}
+                  value={repeatWeeks}
+                  onChange={(event) => setRepeatWeeks(Number(event.target.value))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Creates this service on {repeatWeeks > 1 ? `${repeatWeeks} consecutive weeks` : "one date"} starting from the date above.
+                </p>
+              </div>
+            )}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editingEvent ? "Edit master schedule service" : "Add service to master schedule"}</DialogTitle></DialogHeader>
