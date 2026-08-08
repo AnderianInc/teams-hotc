@@ -219,6 +219,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     setEventTime("");
     setEventDesc("");
     setSelectedTeamIds(teamId ? [teamId] : []);
+    setRepeatWeeks(1);
   }
 
   function openCreate(date: string) {
