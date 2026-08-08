@@ -336,6 +336,90 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const copyEventForward = useMutation({
+    mutationFn: async () => {
+      if (!canManageMasterSchedule) throw new Error("Only admins can copy the master schedule");
+      if (!copyEvent) throw new Error("No service selected");
+      const weeks = Math.max(1, Math.min(52, copyWeeks || 1));
+
+      const { data: sourceTeams, error: teamError } = await supabase
+        .from("roster_event_teams")
+        .select("team_id")
+        .eq("event_id", copyEvent.id);
+      if (teamError) throw teamError;
+
+      const { data: sourceEntries, error: entryError } = await supabase
+        .from("roster_entries")
+        .select("team_id, user_id, role_description, notes")
+        .eq("event_id", copyEvent.id);
+      if (entryError) throw entryError;
+
+      let created = 0;
+      let skipped = 0;
+
+      for (let index = 1; index <= weeks; index += 1) {
+        const date = format(addWeeks(new Date(copyEvent.event_date + "T00:00:00"), index), "yyyy-MM-dd");
+
+        const { data: existing } = await supabase
+          .from("roster_events")
+          .select("id")
+          .eq("event_date", date)
+          .eq("name", copyEvent.name)
+          .maybeSingle();
+        if (existing) {
+          skipped += 1;
+          continue;
+        }
+
+        const { data: newEvent, error } = await supabase
+          .from("roster_events")
+          .insert({
+            name: copyEvent.name,
+            event_date: date,
+            event_time: copyEvent.event_time || null,
+            description: copyEvent.description || null,
+            team_id: null,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+
+        if ((sourceTeams || []).length) {
+          const { error: linkError } = await supabase
+            .from("roster_event_teams")
+            .insert((sourceTeams || []).map((link: any) => ({ event_id: newEvent.id, team_id: link.team_id })));
+          if (linkError) throw linkError;
+        }
+
+        if (copyAssignments && (sourceEntries || []).length) {
+          const { error: assignError } = await supabase.from("roster_entries").insert(
+            (sourceEntries || []).map((entry: any) => ({
+              event_id: newEvent.id,
+              team_id: entry.team_id,
+              user_id: entry.user_id,
+              scheduled_date: date,
+              role_description: entry.role_description,
+              notes: entry.notes,
+              response_status: "pending",
+            }))
+          );
+          if (assignError) throw assignError;
+        }
+        created += 1;
+      }
+
+      return { created, skipped };
+    },
+    onSuccess: ({ created, skipped }) => {
+      toast.success(`Copied to ${created} Sunday${created === 1 ? "" : "s"}${skipped ? ` · ${skipped} already existed` : ""}`);
+      setCopyEvent(null);
+      invalidateAll();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+
+
   const assignVolunteer = useMutation({
     mutationFn: async () => {
       if (!assignEvent || !assignTeamId || assignUserIds.length === 0) throw new Error("Choose a service, team, and at least one member");
