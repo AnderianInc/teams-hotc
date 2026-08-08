@@ -282,26 +282,37 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
         return;
       }
 
-      const { data: created, error } = await supabase
-        .from("roster_events")
-        .insert({
-          name: eventName.trim(),
-          event_date: eventDate,
-          event_time: eventTime || null,
-          description: eventDesc.trim() || null,
-          team_id: null,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      const weeks = Math.max(1, Math.min(52, repeatWeeks || 1));
+      for (let index = 0; index < weeks; index += 1) {
+        const date = format(addWeeks(new Date(eventDate + "T00:00:00"), index), "yyyy-MM-dd");
+        const { data: created, error } = await supabase
+          .from("roster_events")
+          .insert({
+            name: eventName.trim(),
+            event_date: date,
+            event_time: eventTime || null,
+            description: eventDesc.trim() || null,
+            team_id: null,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
 
-      const { error: linkError } = await supabase
-        .from("roster_event_teams")
-        .insert(selectedTeamIds.map((id) => ({ event_id: created.id, team_id: id })));
-      if (linkError) throw linkError;
+        const { error: linkError } = await supabase
+          .from("roster_event_teams")
+          .insert(selectedTeamIds.map((id) => ({ event_id: created.id, team_id: id })));
+        if (linkError) throw linkError;
+      }
+      return weeks;
     },
-    onSuccess: () => {
-      toast.success(editingEvent ? "Master schedule updated" : "Service added to master schedule");
+    onSuccess: (weeks) => {
+      toast.success(
+        editingEvent
+          ? "Master schedule updated"
+          : weeks && weeks > 1
+            ? `${weeks} weekly services added to master schedule`
+            : "Service added to master schedule"
+      );
       setCreateOpen(false);
       resetEventForm();
       invalidateAll();
