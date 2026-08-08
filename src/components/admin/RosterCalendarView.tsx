@@ -55,6 +55,11 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   const [runSheetEvent, setRunSheetEvent] = useState<any>(null);
   const [runSheetTemplateId, setRunSheetTemplateId] = useState("");
 
+  const [repeatWeeks, setRepeatWeeks] = useState(1);
+  const [copyEvent, setCopyEvent] = useState<any>(null);
+  const [copyWeeks, setCopyWeeks] = useState(4);
+  const [copyAssignments, setCopyAssignments] = useState(true);
+
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const canManageMasterSchedule = isAdmin && !teamId;
