@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, addWeeks, isToday } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Copy, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { assertUserAvailableForRoster, getRosterResponseLabel } from "@/lib/rosterAvailability";
 import { generateServiceFromTemplate, useTemplates } from "@/hooks/useOrderOfService";
@@ -54,6 +54,11 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
   const [runSheetOpen, setRunSheetOpen] = useState(false);
   const [runSheetEvent, setRunSheetEvent] = useState<any>(null);
   const [runSheetTemplateId, setRunSheetTemplateId] = useState("");
+
+  const [repeatWeeks, setRepeatWeeks] = useState(1);
+  const [copyEvent, setCopyEvent] = useState<any>(null);
+  const [copyWeeks, setCopyWeeks] = useState(4);
+  const [copyAssignments, setCopyAssignments] = useState(true);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -214,6 +219,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     setEventTime("");
     setEventDesc("");
     setSelectedTeamIds(teamId ? [teamId] : []);
+    setRepeatWeeks(1);
   }
 
   function openCreate(date: string) {
@@ -277,26 +283,37 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
         return;
       }
 
-      const { data: created, error } = await supabase
-        .from("roster_events")
-        .insert({
-          name: eventName.trim(),
-          event_date: eventDate,
-          event_time: eventTime || null,
-          description: eventDesc.trim() || null,
-          team_id: null,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      const weeks = Math.max(1, Math.min(52, repeatWeeks || 1));
+      for (let index = 0; index < weeks; index += 1) {
+        const date = format(addWeeks(new Date(eventDate + "T00:00:00"), index), "yyyy-MM-dd");
+        const { data: created, error } = await supabase
+          .from("roster_events")
+          .insert({
+            name: eventName.trim(),
+            event_date: date,
+            event_time: eventTime || null,
+            description: eventDesc.trim() || null,
+            team_id: null,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
 
-      const { error: linkError } = await supabase
-        .from("roster_event_teams")
-        .insert(selectedTeamIds.map((id) => ({ event_id: created.id, team_id: id })));
-      if (linkError) throw linkError;
+        const { error: linkError } = await supabase
+          .from("roster_event_teams")
+          .insert(selectedTeamIds.map((id) => ({ event_id: created.id, team_id: id })));
+        if (linkError) throw linkError;
+      }
+      return weeks;
     },
-    onSuccess: () => {
-      toast.success(editingEvent ? "Master schedule updated" : "Service added to master schedule");
+    onSuccess: (weeks) => {
+      toast.success(
+        editingEvent
+          ? "Master schedule updated"
+          : weeks && weeks > 1
+            ? `${weeks} weekly services added to master schedule`
+            : "Service added to master schedule"
+      );
       setCreateOpen(false);
       resetEventForm();
       invalidateAll();
@@ -318,6 +335,90 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  const copyEventForward = useMutation({
+    mutationFn: async () => {
+      if (!canManageMasterSchedule) throw new Error("Only admins can copy the master schedule");
+      if (!copyEvent) throw new Error("No service selected");
+      const weeks = Math.max(1, Math.min(52, copyWeeks || 1));
+
+      const { data: sourceTeams, error: teamError } = await supabase
+        .from("roster_event_teams")
+        .select("team_id")
+        .eq("event_id", copyEvent.id);
+      if (teamError) throw teamError;
+
+      const { data: sourceEntries, error: entryError } = await supabase
+        .from("roster_entries")
+        .select("team_id, user_id, role_description, notes")
+        .eq("event_id", copyEvent.id);
+      if (entryError) throw entryError;
+
+      let created = 0;
+      let skipped = 0;
+
+      for (let index = 1; index <= weeks; index += 1) {
+        const date = format(addWeeks(new Date(copyEvent.event_date + "T00:00:00"), index), "yyyy-MM-dd");
+
+        const { data: existing } = await supabase
+          .from("roster_events")
+          .select("id")
+          .eq("event_date", date)
+          .eq("name", copyEvent.name)
+          .maybeSingle();
+        if (existing) {
+          skipped += 1;
+          continue;
+        }
+
+        const { data: newEvent, error } = await supabase
+          .from("roster_events")
+          .insert({
+            name: copyEvent.name,
+            event_date: date,
+            event_time: copyEvent.event_time || null,
+            description: copyEvent.description || null,
+            team_id: null,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+
+        if ((sourceTeams || []).length) {
+          const { error: linkError } = await supabase
+            .from("roster_event_teams")
+            .insert((sourceTeams || []).map((link: any) => ({ event_id: newEvent.id, team_id: link.team_id })));
+          if (linkError) throw linkError;
+        }
+
+        if (copyAssignments && (sourceEntries || []).length) {
+          const { error: assignError } = await supabase.from("roster_entries").insert(
+            (sourceEntries || []).map((entry: any) => ({
+              event_id: newEvent.id,
+              team_id: entry.team_id,
+              user_id: entry.user_id,
+              scheduled_date: date,
+              role_description: entry.role_description,
+              notes: entry.notes,
+              response_status: "pending",
+            }))
+          );
+          if (assignError) throw assignError;
+        }
+        created += 1;
+      }
+
+      return { created, skipped };
+    },
+    onSuccess: ({ created, skipped }) => {
+      toast.success(`Copied to ${created} Sunday${created === 1 ? "" : "s"}${skipped ? ` · ${skipped} already existed` : ""}`);
+      setCopyEvent(null);
+      invalidateAll();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+
 
   const assignVolunteer = useMutation({
     mutationFn: async () => {
@@ -660,6 +761,7 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
                         {!teamId && <Button size="sm" variant="outline" onClick={() => openAssign(event)}><UserPlus className="h-4 w-4 mr-1" /> Assign</Button>}
                         {visibleRunSheet && <Button size="sm" variant="outline" onClick={() => navigate(`${isAdmin ? "/admin" : ""}/order-of-service/${visibleRunSheet.id}`)}><ClipboardList className="h-4 w-4 mr-1" /> Run sheet</Button>}
                         {!runSheet && canManageMasterSchedule && <Button size="sm" variant="outline" onClick={() => openRunSheetCreate(event)}><ClipboardList className="h-4 w-4 mr-1" /> Create run sheet</Button>}
+                        {canManageMasterSchedule && <Button size="sm" variant="outline" onClick={() => { setCopyEvent(event); setCopyWeeks(4); setCopyAssignments(true); }}><Copy className="h-4 w-4 mr-1" /> Copy forward</Button>}
                         {canManageMasterSchedule && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(event)}><Pencil className="h-4 w-4" /></Button>}
                         {canManageMasterSchedule && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => deleteEvent.mutate(event.id)}><Trash2 className="h-4 w-4" /></Button>}
                       </div>
@@ -718,6 +820,28 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!copyEvent} onOpenChange={(open) => !open && setCopyEvent(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Copy "{copyEvent?.name}" forward</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Duplicates this service (time, notes and required teams) onto the following weeks, same weekday.
+            </p>
+            <div className="space-y-1">
+              <Label>Number of following weeks</Label>
+              <Input type="number" min={1} max={52} value={copyWeeks} onChange={(event) => setCopyWeeks(Number(event.target.value))} />
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox checked={copyAssignments} onCheckedChange={(value) => setCopyAssignments(!!value)} />
+              Also copy volunteer assignments (reset to pending)
+            </label>
+            <Button className="w-full" onClick={() => copyEventForward.mutate()} disabled={copyEventForward.isPending}>
+              {copyEventForward.isPending ? "Copying…" : "Copy schedule"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editingEvent ? "Edit master schedule service" : "Add service to master schedule"}</DialogTitle></DialogHeader>
@@ -727,6 +851,15 @@ export default function RosterCalendarView({ teamId }: RosterCalendarViewProps) 
               <div className="space-y-1"><Label>Date</Label><Input type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} required /></div>
               <div className="space-y-1"><Label>Time</Label><Input type="time" value={eventTime} onChange={(event) => setEventTime(event.target.value)} /></div>
             </div>
+            {!editingEvent && (
+              <div className="space-y-1">
+                <Label>Repeat weekly</Label>
+                <Input type="number" min={1} max={52} value={repeatWeeks} onChange={(event) => setRepeatWeeks(Number(event.target.value))} />
+                <p className="text-xs text-muted-foreground">
+                  {repeatWeeks > 1 ? `Creates this service on ${repeatWeeks} consecutive weeks` : "Creates this service on one date"} starting from the date above.
+                </p>
+              </div>
+            )}
             <div className="space-y-1"><Label>Notes</Label><Textarea value={eventDesc} onChange={(event) => setEventDesc(event.target.value)} placeholder="Optional details for team leaders" rows={3} /></div>
             <div className="space-y-2">
               <div className="flex items-center justify-between"><Label>Required teams</Label><span className="text-xs text-muted-foreground">{selectedTeamIds.length} selected</span></div>

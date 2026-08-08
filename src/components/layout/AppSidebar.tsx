@@ -77,6 +77,7 @@ export function AppSidebar() {
 
   const profile = user?.email ?? "";
   const isOnAdmin = location.pathname.startsWith("/admin");
+  const isOnTeam = location.pathname.startsWith("/team");
 
   // Extract active tab from URL search params
   const searchParams = new URLSearchParams(location.search);
@@ -146,30 +147,46 @@ export function AppSidebar() {
           <SidebarGroupLabel>My Teams</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {memberships?.map((m) => {
-                const Icon = teamIcons[m.teams.slug] || LayoutDashboard;
-                return (
-                  <SidebarMenuItem key={m.team_id}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={`/team/${m.teams.slug}`}
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{m.teams.name}</span>
-                      </NavLink>
+              <Collapsible defaultOpen={isOnTeam} className="group/teams">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton className={isOnTeam ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}>
+                      <UsersRound className="h-4 w-4" />
+                      <span>My Teams</span>
+                      <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/teams:rotate-180" />
                     </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-              {(!memberships || memberships.length === 0) && (
-                <p className="px-3 py-2 text-xs text-sidebar-foreground/50">
-                  No team assignments yet
-                </p>
-              )}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {memberships?.map((m) => {
+                        const Icon = teamIcons[m.teams.slug] || LayoutDashboard;
+                        return (
+                          <SidebarMenuSubItem key={m.team_id}>
+                            <SidebarMenuSubButton asChild isActive={location.pathname === `/team/${m.teams.slug}`}>
+                              <NavLink
+                                to={`/team/${m.teams.slug}`}
+                                activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                              >
+                                <Icon className="h-3.5 w-3.5" />
+                                <span>{m.teams.name}</span>
+                              </NavLink>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
+                      {(!memberships || memberships.length === 0) && (
+                        <p className="px-3 py-2 text-xs text-sidebar-foreground/50">
+                          No team assignments yet
+                        </p>
+                      )}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
       </SidebarContent>
 
       <SidebarFooter className="p-2">
