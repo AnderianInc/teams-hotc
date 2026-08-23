@@ -43,16 +43,29 @@ function SongListPopover({
 }) {
   const [songTitle, setSongTitle] = useState("");
   const [open, setOpen] = useState(false);
-  const cleanSongs = (songs || []).filter(Boolean);
+  const savedSongs = useMemo(() => (songs || []).filter(Boolean), [songs]);
+  // Local draft so typing never triggers a refetch/remount mid-edit
+  const [draft, setDraft] = useState<string[]>(savedSongs);
+
+  useEffect(() => {
+    if (!open) setDraft(savedSongs);
+  }, [open, savedSongs]);
+
+  const cleanSongs = open ? draft : savedSongs;
+
+  const commit = (next: string[]) => {
+    const cleaned = next.map((item) => item.trim()).filter(Boolean);
+    if (JSON.stringify(cleaned) !== JSON.stringify(savedSongs)) onChange(cleaned);
+  };
 
   const addSong = () => {
     const next = songTitle.trim();
     if (!next) return;
-    onChange([...cleanSongs, next]);
+    setDraft([...draft, next]);
     setSongTitle("");
   };
 
-  if (!canEdit && cleanSongs.length === 0) return null;
+  if (!canEdit && savedSongs.length === 0) return null;
 
   const summary = cleanSongs.length ? cleanSongs.join(" · ") : canEdit ? "Add songs" : "";
 
@@ -66,7 +79,19 @@ function SongListPopover({
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          const pending = songTitle.trim();
+          commit(pending ? [...draft, pending] : draft);
+          setSongTitle("");
+        } else {
+          setDraft(savedSongs);
+        }
+        setOpen(next);
+      }}
+    >
       <PopoverTrigger asChild>
         {canEdit ? (
           <button className="text-left hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
@@ -82,17 +107,23 @@ function SongListPopover({
             <div className="flex items-center gap-2 text-sm font-medium">
               <Music className="h-4 w-4" /> Songs
             </div>
-            {cleanSongs.length > 0 && (
+            {draft.length > 0 && (
               <div className="space-y-1">
-                {cleanSongs.map((song, songIdx) => (
-                  <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
+                {draft.map((song, songIdx) => (
+                  <div key={songIdx} className="flex items-center gap-2">
                     <Input
                       className="h-8 flex-1"
                       value={song}
-                      onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
-                      onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
+                      onChange={(event) =>
+                        setDraft((prev) => prev.map((item, idx) => (idx === songIdx ? event.target.value : item)))
+                      }
                     />
-                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setDraft((prev) => prev.filter((_, idx) => idx !== songIdx))}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -116,12 +147,26 @@ function SongListPopover({
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
             </div>
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={() => {
+                  const pending = songTitle.trim();
+                  commit(pending ? [...draft, pending] : draft);
+                  setSongTitle("");
+                  setOpen(false);
+                }}
+              >
+                Done
+              </Button>
+            </div>
           </div>
         </PopoverContent>
       )}
     </Popover>
   );
 }
+
 
 export default function ServiceRunSheet() {
   const { instanceId } = useParams<{ instanceId: string }>();
