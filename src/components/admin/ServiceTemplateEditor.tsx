@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -167,13 +167,37 @@ function MemberPicker({
 
 function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: string[]) => void }) {
   const [songTitle, setSongTitle] = useState("");
-  const cleanSongs = (songs || []).filter(Boolean);
+  const [draftSongs, setDraftSongs] = useState<string[]>(songs || []);
+
+  useEffect(() => {
+    setDraftSongs(songs || []);
+  }, [songs]);
+
+  const cleanSongs = draftSongs.filter(Boolean);
 
   const addSong = () => {
     const next = songTitle.trim();
     if (!next) return;
-    onChange([...cleanSongs, next]);
+    const updated = [...cleanSongs, next];
+    setDraftSongs(updated);
+    onChange(updated);
     setSongTitle("");
+  };
+
+  const updateDraft = (idx: number, value: string) => {
+    setDraftSongs((prev) => prev.map((item, i) => (i === idx ? value : item)));
+  };
+
+  const removeSong = (idx: number) => {
+    const updated = draftSongs.filter((_, i) => i !== idx);
+    setDraftSongs(updated);
+    onChange(updated);
+  };
+
+  const handleBlur = () => {
+    const trimmed = draftSongs.map((item) => item.trim()).filter(Boolean);
+    setDraftSongs(trimmed);
+    onChange(trimmed);
   };
 
   return (
@@ -184,18 +208,18 @@ function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: st
       {cleanSongs.length > 0 && (
         <div className="space-y-1">
           {cleanSongs.map((song, songIdx) => (
-            <div key={`${song}-${songIdx}`} className="flex items-center gap-2">
+            <div key={songIdx} className="flex items-center gap-2">
               <Input
                 className="h-8"
                 value={song}
-                onChange={(event) => onChange(cleanSongs.map((item, idx) => (idx === songIdx ? event.target.value : item)))}
-                onBlur={() => onChange(cleanSongs.map((item) => item.trim()).filter(Boolean))}
+                onChange={(event) => updateDraft(songIdx, event.target.value)}
+                onBlur={handleBlur}
               />
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2"
-                onClick={() => onChange(cleanSongs.filter((_, idx) => idx !== songIdx))}
+                onClick={() => removeSong(songIdx)}
               >
                 <X className="h-4 w-4" />
               </Button>
