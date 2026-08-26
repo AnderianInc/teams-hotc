@@ -168,17 +168,18 @@ function MemberPicker({
 function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: string[]) => void }) {
   const [songTitle, setSongTitle] = useState("");
   const [draftSongs, setDraftSongs] = useState<string[]>(songs || []);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    setDraftSongs(songs || []);
-  }, [songs]);
-
-  const cleanSongs = draftSongs.filter(Boolean);
+    if (!isEditing) {
+      setDraftSongs(songs || []);
+    }
+  }, [songs, isEditing]);
 
   const addSong = () => {
     const next = songTitle.trim();
     if (!next) return;
-    const updated = [...cleanSongs, next];
+    const updated = [...draftSongs.map((item) => item.trim()).filter(Boolean), next];
     setDraftSongs(updated);
     onChange(updated);
     setSongTitle("");
@@ -191,12 +192,13 @@ function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: st
   const removeSong = (idx: number) => {
     const updated = draftSongs.filter((_, i) => i !== idx);
     setDraftSongs(updated);
-    onChange(updated);
+    onChange(updated.map((item) => item.trim()).filter(Boolean));
   };
 
   const handleBlur = () => {
     const trimmed = draftSongs.map((item) => item.trim()).filter(Boolean);
     setDraftSongs(trimmed);
+    setIsEditing(false);
     onChange(trimmed);
   };
 
@@ -205,13 +207,14 @@ function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: st
       <div className="flex items-center gap-2 text-sm font-medium">
         <Music className="h-4 w-4" /> Songs
       </div>
-      {cleanSongs.length > 0 && (
+      {draftSongs.length > 0 && (
         <div className="space-y-1">
-          {cleanSongs.map((song, songIdx) => (
+          {draftSongs.map((song, songIdx) => (
             <div key={songIdx} className="flex items-center gap-2">
               <Input
                 className="h-8"
                 value={song}
+                onFocus={() => setIsEditing(true)}
                 onChange={(event) => updateDraft(songIdx, event.target.value)}
                 onBlur={handleBlur}
               />
