@@ -169,11 +169,23 @@ function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: st
   const [songTitle, setSongTitle] = useState("");
   const [draftSongs, setDraftSongs] = useState<string[]>(songs || []);
   const [isEditing, setIsEditing] = useState(false);
+  // Tracks the last value we pushed upstream. While the server hasn't caught up,
+  // incoming (stale) props must not overwrite the local draft.
+  const pendingRef = useRef<string | null>(null);
+
+  const emit = (next: string[]) => {
+    pendingRef.current = JSON.stringify(next);
+    onChange(next);
+  };
 
   useEffect(() => {
-    if (!isEditing) {
-      setDraftSongs(songs || []);
+    const incoming = JSON.stringify(songs || []);
+    if (pendingRef.current !== null) {
+      if (incoming === pendingRef.current) pendingRef.current = null;
+      return;
     }
+    if (isEditing) return;
+    setDraftSongs(songs || []);
   }, [songs, isEditing]);
 
   const addSong = () => {
@@ -181,7 +193,7 @@ function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: st
     if (!next) return;
     const updated = [...draftSongs.map((item) => item.trim()).filter(Boolean), next];
     setDraftSongs(updated);
-    onChange(updated);
+    emit(updated);
     setSongTitle("");
   };
 
@@ -192,8 +204,9 @@ function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: st
   const removeSong = (idx: number) => {
     const updated = draftSongs.filter((_, i) => i !== idx);
     setDraftSongs(updated);
-    onChange(updated.map((item) => item.trim()).filter(Boolean));
+    emit(updated.map((item) => item.trim()).filter(Boolean));
   };
+
 
   const handleBlur = () => {
     const trimmed = draftSongs.map((item) => item.trim()).filter(Boolean);
