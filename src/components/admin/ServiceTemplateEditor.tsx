@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -212,7 +212,7 @@ function SongEditor({ songs, onChange }: { songs: string[]; onChange: (songs: st
     const trimmed = draftSongs.map((item) => item.trim()).filter(Boolean);
     setDraftSongs(trimmed);
     setIsEditing(false);
-    onChange(trimmed);
+    emit(trimmed);
   };
 
   return (
