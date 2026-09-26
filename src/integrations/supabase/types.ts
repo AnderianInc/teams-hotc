@@ -1855,6 +1855,42 @@ export type Database = {
         }
         Relationships: []
       }
+      social_media_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          drive_file_id: string
+          folder_date: string | null
+          id: string
+          mime_type: string | null
+          name: string
+          uploaded_by: string | null
+          web_view_link: string | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          drive_file_id: string
+          folder_date?: string | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          uploaded_by?: string | null
+          web_view_link?: string | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          drive_file_id?: string
+          folder_date?: string | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          uploaded_by?: string | null
+          web_view_link?: string | null
+        }
+        Relationships: []
+      }
       staff_roles: {
         Row: {
           created_at: string
@@ -2172,6 +2208,7 @@ export type Database = {
       }
       is_kids_ministry_member: { Args: { _user_id: string }; Returns: boolean }
       is_phone_opted_out: { Args: { _phone: string }; Returns: boolean }
+      is_social_media_member: { Args: { _user_id: string }; Returns: boolean }
       is_team_lead: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
