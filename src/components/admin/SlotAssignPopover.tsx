@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -29,10 +29,27 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
   const invalidate = useInvalidateOoS();
   const { data: teams = [] } = useAllTeams();
   const [open, setOpen] = useState(false);
-  const [teamId, setTeamId] = useState<string>(slot.team_id || "");
-  const [mode, setMode] = useState<"team" | "everyone">(slot.team_id ? "team" : "team");
+  const [teamId, setTeamIdState] = useState<string>(slot.team_id || "");
+  const [mode, setMode] = useState<"team" | "everyone">(slot.team_id ? "team" : "everyone");
   const [search, setSearch] = useState("");
   const [roleLabel, setRoleLabel] = useState("");
+
+  // Always follow the slot's current team
+  useEffect(() => {
+    setTeamIdState(slot.team_id || "");
+    setMode(slot.team_id ? "team" : "everyone");
+  }, [slot.team_id, open]);
+
+  const setTeamId = async (value: string) => {
+    setTeamIdState(value);
+    if (!slot.team_id && value) {
+      const { error } = await supabase
+        .from("service_instance_slots")
+        .update({ team_id: value })
+        .eq("id", slot.id);
+      if (!error) invalidate();
+    }
+  };
   const restrictedTeams = allowedTeamIds && allowedTeamIds.length > 0
     ? teams.filter((team) => allowedTeamIds.includes(team.id))
     : teams;
