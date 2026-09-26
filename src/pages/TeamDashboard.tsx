@@ -2,7 +2,8 @@ import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeams, useAllTeams } from "@/hooks/useTeams";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Users, Sparkles, LogOut, BookOpen, Lock, Home } from "lucide-react";
+import { Baby, Users, Sparkles, LogOut, BookOpen, Lock, Home, Camera } from "lucide-react";
+import SocialMediaPhotos from "@/components/teams/SocialMediaPhotos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import KidsSetupGuide from "@/components/kids/KidsSetupGuide";
@@ -120,6 +121,27 @@ export default function TeamDashboard() {
           <TabsContent value="app">
             <FirstImpressionsDashboard />
           </TabsContent>
+          <TabsContent value="volunteers">
+            <VolunteerTeamDashboard teamId={team.id} teamName={team.name} teamSlug={team.slug} hideHeader />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
+
+  if (slug === "social-media" && team) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">{team.name}</h1>
+          <p className="text-muted-foreground mt-1">Photos go straight to Google Drive</p>
+        </div>
+        <Tabs defaultValue="photos" className="w-full">
+          <TabsList>
+            <TabsTrigger value="photos"><Camera className="h-4 w-4 mr-2" />Photos</TabsTrigger>
+            <TabsTrigger value="volunteers"><Users className="h-4 w-4 mr-2" />Volunteers</TabsTrigger>
+          </TabsList>
+          <TabsContent value="photos"><SocialMediaPhotos /></TabsContent>
           <TabsContent value="volunteers">
             <VolunteerTeamDashboard teamId={team.id} teamName={team.name} teamSlug={team.slug} hideHeader />
           </TabsContent>
