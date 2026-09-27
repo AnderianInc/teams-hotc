@@ -15,10 +15,27 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Send, Sparkles, Loader2, AlertTriangle, Users, CalendarClock } from "lucide-react";
+import { Send, Sparkles, Loader2, AlertTriangle, Users, CalendarClock, Paperclip, X, FileText } from "lucide-react";
 import { findRecentDuplicate, type DuplicateHit } from "@/lib/duplicateGuard";
 import { formatDistanceToNow } from "date-fns";
 import RecipientPicker, { type Recipient } from "@/components/comms/RecipientPicker";
+
+interface Attachment {
+  path: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
+const MAX_FILES = 5;
+const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+const BLOCKED_EXT = /\.(exe|js|mjs|bat|cmd|sh|ps1|msi|scr|com|zip|jar|apk|dll)$/i;
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 interface EmailComposerProps {
   defaultTo?: string;
@@ -60,6 +77,49 @@ export default function EmailComposer({
   const [groups, setGroups] = useState<Array<{ id: string; name: string; kind: string }>>([]);
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduling, setScheduling] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleAttachFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !user) return;
+    const incoming = Array.from(files);
+    if (attachments.length + incoming.length > MAX_FILES) {
+      return toast.error(`You can attach up to ${MAX_FILES} files per email`);
+    }
+    const totalSize = attachments.reduce((s, a) => s + a.size, 0) + incoming.reduce((s, f) => s + f.size, 0);
+    if (totalSize > MAX_TOTAL_BYTES) {
+      return toast.error("Attachments total more than 10 MB — remove some or use smaller files");
+    }
+    const bad = incoming.find((f) => BLOCKED_EXT.test(f.name));
+    if (bad) return toast.error(`"${bad.name}" is a blocked file type (programs and archives can't be attached)`);
+
+    setUploading(true);
+    try {
+      const uploaded: Attachment[] = [];
+      for (const f of incoming) {
+        const safeName = f.name.replace(/[^\w.\-() ]/g, "_");
+        const path = `composer/${user.id}/${crypto.randomUUID()}-${safeName}`;
+        const { error } = await supabase.storage.from("email-attachments").upload(path, f, {
+          contentType: f.type || "application/octet-stream",
+        });
+        if (error) throw error;
+        uploaded.push({ path, name: f.name, type: f.type || "application/octet-stream", size: f.size });
+      }
+      setAttachments((prev) => [...prev, ...uploaded]);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to upload attachment");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeAttachment = async (att: Attachment) => {
+    setAttachments((prev) => prev.filter((a) => a.path !== att.path));
+    try { await supabase.storage.from("email-attachments").remove([att.path]); } catch {}
+  };
+
+  const attachmentPayload = () =>
+    attachments.map(({ path, name, type }) => ({ path, name, type }));
 
   useEffect(() => {
     setAcknowledgedDup(false);
