@@ -320,7 +320,19 @@ export default function EmailComposer({
         notes: "Manually scheduled from composer",
         attachments: attachmentPayload(),
       }];
-...
+    } else {
+      if (recipients.length === 0) return toast.error("Add recipients first");
+      rows = recipients
+        .filter((r) => r.email)
+        .map((r) => ({
+          to_email: r.email!,
+          to_name: `${r.firstName} ${r.lastName}`.trim() || null,
+          subject: renderTemplate(subject, r),
+          body_html: renderTemplate(body, r),
+          scheduled_for: when.toISOString(),
+          status: "approved",
+          approved_by: user?.id ?? null,
+          approved_at: new Date().toISOString(),
           attendee_id: r.source === "attendee" ? r.id : null,
           notes: "Manually scheduled from composer",
           attachments: attachmentPayload(),
