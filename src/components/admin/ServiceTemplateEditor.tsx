@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowUp, ArrowDown, Music, Plus, Trash2, Users, X } from "lucide-react";
 import { useTemplateSlots, useInvalidateOoS, type ServiceTemplate, type TemplateSlot } from "@/hooks/useOrderOfService";
 import { useAllTeams } from "@/hooks/useTeams";
+import { SongListEditor, toSongItems } from "@/components/oos/SongList";
 
 interface Props {
   template: ServiceTemplate;
@@ -469,10 +470,14 @@ export default function ServiceTemplateEditor({ template, onClose }: Props) {
                           <tr className="bg-muted/10">
                             <td></td>
                             <td colSpan={7} className="px-2 pb-2">
-                              <SongEditor
-                                songs={slot.songs || []}
-                                onChange={(songs) => updateSlot.mutate({ id: slot.id, songs: songs as any })}
-                              />
+                              <div className="rounded-md border bg-muted/20 p-3">
+                                <SongListEditor
+                                  items={toSongItems((slot as any).song_items, slot.songs)}
+                                  onChange={(items) =>
+                                    updateSlot.mutate({ id: slot.id, song_items: items, songs: items.map((i) => i.title) } as any)
+                                  }
+                                />
+                              </div>
                             </td>
                           </tr>
                         )}

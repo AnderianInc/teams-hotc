@@ -23,6 +23,7 @@ import {
 import SlotAssignPopover from "@/components/admin/SlotAssignPopover";
 import { useAllTeams, useMyTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/hooks/useAuth";
+import { SongListDisplay, SongListEditor, toSongItems, type SongItem } from "@/components/oos/SongList";
 
 function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = hhmm.split(":").map(Number);
@@ -33,137 +34,36 @@ function addMinutes(hhmm: string, minutes: number): string {
 }
 
 function SongListPopover({
-  songs,
+  items,
   canEdit,
   onChange,
 }: {
-  songs: string[];
+  items: SongItem[];
   canEdit: boolean;
-  onChange: (songs: string[]) => void;
+  onChange: (items: SongItem[]) => void;
 }) {
-  const [songTitle, setSongTitle] = useState("");
   const [open, setOpen] = useState(false);
-  const savedSongs = useMemo(() => (songs || []).filter(Boolean), [songs]);
-  // Local draft so typing never triggers a refetch/remount mid-edit
-  const [draft, setDraft] = useState<string[]>(savedSongs);
-
-  useEffect(() => {
-    if (!open) setDraft(savedSongs);
-  }, [open, savedSongs]);
-
-  const cleanSongs = open ? draft : savedSongs;
-
-  const commit = (next: string[]) => {
-    const cleaned = next.map((item) => item.trim()).filter(Boolean);
-    if (JSON.stringify(cleaned) !== JSON.stringify(savedSongs)) onChange(cleaned);
-  };
-
-  const addSong = () => {
-    const next = songTitle.trim();
-    if (!next) return;
-    setDraft([...draft, next]);
-    setSongTitle("");
-  };
-
-  if (!canEdit && savedSongs.length === 0) return null;
-
-  const summary = cleanSongs.length ? cleanSongs.join(" · ") : canEdit ? "Add songs" : "";
-
-  const trigger = (
-    <div className="flex items-center gap-1 mt-0.5 max-w-[220px]">
-      <Music className="h-3 w-3 shrink-0 text-muted-foreground" />
-      <span className="text-xs text-muted-foreground truncate">
-        {summary}
-      </span>
-    </div>
-  );
+  if (!canEdit && items.length === 0) return null;
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) {
-          const pending = songTitle.trim();
-          commit(pending ? [...draft, pending] : draft);
-          setSongTitle("");
-        } else {
-          setDraft(savedSongs);
-        }
-        setOpen(next);
-      }}
-    >
-      <PopoverTrigger asChild>
-        {canEdit ? (
-          <button className="text-left hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
-            {trigger}
-          </button>
-        ) : (
-          <div>{trigger}</div>
-        )}
-      </PopoverTrigger>
+    <div>
+      <SongListDisplay items={items} compact />
       {canEdit && (
-        <PopoverContent className="w-72 p-3" align="start">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Music className="h-4 w-4" /> Songs
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+              <Music className="h-3 w-3" /> {items.length ? "Edit songs" : "Add songs"}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[min(92vw,34rem)] p-3" align="start">
+            <SongListEditor items={items} onChange={onChange} />
+            <div className="flex justify-end mt-2">
+              <Button size="sm" onClick={() => setOpen(false)}>Done</Button>
             </div>
-            {draft.length > 0 && (
-              <div className="space-y-1">
-                {draft.map((song, songIdx) => (
-                  <div key={songIdx} className="flex items-center gap-2">
-                    <Input
-                      className="h-8 flex-1"
-                      value={song}
-                      onChange={(event) =>
-                        setDraft((prev) => prev.map((item, idx) => (idx === songIdx ? event.target.value : item)))
-                      }
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2"
-                      onClick={() => setDraft((prev) => prev.filter((_, idx) => idx !== songIdx))}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Input
-                className="h-8"
-                placeholder="Song title"
-                value={songTitle}
-                onChange={(event) => setSongTitle(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addSong();
-                  }
-                }}
-              />
-              <Button size="sm" variant="outline" onClick={addSong} disabled={!songTitle.trim()}>
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </Button>
-            </div>
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                onClick={() => {
-                  const pending = songTitle.trim();
-                  commit(pending ? [...draft, pending] : draft);
-                  setSongTitle("");
-                  setOpen(false);
-                }}
-              >
-                Done
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
+          </PopoverContent>
+        </Popover>
       )}
-    </Popover>
+    </div>
   );
 }
 
@@ -294,10 +194,10 @@ export default function ServiceRunSheet() {
   });
 
   const updateSongs = useMutation({
-    mutationFn: async ({ slotId, songs }: { slotId: string; songs: string[] }) => {
-      const { error } = await supabase.rpc("update_service_slot_songs" as any, {
+    mutationFn: async ({ slotId, items }: { slotId: string; items: SongItem[] }) => {
+      const { error } = await supabase.rpc("update_service_slot_song_items" as any, {
         _slot_id: slotId,
-        _songs: songs,
+        _items: items as any,
       });
       if (error) throw error;
     },
@@ -449,18 +349,18 @@ export default function ServiceRunSheet() {
                             onBlur={(e) => e.target.value !== slot.title && updateSlot.mutate({ id: slot.id, title: e.target.value })}
                           />
                           <SongListPopover
-                            songs={slot.songs || []}
+                            items={toSongItems((slot as any).song_items, slot.songs)}
                             canEdit={canEditSongs}
-                            onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                            onChange={(items) => updateSongs.mutate({ slotId: slot.id, items })}
                           />
                         </div>
                       ) : (
                         <div className="space-y-0.5">
                           <span className="font-medium">{slot.title}</span>
                           <SongListPopover
-                            songs={slot.songs || []}
+                            items={toSongItems((slot as any).song_items, slot.songs)}
                             canEdit={canEditSongs}
-                            onChange={(songs) => updateSongs.mutate({ slotId: slot.id, songs })}
+                            onChange={(items) => updateSongs.mutate({ slotId: slot.id, items })}
                           />
                         </div>
                       )}
