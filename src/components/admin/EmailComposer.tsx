@@ -318,22 +318,12 @@ export default function EmailComposer({
         approved_at: new Date().toISOString(),
         attendee_id: relatedAttendeeId ?? null,
         notes: "Manually scheduled from composer",
+        attachments: attachmentPayload(),
       }];
-    } else {
-      if (recipients.length === 0) return toast.error("Add recipients first");
-      rows = recipients
-        .filter((r) => r.email)
-        .map((r) => ({
-          to_email: r.email!,
-          to_name: `${r.firstName} ${r.lastName}`.trim() || null,
-          subject: renderTemplate(subject, r),
-          body_html: renderTemplate(body, r),
-          scheduled_for: when.toISOString(),
-          status: "approved",
-          approved_by: user?.id ?? null,
-          approved_at: new Date().toISOString(),
+...
           attendee_id: r.source === "attendee" ? r.id : null,
           notes: "Manually scheduled from composer",
+          attachments: attachmentPayload(),
         }));
     }
 
@@ -342,7 +332,7 @@ export default function EmailComposer({
       const { error } = await supabase.from("pending_email_approvals").insert(rows as any);
       if (error) throw error;
       toast.success(`Scheduled ${rows.length} email${rows.length === 1 ? "" : "s"} for ${when.toLocaleString()}`);
-      setTo(""); setToName(""); setSubject(""); setBody(""); setRecipients([]); setScheduleAt("");
+      setTo(""); setToName(""); setSubject(""); setBody(""); setRecipients([]); setScheduleAt(""); setAttachments([]);
       onSent?.();
     } catch (e: any) {
       toast.error(e.message || "Failed to schedule");
@@ -424,6 +414,45 @@ export default function EmailComposer({
             </p>
           )}
         </div>
+
+        <div className="space-y-2">
+          <Label>Attachments (optional)</Label>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading || attachments.length >= MAX_FILES}
+              onClick={() => document.getElementById("email-attachment-input")?.click()}
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Paperclip className="h-4 w-4 mr-1.5" />}
+              Attach files
+            </Button>
+            <input
+              id="email-attachment-input"
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => { handleAttachFiles(e.target.files); e.target.value = ""; }}
+            />
+            <span className="text-[11px] text-muted-foreground">Up to {MAX_FILES} files, 10 MB total</span>
+          </div>
+          {attachments.length > 0 && (
+            <ul className="space-y-1">
+              {attachments.map((a) => (
+                <li key={a.path} className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm">
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="truncate flex-1">{a.name}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{formatBytes(a.size)}</span>
+                  <button type="button" onClick={() => removeAttachment(a)} className="text-muted-foreground hover:text-foreground shrink-0" aria-label={`Remove ${a.name}`}>
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
 
 
         {mode === "single" && duplicateHit && (
