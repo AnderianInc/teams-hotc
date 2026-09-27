@@ -34,6 +34,7 @@ serve(async (req) => {
             html: row.body_html,
             logged_by: row.approved_by,
             related_attendee_id: row.attendee_id,
+            attachments: row.attachments || undefined,
           },
         });
         if (res.error || (res.data as any)?.error) {
