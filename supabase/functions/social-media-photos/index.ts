@@ -57,6 +57,18 @@ Deno.serve(async (req) => {
     if (action === "thumb") {
       const id = url.searchParams.get("id") || "";
       if (!/^[\w-]+$/.test(id)) return json({ error: "Bad id" }, 400);
+      // Prefer Drive's small generated thumbnail over streaming the full original.
+      const meta = await drive(`/drive/v3/files/${id}?fields=thumbnailLink,mimeType`);
+      const { thumbnailLink } = await meta.json();
+      if (thumbnailLink) {
+        const t = await fetch(thumbnailLink, { headers: gwHeaders() });
+        if (t.ok) {
+          return new Response(t.body, {
+            headers: { ...corsHeaders, "Content-Type": t.headers.get("Content-Type") || "image/jpeg", "Cache-Control": "private, max-age=3600" },
+          });
+        }
+      }
+      // Fallback (e.g. videos without a thumbnail): stream the original.
       const r = await drive(`/drive/v3/files/${id}?alt=media`);
       return new Response(r.body, {
         headers: { ...corsHeaders, "Content-Type": r.headers.get("Content-Type") || "image/jpeg", "Cache-Control": "private, max-age=3600" },

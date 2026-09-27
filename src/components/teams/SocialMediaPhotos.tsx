@@ -20,11 +20,16 @@ function Thumb({ id, mime }: { id: string; mime: string | null }) {
   useEffect(() => {
     if (mime?.startsWith("video/")) return;
     let url: string | null = null;
+    let cancelled = false;
     (async () => {
       const res = await fetch(`${FN_URL}?action=thumb&id=${id}`, { headers: await authHeader() });
-      if (res.ok) { url = URL.createObjectURL(await res.blob()); setSrc(url); }
+      if (!res.ok || cancelled) return;
+      const blob = await res.blob();
+      if (cancelled) return;
+      url = URL.createObjectURL(blob);
+      setSrc(url);
     })();
-    return () => { if (url) URL.revokeObjectURL(url); };
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
   }, [id, mime]);
   if (mime?.startsWith("video/")) return <div className="aspect-square bg-muted flex items-center justify-center"><Video className="h-8 w-8 text-muted-foreground" /></div>;
   return src ? <img src={src} alt="" className="aspect-square w-full object-cover" /> : <div className="aspect-square bg-muted animate-pulse" />;
