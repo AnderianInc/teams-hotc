@@ -246,6 +246,7 @@ export async function generateServiceFromTemplate(
       team_id: s.default_team_id,
       role_type_id: s.default_role_type_id,
       songs: s.songs || [],
+      song_items: s.song_items || [],
       is_song_slot: !!s.is_song_slot,
     }));
     const { data: createdSlots, error: insErr } = await supabase
