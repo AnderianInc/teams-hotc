@@ -1384,6 +1384,7 @@ export type Database = {
           notes: string | null
           order_index: number
           role_type_id: string | null
+          song_items: Json
           songs: string[]
           team_id: string | null
           title: string
@@ -1398,6 +1399,7 @@ export type Database = {
           notes?: string | null
           order_index?: number
           role_type_id?: string | null
+          song_items?: Json
           songs?: string[]
           team_id?: string | null
           title: string
@@ -1412,6 +1414,7 @@ export type Database = {
           notes?: string | null
           order_index?: number
           role_type_id?: string | null
+          song_items?: Json
           songs?: string[]
           team_id?: string | null
           title?: string
@@ -1583,6 +1586,7 @@ export type Database = {
           is_song_slot: boolean
           notes: string | null
           order_index: number
+          song_items: Json
           songs: string[]
           template_id: string
           title: string
@@ -1598,6 +1602,7 @@ export type Database = {
           is_song_slot?: boolean
           notes?: string | null
           order_index?: number
+          song_items?: Json
           songs?: string[]
           template_id: string
           title: string
@@ -1613,6 +1618,7 @@ export type Database = {
           is_song_slot?: boolean
           notes?: string | null
           order_index?: number
+          song_items?: Json
           songs?: string[]
           template_id?: string
           title?: string
@@ -2236,6 +2242,30 @@ export type Database = {
           tags: string[]
         }[]
       }
+      update_service_slot_song_items: {
+        Args: { _items: Json; _slot_id: string }
+        Returns: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          instance_id: string
+          is_song_slot: boolean
+          notes: string | null
+          order_index: number
+          role_type_id: string | null
+          song_items: Json
+          songs: string[]
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "service_instance_slots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       update_service_slot_songs: {
         Args: { _slot_id: string; _songs: string[] }
         Returns: {
@@ -2247,6 +2277,7 @@ export type Database = {
           notes: string | null
           order_index: number
           role_type_id: string | null
+          song_items: Json
           songs: string[]
           team_id: string | null
           title: string
