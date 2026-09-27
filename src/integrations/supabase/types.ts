@@ -393,6 +393,7 @@ export type Database = {
       }
       email_log: {
         Row: {
+          attachments: Json | null
           body_html: string | null
           created_at: string | null
           error: string | null
@@ -406,6 +407,7 @@ export type Database = {
           to_name: string | null
         }
         Insert: {
+          attachments?: Json | null
           body_html?: string | null
           created_at?: string | null
           error?: string | null
@@ -419,6 +421,7 @@ export type Database = {
           to_name?: string | null
         }
         Update: {
+          attachments?: Json | null
           body_html?: string | null
           created_at?: string | null
           error?: string | null
@@ -924,6 +927,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          attachments: Json | null
           attendee_id: string | null
           body_html: string
           created_at: string
@@ -942,6 +946,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          attachments?: Json | null
           attendee_id?: string | null
           body_html: string
           created_at?: string
@@ -960,6 +965,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          attachments?: Json | null
           attendee_id?: string | null
           body_html?: string
           created_at?: string
