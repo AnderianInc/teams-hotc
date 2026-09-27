@@ -112,8 +112,34 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
-    const { to, subject, html, text, logged_by, to_name, related_attendee_id } = await req.json();
+    const { to, subject, html, text, logged_by, to_name, related_attendee_id, attachments } = await req.json();
     if (!to || !subject) throw new Error("Missing 'to' or 'subject'");
+
+    // Resolve attachments from the private email-attachments bucket.
+    const BLOCKED_EXT = /\.(exe|js|mjs|bat|cmd|sh|ps1|msi|scr|com|zip|jar|apk|dll)$/i;
+    const resendAttachments: Array<{ filename: string; content: string }> = [];
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      if (attachments.length > 5) throw new Error("Too many attachments (max 5)");
+      const sbForStorage = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      let totalBytes = 0;
+      for (const att of attachments) {
+        const path = String(att?.path || "");
+        const name = String(att?.name || "attachment");
+        if (!path.startsWith("composer/")) throw new Error("Invalid attachment path");
+        if (BLOCKED_EXT.test(name)) throw new Error(`Blocked attachment type: ${name}`);
+        const { data: blob, error: dlErr } = await sbForStorage.storage.from("email-attachments").download(path);
+        if (dlErr || !blob) throw new Error(`Could not load attachment "${name}"`);
+        totalBytes += blob.size;
+        if (totalBytes > 10 * 1024 * 1024) throw new Error("Attachments exceed 10 MB total");
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        let bin = "";
+        const CHUNK = 0x8000;
+        for (let i = 0; i < buf.length; i += CHUNK) {
+          bin += String.fromCharCode(...buf.subarray(i, i + CHUNK));
+        }
+        resendAttachments.push({ filename: name, content: btoa(bin) });
+      }
+    }
 
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const toEmail = (Array.isArray(to) ? to[0] : to).trim().toLowerCase();
@@ -166,6 +192,7 @@ serve(async (req) => {
       text: text || undefined,
       reply_to: "community@hotc.life",
       headers: Object.keys(headersExtra).length ? headersExtra : undefined,
+      attachments: resendAttachments.length ? resendAttachments : undefined,
     });
 
     // Retry with exponential backoff on rate limit (429) or transient 5xx errors.
@@ -230,6 +257,9 @@ serve(async (req) => {
           sent_by: logged_by,
           related_attendee_id: related_attendee_id || null,
           status: "sent",
+          attachments: resendAttachments.length
+            ? resendAttachments.map((a) => ({ name: a.filename }))
+            : null,
         });
       } catch (logErr) {
         console.error("Failed to log email:", logErr);
