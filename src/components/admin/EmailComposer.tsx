@@ -189,12 +189,13 @@ export default function EmailComposer({
           logged_by: user?.id,
           to_name: toName || undefined,
           related_attendee_id: relatedAttendeeId || undefined,
+          attachments: attachmentPayload(),
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Email sent!");
-      setTo(""); setToName(""); setSubject(""); setBody("");
+      setTo(""); setToName(""); setSubject(""); setBody(""); setAttachments([]);
       onSent?.();
     } catch (e: any) {
       toast.error(e.message || "Failed to send email");
@@ -237,6 +238,7 @@ export default function EmailComposer({
             html: renderTemplate(body, r),
             logged_by: user?.id,
             related_attendee_id: r.source === "attendee" ? r.id : undefined,
+            attachments: attachmentPayload(),
           },
         });
         const errMsg = error?.message || data?.error || "";
@@ -270,7 +272,7 @@ export default function EmailComposer({
     setSending(false);
     if (failed === 0) {
       toast.success(`Sent ${ok} email${ok === 1 ? "" : "s"}`);
-      setRecipients([]); setSubject(""); setBody("");
+      setRecipients([]); setSubject(""); setBody(""); setAttachments([]);
     } else {
       toast.warning(`Sent ${ok}, failed ${failed}. First: ${errors[0]}`);
     }
