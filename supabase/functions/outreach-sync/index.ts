@@ -27,6 +27,7 @@ async function fetchPage(path: string, apiKey: string, since: string | null, off
   if (since) url.searchParams.set("since", since);
   const res = await fetch(url.toString(), {
     headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(25000),
   });
   if (!res.ok) throw new Error(`${path} HTTP ${res.status}: ${await res.text()}`);
   return res.json() as Promise<{ data: any[]; count: number; limit: number; offset: number }>;
@@ -48,6 +49,8 @@ Deno.serve(async (req) => {
   }
 
   const summary: Record<string, { imported: number; error?: string }> = {};
+  let phoneCache: any[] | null = null;
+  const deadline = Date.now() + 120000; // stop before the 150s edge limit
 
   for (const src of SOURCES) {
     try {
@@ -74,9 +77,11 @@ Deno.serve(async (req) => {
           ? await supabase.from("attendees").select("id, email, phone, last_name").in("email", emails)
           : { data: [] as any[] };
 
-        const { data: allAttendees } = phones.length
-          ? await supabase.from("attendees").select("id, email, phone, last_name").not("phone", "is", null)
-          : { data: [] as any[] };
+        if (phones.length && !phoneCache) {
+          const { data } = await supabase.from("attendees").select("id, email, phone, last_name").not("phone", "is", null);
+          phoneCache = data || [];
+        }
+        const allAttendees = phoneCache || [];
 
         const byEmail = new Map<string, any>();
         (matchByEmail || []).forEach((a: any) => a.email && byEmail.set(a.email.toLowerCase(), a));
@@ -188,6 +193,7 @@ Deno.serve(async (req) => {
 
         if (page.data.length < (page.limit || 500)) break;
         offset += page.data.length;
+        if (Date.now() > deadline) throw new Error("Time budget reached; will resume next run");
       }
 
       await supabase.from("external_sync_state").upsert({
