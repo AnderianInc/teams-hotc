@@ -23,7 +23,11 @@ serve(async (req) => {
       .limit(50);
     if (error) throw error;
 
-    let sent = 0, failed = 0;
+    const MAX_ATTEMPTS = 3;
+    const isTerminal = (msg: string) =>
+      /DO_NOT_CONTACT|opted out|unsubscribed|INVALID/i.test(msg);
+
+    let sent = 0, failed = 0, retried = 0;
     for (const row of due ?? []) {
       try {
         const res = await sb.functions.invoke("send-email", {
@@ -45,14 +49,26 @@ serve(async (req) => {
         }).eq("id", row.id);
         sent++;
       } catch (e) {
-        await sb.from("pending_email_approvals").update({
-          status: "failed", error: (e as Error).message,
-        }).eq("id", row.id);
-        failed++;
+        const msg = (e as Error).message;
+        const attempts = (row.attempt_count ?? 0) + 1;
+        if (!isTerminal(msg) && attempts < MAX_ATTEMPTS) {
+          // Transient failure: retry in 30 minutes
+          await sb.from("pending_email_approvals").update({
+            attempt_count: attempts,
+            scheduled_for: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+            error: msg,
+          }).eq("id", row.id);
+          retried++;
+        } else {
+          await sb.from("pending_email_approvals").update({
+            status: "failed", attempt_count: attempts, error: msg,
+          }).eq("id", row.id);
+          failed++;
+        }
       }
     }
 
-    return new Response(JSON.stringify({ processed: due?.length ?? 0, sent, failed }), {
+    return new Response(JSON.stringify({ processed: due?.length ?? 0, sent, failed, retried }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
