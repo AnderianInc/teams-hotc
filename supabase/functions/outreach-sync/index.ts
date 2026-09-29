@@ -134,30 +134,28 @@ Deno.serve(async (req) => {
             matchReason = email && byEmail.get(email) ? "email" : "phone";
             status = "merged";
           } else {
-            // No match → create new attendee with source tag
+            // No match → keep them OUT of the Church Directory. Create a funnel
+            // lead instead; they're promoted to attendees only when they visit.
             const [first, ...rest] = (r.name || "").split(" ");
-            const last = rest.join(" ") || "(unknown)";
-            const sourceTag = `source:${src.key === "prayer" ? "prayer-request" : src.key === "visit" ? "visit-request" : "interest-meeting"}`;
-            const { data: created, error: createErr } = await supabase
-              .from("attendees")
+            const last = rest.join(" ") || "";
+            const sourceTag = src.key === "prayer" ? "prayer-request" : src.key === "visit" ? "visit-request" : "interest-meeting";
+            const { error: leadErr } = await supabase
+              .from("funnel_leads")
               .insert({
                 first_name: first || "(unknown)",
                 last_name: last,
                 email: r.email || null,
                 phone: r.phone || null,
-                tags: [sourceTag],
-                notes: r.notes || r.message || null,
-                first_visit_date: null,
-                is_member: false,
-              })
-              .select("id")
-              .single();
-            if (createErr) {
-              console.error("create attendee failed", createErr);
+                visit_date: eventDate || new Date().toISOString().slice(0, 10),
+                message: r.notes || r.message || null,
+                utm_source: sourceTag,
+                status: "planned",
+              });
+            if (leadErr) {
+              console.error("create funnel lead failed", leadErr);
               continue;
             }
-            attendeeId = created.id;
-            matchReason = "new";
+            matchReason = "funnel_lead";
             status = "created";
           }
 
