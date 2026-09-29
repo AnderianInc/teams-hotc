@@ -934,6 +934,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           attachments: Json | null
+          attempt_count: number
           attendee_id: string | null
           body_html: string
           created_at: string
@@ -953,6 +954,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           attachments?: Json | null
+          attempt_count?: number
           attendee_id?: string | null
           body_html: string
           created_at?: string
@@ -972,6 +974,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           attachments?: Json | null
+          attempt_count?: number
           attendee_id?: string | null
           body_html?: string
           created_at?: string
@@ -993,6 +996,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          attempt_count: number
           attendee_id: string | null
           body: string
           consent_note: string | null
@@ -1013,6 +1017,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          attempt_count?: number
           attendee_id?: string | null
           body: string
           consent_note?: string | null
@@ -1033,6 +1038,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          attempt_count?: number
           attendee_id?: string | null
           body?: string
           consent_note?: string | null
