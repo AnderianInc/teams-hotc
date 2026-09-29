@@ -48,6 +48,7 @@ import {
   Network,
   Upload,
   HelpCircle,
+  CalendarCheck,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
@@ -212,6 +213,14 @@ export function AppSidebar() {
               <NavLink to="/order-of-service" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
                 <ClipboardCheck className="h-4 w-4" />
                 <span>Order of Service</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to="/planned-visits" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <CalendarCheck className="h-4 w-4" />
+                <span>Planned Visits</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>

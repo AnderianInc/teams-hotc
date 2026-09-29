@@ -165,6 +165,7 @@ export type Database = {
           last_name: string
           notes: string | null
           phone: string | null
+          phone_last10: string | null
           phone_raw: string | null
           prayer_requests: string | null
           sms_opt_in: boolean
@@ -173,6 +174,7 @@ export type Database = {
           sms_opt_in_text: string | null
           tags: string[] | null
           updated_at: string
+          welcome_sms_sent_at: string | null
         }
         Insert: {
           address?: string | null
@@ -189,6 +191,7 @@ export type Database = {
           last_name: string
           notes?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           prayer_requests?: string | null
           sms_opt_in?: boolean
@@ -197,6 +200,7 @@ export type Database = {
           sms_opt_in_text?: string | null
           tags?: string[] | null
           updated_at?: string
+          welcome_sms_sent_at?: string | null
         }
         Update: {
           address?: string | null
@@ -213,6 +217,7 @@ export type Database = {
           last_name?: string
           notes?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           prayer_requests?: string | null
           sms_opt_in?: boolean
@@ -221,6 +226,7 @@ export type Database = {
           sms_opt_in_text?: string | null
           tags?: string[] | null
           updated_at?: string
+          welcome_sms_sent_at?: string | null
         }
         Relationships: []
       }
@@ -740,6 +746,148 @@ export type Database = {
           },
         ]
       }
+      funnel_leads: {
+        Row: {
+          adults_count: number
+          attendee_id: string | null
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          kids_ages: string | null
+          kids_count: number
+          last_name: string
+          message: string | null
+          notes: string | null
+          phone: string | null
+          phone_last10: string | null
+          sms_opt_in: boolean
+          sms_opt_in_at: string | null
+          sms_opt_in_text: string | null
+          status: string
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visit_date: string
+        }
+        Insert: {
+          adults_count?: number
+          attendee_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          kids_ages?: string | null
+          kids_count?: number
+          last_name?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          phone_last10?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_text?: string | null
+          status?: string
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visit_date: string
+        }
+        Update: {
+          adults_count?: number
+          attendee_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          kids_ages?: string | null
+          kids_count?: number
+          last_name?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          phone_last10?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_text?: string | null
+          status?: string
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_leads_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funnel_messages: {
+        Row: {
+          attempts: number
+          body: string
+          channel: string
+          created_at: string
+          error: string | null
+          id: string
+          lead_id: string
+          recipient: string
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          step: string
+          subject: string | null
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          channel: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          lead_id: string
+          recipient: string
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string
+          step: string
+          subject?: string | null
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          lead_id?: string
+          recipient?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          step?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "funnel_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       help_feedback: {
         Row: {
           article_slug: string
@@ -928,6 +1076,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           attachments: Json | null
+          attempt_count: number
           attendee_id: string | null
           body_html: string
           created_at: string
@@ -947,6 +1096,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           attachments?: Json | null
+          attempt_count?: number
           attendee_id?: string | null
           body_html: string
           created_at?: string
@@ -966,6 +1116,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           attachments?: Json | null
+          attempt_count?: number
           attendee_id?: string | null
           body_html?: string
           created_at?: string
@@ -987,6 +1138,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          attempt_count: number
           attendee_id: string | null
           body: string
           consent_note: string | null
@@ -1007,6 +1159,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          attempt_count?: number
           attendee_id?: string | null
           body: string
           consent_note?: string | null
@@ -1027,6 +1180,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          attempt_count?: number
           attendee_id?: string | null
           body?: string
           consent_note?: string | null
@@ -1090,6 +1244,7 @@ export type Database = {
           org_sort_order: number
           org_team_id: string | null
           phone: string | null
+          phone_last10: string | null
           phone_raw: string | null
           reports_to_user_id: string | null
           sms_opt_in: boolean
@@ -1117,6 +1272,7 @@ export type Database = {
           org_sort_order?: number
           org_team_id?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           reports_to_user_id?: string | null
           sms_opt_in?: boolean
@@ -1144,6 +1300,7 @@ export type Database = {
           org_sort_order?: number
           org_team_id?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           reports_to_user_id?: string | null
           sms_opt_in?: boolean
@@ -2229,6 +2386,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      promote_funnel_lead: { Args: { _lead_id: string }; Returns: string }
       purge_old_check_ins: { Args: { _days?: number }; Returns: number }
       purge_outreach_runs: {
         Args: { _older_than_days?: number; _status?: string }

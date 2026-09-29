@@ -48,24 +48,22 @@ serve(async (req) => {
     let related_attendee_id: string | null = null;
     let from_name: string | null = null;
     if (last10) {
-      const { data: a } = await supabase
+      const { data: ma } = await supabase
         .from("attendees")
-        .select("id, first_name, last_name, phone")
-        .limit(200);
-      const ma = (a ?? []).find(
-        (r: any) => (r.phone || "").replace(/\D/g, "").slice(-10) === last10,
-      );
+        .select("id, first_name, last_name")
+        .eq("phone_last10", last10)
+        .limit(1)
+        .maybeSingle();
       if (ma) {
         related_attendee_id = ma.id;
         from_name = [ma.first_name, ma.last_name].filter(Boolean).join(" ") || null;
       } else {
-        const { data: p } = await supabase
+        const { data: mp } = await supabase
           .from("profiles")
-          .select("full_name, phone")
-          .limit(200);
-        const mp = (p ?? []).find(
-          (r: any) => (r.phone || "").replace(/\D/g, "").slice(-10) === last10,
-        );
+          .select("full_name")
+          .eq("phone_last10", last10)
+          .limit(1)
+          .maybeSingle();
         if (mp) from_name = mp.full_name ?? null;
       }
     }
@@ -86,21 +84,13 @@ serve(async (req) => {
           { onConflict: "phone_last10" },
         );
 
-        // Best-effort updates by phone last 10 digits
-        const { data: aMatches } = await supabase
-          .from("attendees").select("id, phone").limit(500);
-        for (const r of aMatches ?? []) {
-          if ((r.phone || "").replace(/\D/g, "").slice(-10) === last10) {
-            await supabase.from("attendees").update({ do_not_contact: true, sms_opt_in: false }).eq("id", r.id);
-          }
-        }
-        const { data: pMatches } = await supabase
-          .from("profiles").select("id, phone").limit(500);
-        for (const r of pMatches ?? []) {
-          if ((r.phone || "").replace(/\D/g, "").slice(-10) === last10) {
-            await supabase.from("profiles").update({ do_not_contact: true, sms_opt_in: false }).eq("id", r.id);
-          }
-        }
+        // Direct indexed updates by phone last 10 digits
+        await supabase.from("attendees")
+          .update({ do_not_contact: true, sms_opt_in: false })
+          .eq("phone_last10", last10);
+        await supabase.from("profiles")
+          .update({ do_not_contact: true, sms_opt_in: false })
+          .eq("phone_last10", last10);
       }
     }
 

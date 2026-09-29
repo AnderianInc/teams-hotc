@@ -96,31 +96,28 @@ serve(async (req) => {
       if (a?.sms_opt_in) consentSource = a.sms_opt_in_source ?? "attendee_record";
     }
     if (!consentSource) {
-      // Try to match by phone in attendees, then profiles
-      const digits = phone.replace(/\D/g, "");
-      const last10 = digits.slice(-10);
-      const { data: byPhone } = await supabase
-        .from("attendees")
-        .select("sms_opt_in, sms_opt_in_source, phone")
-        .eq("sms_opt_in", true)
-        .limit(50);
-      const matched = (byPhone ?? []).find(
-        (r: any) => (r.phone || "").replace(/\D/g, "").slice(-10) === last10,
-      );
-      if (matched) consentSource = matched.sms_opt_in_source ?? "attendee_phone_match";
-    }
-    if (!consentSource) {
-      const digits = phone.replace(/\D/g, "");
-      const last10 = digits.slice(-10);
-      const { data: byProfile } = await supabase
-        .from("profiles")
-        .select("sms_opt_in, sms_opt_in_source, phone")
-        .eq("sms_opt_in", true)
-        .limit(50);
-      const matchedP = (byProfile ?? []).find(
-        (r: any) => (r.phone || "").replace(/\D/g, "").slice(-10) === last10,
-      );
-      if (matchedP) consentSource = matchedP.sms_opt_in_source ?? "profile_phone_match";
+      // Direct indexed match by last-10 digits in attendees, then profiles
+      const last10 = phone.replace(/\D/g, "").slice(-10);
+      if (last10) {
+        const { data: matched } = await supabase
+          .from("attendees")
+          .select("sms_opt_in_source")
+          .eq("phone_last10", last10)
+          .eq("sms_opt_in", true)
+          .limit(1)
+          .maybeSingle();
+        if (matched) consentSource = matched.sms_opt_in_source ?? "attendee_phone_match";
+      }
+      if (!consentSource && last10) {
+        const { data: matchedP } = await supabase
+          .from("profiles")
+          .select("sms_opt_in_source")
+          .eq("phone_last10", last10)
+          .eq("sms_opt_in", true)
+          .limit(1)
+          .maybeSingle();
+        if (matchedP) consentSource = matchedP.sms_opt_in_source ?? "profile_phone_match";
+      }
     }
 
     if (!consentSource && !override_consent) {
