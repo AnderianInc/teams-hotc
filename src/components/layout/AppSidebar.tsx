@@ -217,6 +217,14 @@ export function AppSidebar() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
+              <NavLink to="/planned-visits" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+                <CalendarCheck className="h-4 w-4" />
+                <span>Planned Visits</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
               <NavLink to="/profile" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
                 <User className="h-4 w-4" />
                 <span>My Profile</span>
