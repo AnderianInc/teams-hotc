@@ -64,7 +64,8 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
-            <Route path="/welcome" element={<Welcome />} />
+              <Route path="/welcome" element={<Welcome />} />
+              <Route path="/plan-a-visit" element={<PlanAVisit />} />
             <Route path="/join-team" element={<JoinTeam />} />
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/sms-policy" element={<SmsPolicy />} />
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/org-chart" element={<OrgChart />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
+              <Route path="/planned-visits" element={<PlannedVisits />} />
               <Route path="/order-of-service" element={<OrderOfServiceView />} />
               <Route path="/order-of-service/:instanceId" element={<ServiceRunSheet />} />
 
