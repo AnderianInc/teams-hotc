@@ -505,15 +505,13 @@ Deno.serve(async (req) => {
             <p><a href="https://teams.hotc.life/admin?tab=dir-outreach">Review pending approvals</a></p>
             <p style="color:#64748b;font-size:12px;">You're receiving this because you're an admin or a First Impressions team member.</p>
           `;
-          for (const to of emails) {
-            try {
-              await supabase.functions.invoke("send-email", {
+          await Promise.allSettled(
+            emails.map((to) =>
+              supabase.functions.invoke("send-email", {
                 body: { to, subject, html },
-              });
-            } catch (e) {
-              console.error("approval notify email failed for", to, e);
-            }
-          }
+              })
+            ),
+          );
         }
       }
     } catch (e) {
