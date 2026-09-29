@@ -48,6 +48,7 @@ import {
   Network,
   Upload,
   HelpCircle,
+  CalendarCheck,
 } from "lucide-react";
 
 const teamIcons: Record<string, React.ElementType> = {
