@@ -248,22 +248,36 @@ Deno.serve(async (req) => {
 
   // === Pass 1: queue new rows / send non-approval steps that are due ===
 
+  // Bulk prefetch: all existing runs and all linked attendees in two queries
+  // instead of two queries per record.
+  const recordIds = (records || []).map((r: any) => r.id);
+  const attendeeIds = Array.from(new Set((records || []).map((r: any) => r.attendee_id).filter(Boolean)));
+
+  const { data: allRuns = [] } = recordIds.length
+    ? await supabase
+        .from("outreach_sequence_runs")
+        .select("external_record_id, sequence_id")
+        .in("external_record_id", recordIds)
+    : { data: [] as any[] };
+  const runsByRecord = new Map<string, Set<string>>();
+  for (const r of (allRuns as any[]) || []) {
+    if (!runsByRecord.has(r.external_record_id)) runsByRecord.set(r.external_record_id, new Set());
+    runsByRecord.get(r.external_record_id)!.add(r.sequence_id);
+  }
+
+  const { data: allAttendees = [] } = attendeeIds.length
+    ? await supabase
+        .from("attendees")
+        .select("id, first_name, last_name, email, phone, sms_opt_in")
+        .in("id", attendeeIds)
+    : { data: [] as any[] };
+  const attendeeById = new Map<string, any>((allAttendees as any[] || []).map((a) => [a.id, a]));
+
   for (const rec of records || []) {
     const seqs = (sequences as Seq[]).filter((s) => s.source === rec.source);
 
-    const { data: runs = [] } = await supabase
-      .from("outreach_sequence_runs")
-      .select("sequence_id")
-      .eq("external_record_id", rec.id);
-    const ranIds = new Set((runs || []).map((r: any) => r.sequence_id));
-
-    const { data: attendee } = rec.attendee_id
-      ? await supabase
-          .from("attendees")
-          .select("id, first_name, last_name, email, phone, sms_opt_in")
-          .eq("id", rec.attendee_id)
-          .maybeSingle()
-      : { data: null };
+    const ranIds = runsByRecord.get(rec.id) ?? new Set<string>();
+    const attendee = rec.attendee_id ? attendeeById.get(rec.attendee_id) ?? null : null;
 
     for (const seq of seqs) {
       if (ranIds.has(seq.id)) continue;
