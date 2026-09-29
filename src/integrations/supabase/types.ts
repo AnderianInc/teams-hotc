@@ -746,6 +746,148 @@ export type Database = {
           },
         ]
       }
+      funnel_leads: {
+        Row: {
+          adults_count: number
+          attendee_id: string | null
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          kids_ages: string | null
+          kids_count: number
+          last_name: string
+          message: string | null
+          notes: string | null
+          phone: string | null
+          phone_last10: string | null
+          sms_opt_in: boolean
+          sms_opt_in_at: string | null
+          sms_opt_in_text: string | null
+          status: string
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visit_date: string
+        }
+        Insert: {
+          adults_count?: number
+          attendee_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          kids_ages?: string | null
+          kids_count?: number
+          last_name?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          phone_last10?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_text?: string | null
+          status?: string
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visit_date: string
+        }
+        Update: {
+          adults_count?: number
+          attendee_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          kids_ages?: string | null
+          kids_count?: number
+          last_name?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          phone_last10?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_text?: string | null
+          status?: string
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_leads_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funnel_messages: {
+        Row: {
+          attempts: number
+          body: string
+          channel: string
+          created_at: string
+          error: string | null
+          id: string
+          lead_id: string
+          recipient: string
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          step: string
+          subject: string | null
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          channel: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          lead_id: string
+          recipient: string
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string
+          step: string
+          subject?: string | null
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          lead_id?: string
+          recipient?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          step?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "funnel_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       help_feedback: {
         Row: {
           article_slug: string
@@ -2244,6 +2386,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      promote_funnel_lead: { Args: { _lead_id: string }; Returns: string }
       purge_old_check_ins: { Args: { _days?: number }; Returns: number }
       purge_outreach_runs: {
         Args: { _older_than_days?: number; _status?: string }
