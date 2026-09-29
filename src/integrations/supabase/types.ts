@@ -165,6 +165,7 @@ export type Database = {
           last_name: string
           notes: string | null
           phone: string | null
+          phone_last10: string | null
           phone_raw: string | null
           prayer_requests: string | null
           sms_opt_in: boolean
@@ -173,6 +174,7 @@ export type Database = {
           sms_opt_in_text: string | null
           tags: string[] | null
           updated_at: string
+          welcome_sms_sent_at: string | null
         }
         Insert: {
           address?: string | null
@@ -189,6 +191,7 @@ export type Database = {
           last_name: string
           notes?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           prayer_requests?: string | null
           sms_opt_in?: boolean
@@ -197,6 +200,7 @@ export type Database = {
           sms_opt_in_text?: string | null
           tags?: string[] | null
           updated_at?: string
+          welcome_sms_sent_at?: string | null
         }
         Update: {
           address?: string | null
@@ -213,6 +217,7 @@ export type Database = {
           last_name?: string
           notes?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           prayer_requests?: string | null
           sms_opt_in?: boolean
@@ -221,6 +226,7 @@ export type Database = {
           sms_opt_in_text?: string | null
           tags?: string[] | null
           updated_at?: string
+          welcome_sms_sent_at?: string | null
         }
         Relationships: []
       }
@@ -1090,6 +1096,7 @@ export type Database = {
           org_sort_order: number
           org_team_id: string | null
           phone: string | null
+          phone_last10: string | null
           phone_raw: string | null
           reports_to_user_id: string | null
           sms_opt_in: boolean
@@ -1117,6 +1124,7 @@ export type Database = {
           org_sort_order?: number
           org_team_id?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           reports_to_user_id?: string | null
           sms_opt_in?: boolean
@@ -1144,6 +1152,7 @@ export type Database = {
           org_sort_order?: number
           org_team_id?: string | null
           phone?: string | null
+          phone_last10?: string | null
           phone_raw?: string | null
           reports_to_user_id?: string | null
           sms_opt_in?: boolean
