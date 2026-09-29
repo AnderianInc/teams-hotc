@@ -1,13 +1,14 @@
 # Roadmap
 
 ## Phase 1 — Automation fixes
-- [ ] Fix outreach-dispatch cron (headers via net.http_post, remove duplicate hourly job)
-- [ ] Welcome follow-up SMS: sent-marker instead of 22–26h window, hourly Pacific
-- [ ] Birthday emails via send-email (DNC, unsubscribe, logging, Pacific timezone)
-- [ ] SMS consent: indexed phone match instead of .limit(50) in-memory
-- [ ] outreach-dispatch: bulk loads, batched admin alerts
-- [ ] Scheduled SMS/email dispatchers: retry transient errors (3 attempts)
-- [ ] Pause broken outreach-sync cron; unmatched records -> funnel_leads
+- [x] Fix outreach-dispatch cron (headers via net.http_post, remove duplicate hourly job)
+- [x] Welcome follow-up SMS: sent-marker instead of 22–26h window, hourly Pacific
+- [x] Birthday emails via send-email (DNC, unsubscribe, logging, Pacific timezone)
+- [x] SMS consent: indexed phone match instead of .limit(50) in-memory
+- [x] outreach-dispatch: bulk loads, batched admin alerts
+- [x] Scheduled SMS/email dispatchers: retry transient errors (3 attempts)
+- [x] Pause broken outreach-sync cron
+- [ ] outreach-sync: unmatched records -> funnel_leads (with Phase 2 tables)
 
 ## Phase 2 — Plan a Visit funnel
 - [ ] funnel_leads + funnel_messages tables, RLS, grants
