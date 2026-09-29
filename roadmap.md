@@ -8,13 +8,13 @@
 - [x] outreach-dispatch: bulk loads, batched admin alerts
 - [x] Scheduled SMS/email dispatchers: retry transient errors (3 attempts)
 - [x] Pause broken outreach-sync cron
-- [ ] outreach-sync: unmatched records -> funnel_leads (with Phase 2 tables)
+- [x] outreach-sync: unmatched records -> funnel_leads
 
 ## Phase 2 — Plan a Visit funnel
-- [ ] funnel_leads + funnel_messages tables, RLS, grants
-- [ ] plan-visit-submit edge function (validated, honeypot, rate limit)
-- [ ] /plan-a-visit public page (form, UTM capture, confirmation)
-- [ ] Planned Visits management view (FI + Admin), Mark Attended -> promote_funnel_lead RPC
+- [x] funnel_leads + funnel_messages tables, RLS, grants
+- [x] plan-visit-submit edge function (validated, honeypot, rate limit)
+- [x] /plan-a-visit public page (form, UTM capture, confirmation)
+- [x] Planned Visits management view (FI + Admin), Mark Attended -> promote_funnel_lead RPC
 - [ ] Follow-up sequence: confirmation, Sat reminder, Sun nudge, Mon no-show
 
 ## Phase 3 — Self-serve automations
