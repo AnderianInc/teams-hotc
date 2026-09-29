@@ -37,27 +37,25 @@ serve(async (req) => {
       });
     }
 
-    // Find candidates: registered 22-26h ago
-    const now = Date.now();
-    const since = new Date(now - 26 * 60 * 60 * 1000).toISOString();
-    const until = new Date(now - 22 * 60 * 60 * 1000).toISOString();
+    // Find candidates: registered 20+ hours ago, not yet sent the welcome follow-up.
+    // Uses the welcome_sms_sent_at marker instead of a fixed time window so nobody is missed.
+    const cutoff = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
 
     const { data: attendees, error } = await supabase
       .from("attendees")
-      .select("id, first_name, last_name, phone, tags, sms_opt_in, do_not_contact, created_at")
-      .gte("created_at", since)
-      .lte("created_at", until)
+      .select("id, first_name, last_name, phone, sms_opt_in, do_not_contact, created_at")
+      .lte("created_at", cutoff)
+      .is("welcome_sms_sent_at", null)
       .eq("sms_opt_in", true)
       .eq("do_not_contact", false)
-      .not("phone", "is", null);
+      .not("phone", "is", null)
+      .limit(50);
     if (error) throw error;
 
     let sent = 0, skipped = 0, failed = 0;
     const errors: string[] = [];
 
     for (const a of attendees ?? []) {
-      const tags: string[] = a.tags ?? [];
-      if (tags.includes("welcome_followup_sms_sent")) { skipped++; continue; }
       const msg = render(tpl.body, { first_name: a.first_name ?? "", last_name: a.last_name ?? "" });
       try {
         const { data, error: sendErr } = await supabase.functions.invoke("send-sms", {
@@ -69,12 +67,9 @@ serve(async (req) => {
           },
         });
         if (sendErr || data?.error) throw new Error(sendErr?.message || data?.error);
-        // tag attendee
         await supabase
           .from("attendees")
-          .update({
-            tags: Array.from(new Set([...(tags ?? []), "welcome_followup_sms_sent"])),
-          })
+          .update({ welcome_sms_sent_at: new Date().toISOString() })
           .eq("id", a.id);
         sent++;
       } catch (e) {
