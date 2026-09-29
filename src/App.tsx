@@ -28,6 +28,8 @@ import Help from "@/pages/Help";
 import Unsubscribe from "@/pages/Unsubscribe";
 import ServiceRunSheet from "@/pages/ServiceRunSheet";
 import OrderOfServiceView from "@/pages/OrderOfServiceView";
+import PlanAVisit from "@/pages/PlanAVisit";
+import PlannedVisits from "@/pages/PlannedVisits";
 import { useEffect } from "react";
 import { loadChurchTimezone } from "@/lib/timezone";
 
