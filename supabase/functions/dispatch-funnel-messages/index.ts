@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
   try {
     const { data: due, error } = await sb
       .from("funnel_messages")
-      .select("*, funnel_leads!inner(status)")
+      .select("*, funnel_leads!inner(status, sms_opt_in, sms_opt_in_at)")
       .eq("status", "pending")
       .lte("scheduled_for", new Date().toISOString())
       .order("scheduled_for")
@@ -33,19 +33,26 @@ Deno.serve(async (req) => {
 
     for (const row of due ?? []) {
       // Skip messages for leads already attended/cancelled
-      const leadStatus = (row as any).funnel_leads?.status;
+      const lead = (row as any).funnel_leads;
+      const leadStatus = lead?.status;
       if (leadStatus === "attended" || leadStatus === "cancelled") {
         await sb.from("funnel_messages").update({ status: "cancelled" }).eq("id", row.id);
         cancelled++;
         continue;
       }
-      // No-show messages only make sense if the visit date passed without attendance;
-      // reminders only before the visit.
       try {
         const fnName = row.channel === "email" ? "send-email" : "send-sms";
+        // Consent for funnel texts lives on funnel_leads (leads aren't in the directory yet).
+        // STOP/opt-out and do-not-contact are still enforced by send-sms and cannot be overridden.
+        if (row.channel === "sms" && !lead?.sms_opt_in) {
+          throw new Error("NO_CONSENT: lead did not opt in to texts");
+        }
         const body = row.channel === "email"
           ? { to: row.recipient, subject: row.subject, html: (row.body || "").replace(/\n/g, "<br/>") }
-          : { to: row.recipient, body: row.body };
+          : {
+              to: row.recipient, body: row.body, override_consent: true,
+              consent_note: `Plan a Visit form opt-in${lead?.sms_opt_in_at ? ` at ${lead.sms_opt_in_at}` : ""}`,
+            };
         const res = await sb.functions.invoke(fnName, { body });
         if (res.error || (res.data as any)?.error) {
           throw new Error(res.error?.message || (res.data as any)?.error);

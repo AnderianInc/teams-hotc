@@ -39,12 +39,15 @@ serve(async (req) => {
 
     // Find candidates: registered 20+ hours ago, not yet sent the welcome follow-up.
     // Uses the welcome_sms_sent_at marker instead of a fixed time window so nobody is missed.
+    // Bounded to the last 3 days so long-time contacts never get a surprise "welcome" text.
     const cutoff = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
 
     const { data: attendees, error } = await supabase
       .from("attendees")
       .select("id, first_name, last_name, phone, sms_opt_in, do_not_contact, created_at")
       .lte("created_at", cutoff)
+      .gte("created_at", since)
       .is("welcome_sms_sent_at", null)
       .eq("sms_opt_in", true)
       .eq("do_not_contact", false)
