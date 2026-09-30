@@ -55,11 +55,13 @@ export default function WeeklyAttendance() {
   const fetchData = useCallback(async () => {
     setLoading(true);
 
+    // Only show people who had joined by the selected service date (end of that day).
+    const dayEnd = new Date(`${serviceDate}T23:59:59`).toISOString();
     const [profilesRes, teamMembersRes, attendanceRes, attendeesRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, full_name, email, attendee_id"),
-      supabase.from("team_members").select("user_id, teams:teams(name)"),
+      supabase.from("profiles").select("user_id, full_name, email, attendee_id, created_at").lte("created_at", dayEnd),
+      supabase.from("team_members").select("user_id, teams:teams(name)").lte("created_at", dayEnd),
       supabase.from("weekly_attendance").select("id, user_id, attendee_id, status, is_self_reported").eq("service_date", serviceDate),
-      supabase.from("attendees").select("id, first_name, last_name").eq("is_member", true),
+      supabase.from("attendees").select("id, first_name, last_name").eq("is_member", true).lte("created_at", dayEnd),
     ]);
 
     const profiles = profilesRes.data || [];
@@ -83,8 +85,8 @@ export default function WeeklyAttendance() {
       attendance.filter((a) => a.attendee_id).map((a) => [a.attendee_id, { status: a.status, id: a.id, selfReported: a.is_self_reported }])
     );
 
-    // Volunteer rows
-    const volRows: VolunteerRow[] = profiles.map((p: any) => {
+    // Volunteer rows: only people on a team as of that date
+    const volRows: VolunteerRow[] = profiles.filter((p: any) => userTeamMap.has(p.user_id) || userAttMap.has(p.user_id)).map((p: any) => {
       const att = userAttMap.get(p.user_id);
       return {
         user_id: p.user_id,
