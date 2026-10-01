@@ -67,6 +67,7 @@ const GROUPS: Record<string, Group> = {
       { value: "set-feedback", label: "Feedback" },
       { value: "set-requests", label: "Requests" },
       { value: "set-sources", label: "External Sources" },
+      { value: "set-interest-meetings", label: "Interest Meetings" },
       { value: "set-import", label: "Import" },
     ],
   },
@@ -186,6 +187,7 @@ export default function AdminPanel() {
             <TabsContent value="set-feedback"><FeedbackReview /></TabsContent>
             <TabsContent value="set-requests"><DeletionRequests /></TabsContent>
             <TabsContent value="set-sources"><ExternalSourcesPanel /></TabsContent>
+            <TabsContent value="set-interest-meetings"><InterestMeetingSessions /></TabsContent>
             <TabsContent value="set-import"><BulkImport /></TabsContent>
           </Tabs>
         </TabsContent>

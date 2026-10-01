@@ -189,6 +189,14 @@ export default function PlannedVisits() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Leads</SelectItem>
+            <SelectItem value="visit">Sunday Visits</SelectItem>
+            <SelectItem value="interest">Interest Meetings</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -224,6 +232,9 @@ export default function PlannedVisits() {
                         </span>
                         <Badge className={STATUS_STYLES[lead.status] || ""} variant="secondary">
                           {lead.status.replace("_", " ")}
+                        </Badge>
+                        <Badge className={LEAD_TYPE_STYLES[lead.lead_type || "visit"] || ""} variant="secondary">
+                          {(lead.lead_type || "visit") === "interest" ? "Interest Meeting" : "Sunday Visit"}
                         </Badge>
                         {lead.utm_source && (
                           <Badge variant="outline" className="text-xs">
