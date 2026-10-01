@@ -30,6 +30,7 @@ import ServiceRunSheet from "@/pages/ServiceRunSheet";
 import OrderOfServiceView from "@/pages/OrderOfServiceView";
 import PlanAVisit from "@/pages/PlanAVisit";
 import PlannedVisits from "@/pages/PlannedVisits";
+import InterestMeeting from "@/pages/InterestMeeting";
 import { useEffect } from "react";
 import { loadChurchTimezone } from "@/lib/timezone";
 
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/complete-profile" element={<CompleteProfile />} />
               <Route path="/welcome" element={<Welcome />} />
               <Route path="/plan-a-visit" element={<PlanAVisit />} />
+              <Route path="/interest-meeting" element={<InterestMeeting />} />
             <Route path="/join-team" element={<JoinTeam />} />
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/sms-policy" element={<SmsPolicy />} />
