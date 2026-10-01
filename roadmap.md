@@ -15,7 +15,16 @@
 - [x] plan-visit-submit edge function (validated, honeypot, rate limit)
 - [x] /plan-a-visit public page (form, UTM capture, confirmation)
 - [x] Planned Visits management view (FI + Admin), Mark Attended -> promote_funnel_lead RPC
-- [ ] Follow-up sequence: confirmation, Sat reminder, Sun nudge, Mon no-show
+- [x] Follow-up sequence: confirmation, Sat reminder, Sun nudge, Mon no-show
+
+## Phase 2b — Unified funnel (visits + interest meetings)
+- [x] lead_type ('visit'|'interest') + preferred_team_ids on funnel_leads
+- [x] interest_meeting_sessions table + admin session manager (Settings > Interest Meetings)
+- [x] /interest-meeting public page + interest-meeting-submit edge function
+- [x] promote_funnel_lead: interest leads -> volunteer_onboarding (stage: interested)
+- [x] Planned Visits page: All / Sunday Visits / Interest Meetings tabs, team badges
+- [x] outreach-sync: lead_type mapping, sms_consent copy, message queueing
+- [x] outreach-sync cron: hourly (0 * * * *) instead of 15-min
 
 ## Phase 3 — Self-serve automations
 - [ ] automations / automation_steps / automation_runs tables
@@ -29,6 +38,6 @@
 - [ ] Chat bubble UI on every page
 
 ## Blocked / deferred
-- outreach-sync resume: needs fresh OUTREACH_API_KEY from external service
-- Open item: service time(s) + address for confirmations
+- Open item: service time(s) + address for confirmations (placeholders in use)
+- Open item: interest meeting default location text
 - Social media posting feature (deferred)
