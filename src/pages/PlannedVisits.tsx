@@ -23,6 +23,7 @@ type Lead = {
   last_name: string;
   email: string | null;
   phone: string | null;
+  lead_type: string;
   visit_date: string;
   adults_count: number;
   kids_count: number;
@@ -34,6 +35,7 @@ type Lead = {
   status: string;
   attendee_id: string | null;
   notes: string | null;
+  preferred_team_ids: string[];
   created_at: string;
 };
 
@@ -43,6 +45,11 @@ const STATUS_STYLES: Record<string, string> = {
   attended: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
   no_show: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
   cancelled: "bg-muted text-muted-foreground",
+};
+
+const LEAD_TYPE_STYLES: Record<string, string> = {
+  visit: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
+  interest: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
 };
 
 export default function PlannedVisits() {
