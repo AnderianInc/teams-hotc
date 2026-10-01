@@ -23,6 +23,7 @@ import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 import VolunteerOnboardingPipeline from "@/components/admin/VolunteerOnboardingPipeline";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import OrderOfServicePanel from "@/components/admin/OrderOfServicePanel";
+import InterestMeetingSessions from "@/components/admin/InterestMeetingSessions";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };

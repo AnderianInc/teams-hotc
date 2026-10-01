@@ -135,6 +135,7 @@ export default function PlannedVisits() {
 
   const today = new Date().toISOString().slice(0, 10);
   const filtered = leads.filter((l) => {
+    if (typeFilter !== "all" && (l.lead_type || "visit") !== typeFilter) return false;
     if (statusFilter === "upcoming" && !(l.status === "planned" || l.status === "confirmed")) return false;
     if (statusFilter !== "upcoming" && statusFilter !== "all" && l.status !== statusFilter) return false;
     if (search) {
@@ -155,11 +156,11 @@ export default function PlannedVisits() {
     <div className="container mx-auto max-w-5xl px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-display font-bold flex items-center gap-2">
-          <CalendarCheck className="h-6 w-6" /> Planned Visits
+          <CalendarCheck className="h-6 w-6" /> Planned Visits & Interest Meetings
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          People who planned a visit through the website or ads. Mark them attended when they arrive
-          to add them to the Church Directory.
+          People who planned a visit or signed up for an interest meeting. Mark them attended when
+          they arrive to add them to the Church Directory.
         </p>
       </div>
 
