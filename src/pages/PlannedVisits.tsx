@@ -250,14 +250,25 @@ export default function PlannedVisits() {
                             <span className="text-amber-600 dark:text-amber-400">(date passed)</span>
                           )}
                         </span>
-                        <span className="inline-flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" /> {lead.adults_count} adult{lead.adults_count !== 1 ? "s" : ""}
-                        </span>
-                        {lead.kids_count > 0 && (
-                          <span className="inline-flex items-center gap-1">
-                            <Baby className="h-3.5 w-3.5" /> {lead.kids_count} kid{lead.kids_count !== 1 ? "s" : ""}
-                            {lead.kids_ages ? ` (${lead.kids_ages})` : ""}
-                          </span>
+                        {(lead.lead_type || "visit") === "visit" ? (
+                          <>
+                            <span className="inline-flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" /> {lead.adults_count} adult{lead.adults_count !== 1 ? "s" : ""}
+                            </span>
+                            {lead.kids_count > 0 && (
+                              <span className="inline-flex items-center gap-1">
+                                <Baby className="h-3.5 w-3.5" /> {lead.kids_count} kid{lead.kids_count !== 1 ? "s" : ""}
+                                {lead.kids_ages ? ` (${lead.kids_ages})` : ""}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          lead.preferred_team_ids?.length > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {lead.preferred_team_ids.map((id) => teamNames[id] || "Team").join(", ")}
+                            </span>
+                          )
                         )}
                         {lead.phone && (
                           <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 hover:text-foreground">
