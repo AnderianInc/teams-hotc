@@ -23,6 +23,7 @@ import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 import VolunteerOnboardingPipeline from "@/components/admin/VolunteerOnboardingPipeline";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import OrderOfServicePanel from "@/components/admin/OrderOfServicePanel";
+import InterestMeetingSessions from "@/components/admin/InterestMeetingSessions";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };
@@ -66,6 +67,7 @@ const GROUPS: Record<string, Group> = {
       { value: "set-feedback", label: "Feedback" },
       { value: "set-requests", label: "Requests" },
       { value: "set-sources", label: "External Sources" },
+      { value: "set-interest-meetings", label: "Interest Meetings" },
       { value: "set-import", label: "Import" },
     ],
   },
@@ -185,6 +187,7 @@ export default function AdminPanel() {
             <TabsContent value="set-feedback"><FeedbackReview /></TabsContent>
             <TabsContent value="set-requests"><DeletionRequests /></TabsContent>
             <TabsContent value="set-sources"><ExternalSourcesPanel /></TabsContent>
+            <TabsContent value="set-interest-meetings"><InterestMeetingSessions /></TabsContent>
             <TabsContent value="set-import"><BulkImport /></TabsContent>
           </Tabs>
         </TabsContent>

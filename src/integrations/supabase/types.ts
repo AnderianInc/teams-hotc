@@ -757,10 +757,12 @@ export type Database = {
           kids_ages: string | null
           kids_count: number
           last_name: string
+          lead_type: string
           message: string | null
           notes: string | null
           phone: string | null
           phone_last10: string | null
+          preferred_team_ids: string[]
           sms_opt_in: boolean
           sms_opt_in_at: string | null
           sms_opt_in_text: string | null
@@ -782,10 +784,12 @@ export type Database = {
           kids_ages?: string | null
           kids_count?: number
           last_name?: string
+          lead_type?: string
           message?: string | null
           notes?: string | null
           phone?: string | null
           phone_last10?: string | null
+          preferred_team_ids?: string[]
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
           sms_opt_in_text?: string | null
@@ -807,10 +811,12 @@ export type Database = {
           kids_ages?: string | null
           kids_count?: number
           last_name?: string
+          lead_type?: string
           message?: string | null
           notes?: string | null
           phone?: string | null
           phone_last10?: string | null
+          preferred_team_ids?: string[]
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
           sms_opt_in_text?: string | null
@@ -912,6 +918,39 @@ export type Database = {
           helpful?: boolean
           id?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      interest_meeting_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          location: string | null
+          notes: string | null
+          session_date: string
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          notes?: string | null
+          session_date: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          notes?: string | null
+          session_date?: string
+          start_time?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
