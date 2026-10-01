@@ -139,22 +139,70 @@ Deno.serve(async (req) => {
             const [first, ...rest] = (r.name || "").split(" ");
             const last = rest.join(" ") || "";
             const sourceTag = src.key === "prayer" ? "prayer-request" : src.key === "visit" ? "visit-request" : "interest-meeting";
-            const { error: leadErr } = await supabase
+            const leadType = src.key === "interest" ? "interest" : "visit";
+            const smsConsent = r.sms_consent === true;
+            const { data: newLead, error: leadErr } = await supabase
               .from("funnel_leads")
               .insert({
                 first_name: first || "(unknown)",
                 last_name: last,
                 email: r.email || null,
                 phone: r.phone || null,
+                lead_type: leadType,
                 visit_date: eventDate || new Date().toISOString().slice(0, 10),
                 message: r.notes || r.message || null,
+                sms_opt_in: smsConsent,
+                sms_opt_in_at: smsConsent ? (r.sms_consent_at || new Date().toISOString()) : null,
+                sms_opt_in_text: smsConsent
+                  ? `Opted in via ${sourceTag} (${r.sms_consent_source || "website form"}).`
+                  : null,
                 utm_source: sourceTag,
                 status: "planned",
-              });
+              })
+              .select("id")
+              .single();
             if (leadErr) {
               console.error("create funnel lead failed", leadErr);
               continue;
             }
+
+            // Queue the automated follow-up sequence for the new lead
+            try {
+              const leadDate = eventDate || new Date().toISOString().slice(0, 10);
+              const emailAddr = (r.email || "").toLowerCase() || null;
+              const phoneE164 = r.phone || null;
+              const datePretty = new Date(`${leadDate}T12:00:00`).toLocaleDateString("en-US", {
+                weekday: "long", month: "long", day: "numeric",
+              });
+              const msgs: Array<Record<string, unknown>> = [];
+              if (emailAddr) {
+                msgs.push({
+                  lead_id: newLead.id, step: "confirmation", channel: "email", recipient: emailAddr,
+                  subject: leadType === "interest"
+                    ? `Thanks for your interest in serving, ${first}!`
+                    : `You're all set for ${datePretty}!`,
+                  body: leadType === "interest"
+                    ? `Hi ${first},\n\nThank you for your heart to serve at House of Transformation Church! We've received your interest and someone from our team will reach out with next steps.\n\n— The HOTC Team`
+                    : `Hi ${first},\n\nWe're so glad you're planning to visit us on ${datePretty}!\n\nWhen you arrive, just tell a greeter it's your first time — they'll take care of you.\n\nSee you soon!\n— The HOTC Team`,
+                  scheduled_for: new Date().toISOString(),
+                });
+              }
+              if (smsConsent && phoneE164) {
+                msgs.push({
+                  lead_id: newLead.id, step: "confirmation", channel: "sms", recipient: phoneE164,
+                  body: leadType === "interest"
+                    ? `Hi ${first}, this is HOTC! Thanks for your interest in serving — we'll be in touch with next steps soon! — House of Transformation Church`
+                    : `Hi ${first}, this is HOTC! You're confirmed for ${datePretty}. We can't wait to meet you! — House of Transformation Church`,
+                  scheduled_for: new Date().toISOString(),
+                });
+              }
+              if (msgs.length) {
+                await supabase.from("funnel_messages").insert(msgs);
+              }
+            } catch (msgQueueErr) {
+              console.error("queue funnel messages failed", msgQueueErr);
+            }
+
             matchReason = "funnel_lead";
             status = "created";
           }
