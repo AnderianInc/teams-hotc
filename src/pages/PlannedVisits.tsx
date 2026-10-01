@@ -57,6 +57,7 @@ export default function PlannedVisits() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("upcoming");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [notesLead, setNotesLead] = useState<Lead | null>(null);
   const [notesText, setNotesText] = useState("");
@@ -72,6 +73,15 @@ export default function PlannedVisits() {
         .order("visit_date", { ascending: true });
       if (error) throw error;
       return data as Lead[];
+    },
+  });
+
+  const { data: teamNames = {} } = useQuery({
+    queryKey: ["team-names-map"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("teams").select("id, name");
+      if (error) throw error;
+      return Object.fromEntries((data || []).map((t: any) => [t.id, t.name])) as Record<string, string>;
     },
   });
 
