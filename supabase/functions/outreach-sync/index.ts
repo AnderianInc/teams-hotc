@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
             const [first, ...rest] = (r.name || "").split(" ");
             const last = rest.join(" ") || "";
             const sourceTag = src.key === "prayer" ? "prayer-request" : src.key === "visit" ? "visit-request" : "interest-meeting";
-            const leadType = src.key === "interest" ? "interest" : "visit";
+            const leadType = src.key === "interest" ? "interest" : src.key === "prayer" ? "prayer" : "visit";
             const smsConsent = r.sms_consent === true;
             const { data: newLead, error: leadErr } = await supabase
               .from("funnel_leads")
@@ -166,7 +166,9 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // Queue the automated follow-up sequence for the new lead
+            // Queue the automated follow-up sequence for the new lead.
+            // Prayer requests are tracked as leads but never get visit-confirmation messaging.
+            if (src.key !== "prayer") {
             try {
               const leadDate = eventDate || new Date().toISOString().slice(0, 10);
               const emailAddr = (r.email || "").toLowerCase() || null;
@@ -201,6 +203,7 @@ Deno.serve(async (req) => {
               }
             } catch (msgQueueErr) {
               console.error("queue funnel messages failed", msgQueueErr);
+            }
             }
 
             matchReason = "funnel_lead";
