@@ -50,6 +50,7 @@ const STATUS_STYLES: Record<string, string> = {
 const LEAD_TYPE_STYLES: Record<string, string> = {
   visit: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
   interest: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  prayer: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
 };
 
 export default function PlannedVisits() {
@@ -195,6 +196,7 @@ export default function PlannedVisits() {
             <SelectItem value="all">All Leads</SelectItem>
             <SelectItem value="visit">Sunday Visits</SelectItem>
             <SelectItem value="interest">Interest Meetings</SelectItem>
+            <SelectItem value="prayer">Prayer Requests</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -234,7 +236,11 @@ export default function PlannedVisits() {
                           {lead.status.replace("_", " ")}
                         </Badge>
                         <Badge className={LEAD_TYPE_STYLES[lead.lead_type || "visit"] || ""} variant="secondary">
-                          {(lead.lead_type || "visit") === "interest" ? "Interest Meeting" : "Sunday Visit"}
+                          {lead.lead_type === "interest"
+                            ? "Interest Meeting"
+                            : lead.lead_type === "prayer"
+                              ? "Prayer Request"
+                              : "Sunday Visit"}
                         </Badge>
                         {lead.utm_source && (
                           <Badge variant="outline" className="text-xs">
