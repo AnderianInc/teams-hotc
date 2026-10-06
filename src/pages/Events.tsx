@@ -218,7 +218,7 @@ function EventEditor({ id, onBack }: { id: string; onBack: () => void }) {
             <div className="space-y-2 sm:col-span-2"><Label>Event name</Label><Input value={e.name} onChange={(x) => set({ name: x.target.value })} /></div>
             <div className="space-y-2 sm:col-span-2"><Label>Description (shown on the page)</Label><Textarea rows={3} value={e.description || ""} onChange={(x) => set({ description: x.target.value })} /></div>
             <div className="space-y-2"><Label>Date & time (Pacific)</Label><Input type="datetime-local" value={toLocalInput(e.start_at)} onChange={(x) => set({ start_at: fromLocalInput(x.target.value) })} /></div>
-            <div className="space-y-2"><Label>Location</Label><Input value={e.location || ""} onChange={(x) => set({ location: x.target.value })} placeholder="House of Transformation Church" /></div>
+            <div className="space-y-2"><Label>Location</Label><Input value={e.location || ""} onChange={(x) => set({ location: x.target.value })} placeholder="e.g. Brenden Theatres Concord, 1985 Willow Pass Rd" /></div>
             <div className="space-y-2"><Label>Public link</Label>
               <div className="flex items-center gap-1"><span className="text-sm text-muted-foreground">/e/</span>
                 <Input value={e.slug} disabled={ev.slug === "interest-meeting"} onChange={(x) => set({ slug: slugify(x.target.value) })} /></div>
@@ -323,7 +323,7 @@ function useTemplates() {
 function WorkflowBuilder({ eventId }: { eventId: string }) {
   const qc = useQueryClient();
   const { data: tpls = { email: [], sms: [] } } = useTemplates();
-  const [newTpl, setNewTpl] = useState<{ step: Step; name: string; subject: string; body: string } | null>(null);
+  const [newTpl, setNewTpl] = useState<{ id?: string; step: Step; name: string; subject: string; body: string } | null>(null);
   const { data: steps = [], refetch } = useQuery({
     queryKey: ["event-steps", eventId],
     queryFn: async () => ((await db.from("event_workflow_steps").select("*").eq("event_id", eventId).order("order_index")).data || []) as Step[],
@@ -404,7 +404,9 @@ function WorkflowBuilder({ eventId }: { eventId: string }) {
                     {s.channel === "email" && <div className="font-semibold mb-1">{tpl.subject}</div>}
                     {(tpl.body_html || tpl.body || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "")}
                   </div>
-                ) : <p className="text-xs text-destructive">No template chosen — this step won't send.</p>}
+                ) : null}
+                {tpl && <Button size="sm" variant="outline" onClick={() => setNewTpl({ id: tpl.id, step: s, name: tpl.name, subject: tpl.subject || "", body: (tpl.body_html || tpl.body || "").replace(/<br\s*\/?>/gi, "\n") })}>Edit wording</Button>}
+                {!tpl && <p className="text-xs text-destructive">No template chosen — this step won't send.</p>}
               </CardContent>
             </Card>
           </div>
@@ -418,7 +420,7 @@ function WorkflowBuilder({ eventId }: { eventId: string }) {
 
       <Dialog open={!!newTpl} onOpenChange={(o) => !o && setNewTpl(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New {newTpl?.step.channel === "email" ? "email" : "text"} template</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{newTpl?.id ? "Edit" : "New"} {newTpl?.step.channel === "email" ? "email" : "text"} template</DialogTitle></DialogHeader>
           {newTpl && (
             <div className="space-y-3">
               <div className="space-y-1"><Label>Template name</Label><Input value={newTpl.name} onChange={(x) => setNewTpl({ ...newTpl, name: x.target.value })} /></div>
@@ -430,6 +432,15 @@ function WorkflowBuilder({ eventId }: { eventId: string }) {
             <Button onClick={async () => {
               if (!newTpl) return;
               const isEmail = newTpl.step.channel === "email";
+              if (newTpl.id) {
+                const { error } = isEmail
+                  ? await db.from("email_templates").update({ name: newTpl.name, subject: newTpl.subject || newTpl.name, body_html: newTpl.body.replace(/\n/g, "<br/>"), updated_at: new Date().toISOString() }).eq("id", newTpl.id)
+                  : await db.from("sms_templates").update({ name: newTpl.name, body: newTpl.body, updated_at: new Date().toISOString() }).eq("id", newTpl.id);
+                if (error) return toast.error(error.message);
+                qc.invalidateQueries({ queryKey: ["all-templates-for-events"] });
+                toast.success("Template saved — also updated in Communications → Templates");
+                return setNewTpl(null);
+              }
               const slug = `event-${slugify(newTpl.name)}-${Date.now().toString(36)}`;
               const { data, error } = isEmail
                 ? await db.from("email_templates").insert({ slug, name: newTpl.name, subject: newTpl.subject || newTpl.name, body_html: newTpl.body.replace(/\n/g, "<br/>"), category: "event" }).select().single()
@@ -438,7 +449,7 @@ function WorkflowBuilder({ eventId }: { eventId: string }) {
               await patch(newTpl.step, isEmail ? { email_template_id: data.id } : { sms_template_id: data.id });
               qc.invalidateQueries({ queryKey: ["all-templates-for-events"] });
               setNewTpl(null);
-            }}>Create & use</Button>
+            }}>{newTpl?.id ? "Save" : "Create & use"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

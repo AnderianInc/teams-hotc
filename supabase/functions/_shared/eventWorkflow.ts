@@ -39,7 +39,7 @@ export function eventContext(event: any, lead: any, teamNames: string[] = []) {
     date,
     time,
     when: date && time ? `${date} at ${time}` : date,
-    where: event?.location || "House of Transformation Church",
+    where: event?.location || "",
     teams: teamNames.length ? `<br/><br/>Teams you're interested in: ${teamNames.join(", ")}` : "",
     teams_list: teamNames.join(", "),
   } as Record<string, string>;
