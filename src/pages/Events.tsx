@@ -218,7 +218,7 @@ function EventEditor({ id, onBack }: { id: string; onBack: () => void }) {
             <div className="space-y-2 sm:col-span-2"><Label>Event name</Label><Input value={e.name} onChange={(x) => set({ name: x.target.value })} /></div>
             <div className="space-y-2 sm:col-span-2"><Label>Description (shown on the page)</Label><Textarea rows={3} value={e.description || ""} onChange={(x) => set({ description: x.target.value })} /></div>
             <div className="space-y-2"><Label>Date & time (Pacific)</Label><Input type="datetime-local" value={toLocalInput(e.start_at)} onChange={(x) => set({ start_at: fromLocalInput(x.target.value) })} /></div>
-            <div className="space-y-2"><Label>Location</Label><Input value={e.location || ""} onChange={(x) => set({ location: x.target.value })} placeholder="House of Transformation Church" /></div>
+            <div className="space-y-2"><Label>Location</Label><Input value={e.location || ""} onChange={(x) => set({ location: x.target.value })} placeholder="e.g. Brenden Theatres Concord, 1985 Willow Pass Rd" /></div>
             <div className="space-y-2"><Label>Public link</Label>
               <div className="flex items-center gap-1"><span className="text-sm text-muted-foreground">/e/</span>
                 <Input value={e.slug} disabled={ev.slug === "interest-meeting"} onChange={(x) => set({ slug: slugify(x.target.value) })} /></div>
@@ -406,7 +406,7 @@ function WorkflowBuilder({ eventId }: { eventId: string }) {
                   </div>
                 ) : null}
                 {tpl && <Button size="sm" variant="outline" onClick={() => setNewTpl({ id: tpl.id, step: s, name: tpl.name, subject: tpl.subject || "", body: (tpl.body_html || tpl.body || "").replace(/<br\s*\/?>/gi, "\n") })}>Edit wording</Button>}
-                {!tpl ? <p className="text-xs text-destructive">No template chosen — this step won't send.</p>}
+                {!tpl && <p className="text-xs text-destructive">No template chosen — this step won't send.</p>}
               </CardContent>
             </Card>
           </div>
