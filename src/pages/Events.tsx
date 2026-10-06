@@ -148,6 +148,8 @@ export default function Events() {
         </div>
       ))}
 
+      <SourceMappings events={real} />
+
       <div className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Event templates</h2>
         {templates.length === 0 ? <p className="text-sm text-muted-foreground">Save any event as a template from its Publish tab.</p> : (
@@ -508,5 +510,41 @@ function EventMessages({ eventId }: { eventId: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function SourceMappings({ events }: { events: Ev[] }) {
+  const { data: maps = [], refetch } = useQuery({
+    queryKey: ["source-mappings"],
+    queryFn: async () => ((await db.from("external_source_mappings").select("*")).data || []) as { source_key: string; event_id: string | null }[],
+  });
+  const labels: Record<string, string> = { visit: "Visit requests", interest: "Interest meeting requests", prayer: "Prayer requests" };
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">hotc.life website requests</CardTitle>
+        <CardDescription>Requests sync every hour. Choose which event's follow-up workflow each kind of request joins.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {["visit", "interest", "prayer"].map((k) => {
+          const m = maps.find((x) => x.source_key === k);
+          return (
+            <div key={k} className="flex flex-wrap items-center gap-2">
+              <span className="text-sm w-56">{labels[k]}</span>
+              <Select value={m?.event_id || "none"} onValueChange={async (v) => {
+                await db.from("external_source_mappings").upsert({ source_key: k, event_id: v === "none" ? null : v, updated_at: new Date().toISOString() });
+                refetch(); toast.success("Saved");
+              }}>
+                <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No automated follow-up</SelectItem>
+                  {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }
