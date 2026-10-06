@@ -19,11 +19,9 @@ import TimezoneSettings from "@/components/admin/TimezoneSettings";
 import AdminRolesManager from "@/components/admin/AdminRolesManager";
 import BirthdaysPanel from "@/components/admin/BirthdaysPanel";
 import ExternalSourcesPanel from "@/components/admin/ExternalSourcesPanel";
-import PlannedOutreachPanel from "@/components/admin/PlannedOutreachPanel";
 import VolunteerOnboardingPipeline from "@/components/admin/VolunteerOnboardingPipeline";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import OrderOfServicePanel from "@/components/admin/OrderOfServicePanel";
-import InterestMeetingSessions from "@/components/admin/InterestMeetingSessions";
 
 type SubTab = { value: string; label: string };
 type Group = { label: string; default: string; subs: SubTab[] };
@@ -53,7 +51,6 @@ const GROUPS: Record<string, Group> = {
       { value: "dir-birthdays", label: "Birthdays" },
       { value: "dir-inreach", label: "Inreach" },
       { value: "dir-onboarding", label: "Volunteer Onboarding" },
-      { value: "dir-outreach", label: "Planned Outreach" },
     ],
   },
   communications: { label: "Communications", default: "communications", subs: [] },
@@ -67,7 +64,6 @@ const GROUPS: Record<string, Group> = {
       { value: "set-feedback", label: "Feedback" },
       { value: "set-requests", label: "Requests" },
       { value: "set-sources", label: "External Sources" },
-      { value: "set-interest-meetings", label: "Interest Meetings" },
       { value: "set-import", label: "Import" },
     ],
   },
@@ -147,7 +143,6 @@ export default function AdminPanel() {
             <TabsContent value="dir-birthdays"><BirthdaysPanel /></TabsContent>
             <TabsContent value="dir-inreach"><InreachDashboard /></TabsContent>
             <TabsContent value="dir-onboarding"><VolunteerOnboardingPipeline /></TabsContent>
-            <TabsContent value="dir-outreach"><PlannedOutreachPanel /></TabsContent>
           </Tabs>
         </TabsContent>
 
@@ -187,7 +182,6 @@ export default function AdminPanel() {
             <TabsContent value="set-feedback"><FeedbackReview /></TabsContent>
             <TabsContent value="set-requests"><DeletionRequests /></TabsContent>
             <TabsContent value="set-sources"><ExternalSourcesPanel /></TabsContent>
-            <TabsContent value="set-interest-meetings"><InterestMeetingSessions /></TabsContent>
             <TabsContent value="set-import"><BulkImport /></TabsContent>
           </Tabs>
         </TabsContent>

@@ -1,6 +1,7 @@
 // Sends due funnel_messages (Plan a Visit follow-ups). Runs every 15 min via pg_cron.
 // Retries transient failures up to 3 times; terminal failures (opt-out, no consent) stop immediately.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { eventContext, render } from "../_shared/eventWorkflow.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
   try {
     const { data: due, error } = await sb
       .from("funnel_messages")
-      .select("*, funnel_leads!inner(status, sms_opt_in, sms_opt_in_at)")
+      .select("*, funnel_leads!inner(status, sms_opt_in, sms_opt_in_at, first_name, last_name, preferred_team_ids)")
       .eq("status", "pending")
       .lte("scheduled_for", new Date().toISOString())
       .order("scheduled_for")
@@ -47,11 +48,31 @@ Deno.serve(async (req) => {
         if (row.channel === "sms" && !lead?.sms_opt_in) {
           throw new Error("NO_CONSENT: lead did not opt in to texts");
         }
+        let subject = row.subject;
+        let text = row.body || "";
+        if (row.template_id) {
+          // Render from the admin-editable Comms template at send time.
+          const tbl = row.channel === "email" ? "email_templates" : "sms_templates";
+          const { data: tpl } = await sb.from(tbl).select("*").eq("id", row.template_id).maybeSingle();
+          if (!tpl) throw new Error("INVALID: template was deleted");
+          const { data: ev } = row.event_id
+            ? await sb.from("events").select("*").eq("id", row.event_id).maybeSingle()
+            : { data: null };
+          let teamNames: string[] = [];
+          if (lead?.preferred_team_ids?.length) {
+            const { data: t } = await sb.from("teams").select("name").in("id", lead.preferred_team_ids);
+            teamNames = (t || []).map((x: any) => x.name);
+          }
+          const ctx = eventContext(ev, lead, teamNames);
+          if (row.channel === "email") { subject = render(tpl.subject, ctx, true); text = render(tpl.body_html, ctx); }
+          else text = render(tpl.body, ctx, true);
+          await sb.from("funnel_messages").update({ subject, body: text }).eq("id", row.id);
+        }
         const body = row.channel === "email"
-          ? { to: row.recipient, subject: row.subject, html: (row.body || "").replace(/\n/g, "<br/>") }
+          ? { to: row.recipient, subject, html: row.template_id ? text : text.replace(/\n/g, "<br/>") }
           : {
-              to: row.recipient, body: row.body, override_consent: true,
-              consent_note: `Plan a Visit form opt-in${lead?.sms_opt_in_at ? ` at ${lead.sms_opt_in_at}` : ""}`,
+              to: row.recipient, body: text, override_consent: true,
+              consent_note: `Event registration opt-in${lead?.sms_opt_in_at ? ` at ${lead.sms_opt_in_at}` : ""}`,
             };
         const res = await sb.functions.invoke(fnName, { body });
         if (res.error || (res.data as any)?.error) {

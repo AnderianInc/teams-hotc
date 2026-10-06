@@ -218,9 +218,9 @@ export function AppSidebar() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <NavLink to="/planned-visits" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
+              <NavLink to="/events" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground">
                 <CalendarCheck className="h-4 w-4" />
-                <span>Planned Visits</span>
+                <span>Events</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>

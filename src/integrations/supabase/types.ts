@@ -445,6 +445,7 @@ export type Database = {
       email_templates: {
         Row: {
           body_html: string
+          category: string
           created_at: string | null
           id: string
           name: string
@@ -455,6 +456,7 @@ export type Database = {
         }
         Insert: {
           body_html: string
+          category?: string
           created_at?: string | null
           id?: string
           name: string
@@ -465,6 +467,7 @@ export type Database = {
         }
         Update: {
           body_html?: string
+          category?: string
           created_at?: string | null
           id?: string
           name?: string
@@ -496,6 +499,127 @@ export type Database = {
           id?: string
           token?: string
           unsubscribed_at?: string | null
+        }
+        Relationships: []
+      }
+      event_workflow_steps: {
+        Row: {
+          active: boolean
+          anchor: string
+          channel: string
+          created_at: string
+          email_template_id: string | null
+          event_id: string
+          id: string
+          name: string
+          offset_minutes: number
+          order_index: number
+          requires_approval: boolean
+          send_at_local_time: string | null
+          sms_template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          anchor?: string
+          channel?: string
+          created_at?: string
+          email_template_id?: string | null
+          event_id: string
+          id?: string
+          name?: string
+          offset_minutes?: number
+          order_index?: number
+          requires_approval?: boolean
+          send_at_local_time?: string | null
+          sms_template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          anchor?: string
+          channel?: string
+          created_at?: string
+          email_template_id?: string | null
+          event_id?: string
+          id?: string
+          name?: string
+          offset_minutes?: number
+          order_index?: number
+          requires_approval?: boolean
+          send_at_local_time?: string | null
+          sms_template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_workflow_steps_email_template_id_fkey"
+            columns: ["email_template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_workflow_steps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_workflow_steps_sms_template_id_fkey"
+            columns: ["sms_template_id"]
+            isOneToOne: false
+            referencedRelation: "sms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          form_config: Json
+          id: string
+          is_template: boolean
+          lead_type: string
+          location: string | null
+          name: string
+          slug: string
+          start_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          form_config?: Json
+          id?: string
+          is_template?: boolean
+          lead_type?: string
+          location?: string | null
+          name: string
+          slug: string
+          start_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          form_config?: Json
+          id?: string
+          is_template?: boolean
+          lead_type?: string
+          location?: string | null
+          name?: string
+          slug?: string
+          start_at?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -549,6 +673,32 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      external_source_mappings: {
+        Row: {
+          event_id: string | null
+          source_key: string
+          updated_at: string
+        }
+        Insert: {
+          event_id?: string | null
+          source_key: string
+          updated_at?: string
+        }
+        Update: {
+          event_id?: string | null
+          source_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_source_mappings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       external_sync_state: {
         Row: {
@@ -751,7 +901,9 @@ export type Database = {
           adults_count: number
           attendee_id: string | null
           created_at: string
+          custom_answers: Json
           email: string | null
+          event_id: string | null
           first_name: string
           id: string
           kids_ages: string | null
@@ -767,6 +919,7 @@ export type Database = {
           sms_opt_in_at: string | null
           sms_opt_in_text: string | null
           status: string
+          tags: string[]
           updated_at: string
           utm_campaign: string | null
           utm_content: string | null
@@ -778,7 +931,9 @@ export type Database = {
           adults_count?: number
           attendee_id?: string | null
           created_at?: string
+          custom_answers?: Json
           email?: string | null
+          event_id?: string | null
           first_name: string
           id?: string
           kids_ages?: string | null
@@ -794,6 +949,7 @@ export type Database = {
           sms_opt_in_at?: string | null
           sms_opt_in_text?: string | null
           status?: string
+          tags?: string[]
           updated_at?: string
           utm_campaign?: string | null
           utm_content?: string | null
@@ -805,7 +961,9 @@ export type Database = {
           adults_count?: number
           attendee_id?: string | null
           created_at?: string
+          custom_answers?: Json
           email?: string | null
+          event_id?: string | null
           first_name?: string
           id?: string
           kids_ages?: string | null
@@ -821,6 +979,7 @@ export type Database = {
           sms_opt_in_at?: string | null
           sms_opt_in_text?: string | null
           status?: string
+          tags?: string[]
           updated_at?: string
           utm_campaign?: string | null
           utm_content?: string | null
@@ -836,6 +995,13 @@ export type Database = {
             referencedRelation: "attendees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "funnel_leads_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
         ]
       }
       funnel_messages: {
@@ -845,6 +1011,7 @@ export type Database = {
           channel: string
           created_at: string
           error: string | null
+          event_id: string | null
           id: string
           lead_id: string
           recipient: string
@@ -852,7 +1019,9 @@ export type Database = {
           sent_at: string | null
           status: string
           step: string
+          step_id: string | null
           subject: string | null
+          template_id: string | null
         }
         Insert: {
           attempts?: number
@@ -860,6 +1029,7 @@ export type Database = {
           channel: string
           created_at?: string
           error?: string | null
+          event_id?: string | null
           id?: string
           lead_id: string
           recipient: string
@@ -867,7 +1037,9 @@ export type Database = {
           sent_at?: string | null
           status?: string
           step: string
+          step_id?: string | null
           subject?: string | null
+          template_id?: string | null
         }
         Update: {
           attempts?: number
@@ -875,6 +1047,7 @@ export type Database = {
           channel?: string
           created_at?: string
           error?: string | null
+          event_id?: string | null
           id?: string
           lead_id?: string
           recipient?: string
@@ -882,14 +1055,30 @@ export type Database = {
           sent_at?: string | null
           status?: string
           step?: string
+          step_id?: string | null
           subject?: string | null
+          template_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "funnel_messages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "funnel_messages_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "funnel_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funnel_messages_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "event_workflow_steps"
             referencedColumns: ["id"]
           },
         ]
@@ -2036,6 +2225,7 @@ export type Database = {
       sms_templates: {
         Row: {
           body: string
+          category: string
           created_at: string
           id: string
           name: string
@@ -2045,6 +2235,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          category?: string
           created_at?: string
           id?: string
           name: string
@@ -2054,6 +2245,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          category?: string
           created_at?: string
           id?: string
           name?: string
@@ -2441,6 +2633,18 @@ export type Database = {
           phone: string
           sms_opt_in: boolean
           source: string
+          source_id: string
+          tags: string[]
+        }[]
+      }
+      resolve_lead_recipients: {
+        Args: { _require_sms?: boolean; _tags_any?: string[] }
+        Returns: {
+          email: string
+          first_name: string
+          last_name: string
+          phone: string
+          sms_opt_in: boolean
           source_id: string
           tags: string[]
         }[]

@@ -57,6 +57,13 @@
       "when": 1790972884477,
       "tag": "0007_anon_read_volunteer_teams",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791265257391,
+      "tag": "0008_events_app_foundation",
+      "breakpoints": true
     }
   ]
 }

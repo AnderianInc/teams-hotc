@@ -26,11 +26,15 @@
 - [x] outreach-sync: lead_type mapping, sms_consent copy, message queueing
 - [x] outreach-sync cron: hourly (0 * * * *) instead of 15-min
 
-## Phase 3 — Self-serve automations
-- [ ] automations / automation_steps / automation_runs tables
-- [ ] Automation Builder UI (trigger -> steps, templates, delays, on/off)
-- [ ] Migrate existing follow-ups into editable automations
-- [ ] Consolidated 15-min automation engine cron
+## Phase 3 — Events app (replaces Planned Outreach)
+- [x] Data: events, event_workflow_steps, source mappings, lead tags, template categories
+- [x] Seed Interest Meeting event + 6 editable templates; link existing leads
+- [x] event-register endpoint + template-rendering dispatcher
+- [x] Events app UI: list, manual setup, workflow builder, event dashboard
+- [x] Public /e/:slug + /interest-meeting on dynamic page; remove /plan-a-visit
+- [x] Registrant tags usable in composers / contact groups (leads not in directory)
+- [x] AI setup wizard
+- [x] Retire Planned Outreach + old submit functions; end-to-end test
 
 ## Phase 4 — AI help assistant
 - [ ] assistant_messages table (per-user conversation)
@@ -38,6 +42,7 @@
 - [ ] Chat bubble UI on every page
 
 ## Blocked / deferred
+- Texting registrants not in the directory from the SMS composer may be blocked by consent checks (email works)
 - Open item: service time(s) + address for confirmations (placeholders in use)
 - Open item: interest meeting default location text
 - Social media posting feature (deferred)
