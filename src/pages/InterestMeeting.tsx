@@ -65,6 +65,21 @@ export default function InterestMeeting() {
   const update = (field: string, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
+  const toggleTeam = (id: string) =>
+    setForm((prev) => ({
+      ...prev,
+      teamIds: prev.teamIds.includes(id)
+        ? prev.teamIds.filter((t) => t !== id)
+        : [...prev.teamIds, id],
+    }));
+
+  // Auto-attach the (first) upcoming session — no picker on the form.
+  useEffect(() => {
+    if (!form.sessionId && sessions.length > 0) {
+      setForm((prev) => ({ ...prev, sessionId: sessions[0].id }));
+    }
+  }, [sessions, form.sessionId]);
+
   const selectedSession = sessions.find((s) => s.id === form.sessionId);
   const sessionLabel = selectedSession
     ? `${format(parseISO(selectedSession.session_date), "EEEE, MMMM d")}${
@@ -191,27 +206,11 @@ export default function InterestMeeting() {
                 maxLength={30}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Which meeting will you attend? *</Label>
-              <Select value={form.sessionId} onValueChange={(v) => update("sessionId", v)} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pick a date..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {sessions.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {format(parseISO(s.session_date), "EEEE, MMMM d, yyyy")}
-                      {s.start_time ? ` · ${s.start_time.slice(0, 5)}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {sessions.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">
-                  No upcoming dates listed yet — check back soon!
-                </p>
-              )}
-            </div>
+            {sessions.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">
+                No upcoming dates listed yet — check back soon!
+              </p>
+            )}
             {teams.length > 0 && (
               <div className="space-y-2">
                 <Label>Which teams interest you? (optional)</Label>
