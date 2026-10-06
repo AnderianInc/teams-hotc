@@ -1,6 +1,7 @@
 // Polls the external read-only outreach API and upserts records into external_records.
-// Triggered by pg_cron every 15 min and on-demand by admins via the UI.
+// Triggered by pg_cron hourly and on-demand by admins via the UI.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { queueEventWorkflow } from "../_shared/eventWorkflow.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,44 +167,28 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // Queue the automated follow-up sequence for the new lead.
-            // Prayer requests are tracked as leads but never get visit-confirmation messaging.
-            if (src.key !== "prayer") {
+            // Follow-ups come only from the event an admin mapped this source to
+            // (Events settings). Unmapped sources get no automated messages.
             try {
-              const leadDate = eventDate || new Date().toISOString().slice(0, 10);
-              const emailAddr = (r.email || "").toLowerCase() || null;
-              const phoneE164 = r.phone || null;
-              const datePretty = new Date(`${leadDate}T12:00:00`).toLocaleDateString("en-US", {
-                weekday: "long", month: "long", day: "numeric",
-              });
-              const msgs: Array<Record<string, unknown>> = [];
-              if (emailAddr) {
-                msgs.push({
-                  lead_id: newLead.id, step: "confirmation", channel: "email", recipient: emailAddr,
-                  subject: leadType === "interest"
-                    ? `Thanks for your interest in serving, ${first}!`
-                    : `You're all set for ${datePretty}!`,
-                  body: leadType === "interest"
-                    ? `Hi ${first},\n\nThank you for your heart to serve at House of Transformation Church! We've received your interest and someone from our team will reach out with next steps.\n\n— The HOTC Team`
-                    : `Hi ${first},\n\nWe're so glad you're planning to visit us on ${datePretty}!\n\nWhen you arrive, just tell a greeter it's your first time — they'll take care of you.\n\nSee you soon!\n— The HOTC Team`,
-                  scheduled_for: new Date().toISOString(),
-                });
-              }
-              if (smsConsent && phoneE164) {
-                msgs.push({
-                  lead_id: newLead.id, step: "confirmation", channel: "sms", recipient: phoneE164,
-                  body: leadType === "interest"
-                    ? `Hi ${first}, this is HOTC! Thanks for your interest in serving — we'll be in touch with next steps soon! — House of Transformation Church`
-                    : `Hi ${first}, this is HOTC! You're confirmed for ${datePretty}. We can't wait to meet you! — House of Transformation Church`,
-                  scheduled_for: new Date().toISOString(),
-                });
-              }
-              if (msgs.length) {
-                await supabase.from("funnel_messages").insert(msgs);
+              const { data: map } = await supabase.from("external_source_mappings")
+                .select("event_id").eq("source_key", src.key).maybeSingle();
+              if (map?.event_id) {
+                const { data: ev } = await supabase.from("events").select("*").eq("id", map.event_id).maybeSingle();
+                if (ev) {
+                  await supabase.from("funnel_leads").update({
+                    event_id: ev.id,
+                    tags: [`event:${ev.slug}`, `registrant:${leadType}`, `registered:${new Date().toISOString().slice(0, 7)}`, `source:${sourceTag}`],
+                  }).eq("id", newLead.id);
+                  const { data: fullLead } = await supabase.from("funnel_leads").select("*").eq("id", newLead.id).single();
+                  await queueEventWorkflow(supabase, ev, fullLead);
+                }
+              } else {
+                await supabase.from("funnel_leads").update({
+                  tags: [`registrant:${leadType}`, `registered:${new Date().toISOString().slice(0, 7)}`, `source:${sourceTag}`],
+                }).eq("id", newLead.id);
               }
             } catch (msgQueueErr) {
-              console.error("queue funnel messages failed", msgQueueErr);
-            }
+              console.error("queue event workflow failed", msgQueueErr);
             }
 
             matchReason = "funnel_lead";
