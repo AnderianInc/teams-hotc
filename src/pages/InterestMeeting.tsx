@@ -1,12 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, Clock, HeartHandshake, MapPin } from "lucide-react";
+import { CheckCircle2, HeartHandshake, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
 
@@ -65,14 +64,6 @@ export default function InterestMeeting() {
 
   const update = (field: string, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }));
-
-  const toggleTeam = (id: string) =>
-    setForm((prev) => ({
-      ...prev,
-      teamIds: prev.teamIds.includes(id)
-        ? prev.teamIds.filter((t) => t !== id)
-        : [...prev.teamIds, id],
-    }));
 
   const selectedSession = sessions.find((s) => s.id === form.sessionId);
   const sessionLabel = selectedSession
