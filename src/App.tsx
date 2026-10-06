@@ -28,8 +28,9 @@ import Help from "@/pages/Help";
 import Unsubscribe from "@/pages/Unsubscribe";
 import ServiceRunSheet from "@/pages/ServiceRunSheet";
 import OrderOfServiceView from "@/pages/OrderOfServiceView";
-import PlanAVisit from "@/pages/PlanAVisit";
-import PlannedVisits from "@/pages/PlannedVisits";
+import Events from "@/pages/Events";
+import EventRegistration from "@/pages/EventRegistration";
+import PublicEvents from "@/pages/PublicEvents";
 import InterestMeeting from "@/pages/InterestMeeting";
 import { useEffect } from "react";
 import { loadChurchTimezone } from "@/lib/timezone";
@@ -66,7 +67,9 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
               <Route path="/welcome" element={<Welcome />} />
-              <Route path="/plan-a-visit" element={<PlanAVisit />} />
+              <Route path="/plan-a-visit" element={<Navigate to="/upcoming-events" replace />} />
+              <Route path="/e/:slug" element={<EventRegistration />} />
+              <Route path="/upcoming-events" element={<PublicEvents />} />
               <Route path="/interest-meeting" element={<InterestMeeting />} />
             <Route path="/join-team" element={<JoinTeam />} />
             <Route path="/check-in" element={<CheckIn />} />
@@ -90,7 +93,8 @@ const App = () => (
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/org-chart" element={<OrgChart />} />
               <Route path="/team/:slug" element={<TeamDashboard />} />
-              <Route path="/planned-visits" element={<PlannedVisits />} />
+              <Route path="/planned-visits" element={<Navigate to="/events" replace />} />
+              <Route path="/events" element={<Events />} />
               <Route path="/order-of-service" element={<OrderOfServiceView />} />
               <Route path="/order-of-service/:instanceId" element={<ServiceRunSheet />} />
 
