@@ -1,0 +1,1 @@
+- Events own all automated comms: copy lives in email_templates/sms_templates, timing/order in event_workflow_steps, rendered at send time by _shared/eventWorkflow.ts — never hard-code message text or schedules in edge functions, so admins can see and edit everything.
