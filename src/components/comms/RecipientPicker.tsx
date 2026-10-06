@@ -12,7 +12,7 @@ export type Channel = "sms" | "email";
 
 export interface Recipient {
   key: string; // `${source}:${id}`
-  source: "attendee" | "profile";
+  source: "attendee" | "profile" | "lead";
   id: string;
   firstName: string;
   lastName: string;
@@ -66,6 +66,8 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
           .limit(5000),
         supabase.from("sms_opt_outs").select("phone_last10").limit(10000),
       ]);
+      // Event registrants who aren't in the directory yet (tagged event:/registrant:)
+      const leads = await (supabase as any).rpc("resolve_lead_recipients", { _tags_any: [], _require_sms: false });
       const optOutSet = new Set<string>((optOuts.data ?? []).map((r: any) => String(r.phone_last10 ?? "")));
       const last10 = (s: string | null | undefined) => String(s ?? "").replace(/\D/g, "").slice(-10);
       const unsubSet = new Set<string>((u.data ?? []).map((r: any) => String(r.email ?? "").trim().toLowerCase()));
@@ -105,10 +107,25 @@ export default function RecipientPicker({ channel, value, onChange, requireOptIn
         };
       });
 
+      const lRows: Recipient[] = (leads.data ?? []).map((r: any) => ({
+        key: `lead:${r.source_id}`,
+        source: "lead",
+        id: r.source_id,
+        firstName: r.first_name ?? "",
+        lastName: r.last_name ?? "",
+        email: r.email,
+        phone: r.phone,
+        smsOptIn: !!r.sms_opt_in,
+        doNotContact: false,
+        tags: r.tags ?? [],
+        unsubscribed: !!(r.email && unsubSet.has(String(r.email).trim().toLowerCase())),
+        smsOptedOut: !!(r.phone && last10(r.phone) && optOutSet.has(last10(r.phone))),
+      }));
+
       // De-dupe by phone or email when both present
       const seen = new Set<string>();
       const merged: Recipient[] = [];
-      for (const r of [...aRows, ...pRows]) {
+      for (const r of [...aRows, ...pRows, ...lRows]) {
         const k = (r.phone || "") + "|" + (r.email || "");
         if (k !== "|" && seen.has(k)) continue;
         if (k !== "|") seen.add(k);
