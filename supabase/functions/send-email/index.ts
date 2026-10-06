@@ -230,14 +230,14 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errMsg = result.message || JSON.stringify(result);
-      if (logged_by) {
+      {
         try {
           await sb.from("email_log").insert({
             to_email: toEmail,
             to_name: to_name || null,
             subject,
             body_html: html || null,
-            sent_by: logged_by,
+            sent_by: logged_by || null,
             related_attendee_id: related_attendee_id || null,
             status: "failed",
             error: errMsg.slice(0, 1000),
@@ -247,14 +247,14 @@ serve(async (req) => {
       throw new Error(errMsg);
     }
 
-    if (logged_by) {
+    {
       try {
         await sb.from("email_log").insert({
           to_email: toEmail,
           to_name: to_name || null,
           subject,
           body_html: html || null,
-          sent_by: logged_by,
+          sent_by: logged_by || null,
           related_attendee_id: related_attendee_id || null,
           status: "sent",
           attachments: resendAttachments.length
