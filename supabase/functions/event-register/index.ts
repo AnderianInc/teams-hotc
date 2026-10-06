@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     await queueEventWorkflow(sb, event, lead);
     // Kick the dispatcher so "immediately" steps go out now.
-    sb.functions.invoke("dispatch-funnel-messages", { body: {} }).catch(() => {});
+    try { await sb.functions.invoke("dispatch-funnel-messages", { body: {} }); } catch (_) { /* cron will retry */ }
     return json({ ok: true, lead_id: lead.id });
   } catch (e) {
     console.error("event-register error", e);
