@@ -176,33 +176,37 @@ export default function InterestMeeting() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">Last Name *</Label>
                 <Input
                   id="lastName"
                   value={form.lastName}
                   onChange={(e) => update("lastName", e.target.value)}
+                  required
                   maxLength={80}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
                 value={form.email}
                 onChange={(e) => update("email", e.target.value)}
                 placeholder="you@example.com"
+                required
                 maxLength={200}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Mobile Phone</Label>
+              <Label htmlFor="phone">Mobile Phone *</Label>
               <Input
                 id="phone"
+                type="tel"
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
                 placeholder="(555) 123-4567"
+                required
                 maxLength={30}
               />
             </div>

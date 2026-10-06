@@ -12,9 +12,9 @@ const CHURCH_TZ = "America/Los_Angeles";
 
 const BodySchema = z.object({
   first_name: z.string().trim().min(1).max(80),
-  last_name: z.string().trim().max(80).optional().default(""),
-  email: z.string().trim().email().max(200).optional().or(z.literal("")).default(""),
-  phone: z.string().trim().max(30).optional().default(""),
+  last_name: z.string().trim().min(1).max(80),
+  email: z.string().trim().email().max(200),
+  phone: z.string().trim().min(7).max(30),
   session_id: z.string().uuid(),
   team_ids: z.array(z.string().uuid()).max(10).optional().default([]),
   message: z.string().max(2000).optional().default(""),
