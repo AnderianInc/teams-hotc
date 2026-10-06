@@ -30,6 +30,12 @@ Replace Planned Outreach and every hard-coded message, step and form with one **
 
 **Comms stays the same.** All event messages are ordinary email and SMS templates in Communications → Templates. Editing a template there changes what goes out.
 
+**Registrant tags (people not in the directory yet)**
+- Every registrant is tagged automatically: `event:<slug>` (for example `event:interest-meeting`), their type (`registrant:interest`, `registrant:visit` or `registrant:prayer`) and `registered:<YYYY-MM>`. Admins can also add their own tags to a registrant.
+- These tags can be picked in the Email and SMS composers and in smart contact groups, so registrants can be reached later without being added to the Church Directory. SMS still goes only to people who agreed to texts, and do-not-contact, STOP and unsubscribe rules still apply.
+- If someone is later added to the directory, their tags are copied onto their directory entry, so no history is lost.
+- Existing interest, visit and prayer leads get these tags when their data moves over.
+
 ## How the current Interest Meeting moves over
 - `teams.hotc.life/interest-meeting` keeps working at the same address. It becomes a published event with the slug `interest-meeting`, displayed by the new dynamic event page.
 - Today's form fields become that event's form settings: required names, email and phone, team chips, and SMS consent.
@@ -57,7 +63,8 @@ Replace Planned Outreach and every hard-coded message, step and form with one **
 - New tables (all with grants and RLS: admins and First Impressions manage them, anonymous visitors read published events only):
   - `events` (slug unique, status draft/published/archived, lead_type, start_at, location, description, form_config jsonb, is_template)
   - `event_workflow_steps` (event_id, order_index, channel, email_template_id / sms_template_id, anchor signup|event_start, offset_minutes, send_at_local_time, requires_approval, active)
-  - `funnel_leads` gets `event_id`, plus `custom_answers jsonb`. The existing table is reused, so promote_funnel_lead keeps working.
+  - `funnel_leads` gets `event_id`, `custom_answers jsonb` and `tags text[] default '{}'` (GIN index). The existing table is reused, so promote_funnel_lead keeps working; it is extended to merge the lead's tags into `attendees.tags`.
+  - `resolve_contact_group` and the recipient picker gain a third source, `lead`, which returns funnel_leads that are not yet linked to an attendee (`attendee_id IS NULL`). The same tag, consent and DNC filters apply, and opt-outs are checked through `phone_last10`.
   - `funnel_messages` gets `event_id`, `step_id` and `template_id`, and the message is rendered at send time from the template.
   - `external_source_mappings` (source key mapped to event_id).
 - Templates: add a `category` ("event" or "broadcast") to both template tables, and add `subject` to SMS templates where needed. Placeholders are `{{first_name}}`, `{{event_name}}`, `{{when}}`, `{{where}}` and `{{teams}}`.
