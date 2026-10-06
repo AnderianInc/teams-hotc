@@ -210,11 +210,6 @@ export default function InterestMeeting() {
                 maxLength={30}
               />
             </div>
-            {sessions.length === 0 && (
-              <p className="text-xs text-muted-foreground italic">
-                No upcoming dates listed yet — check back soon!
-              </p>
-            )}
             {teams.length > 0 && (
               <div className="space-y-2">
                 <Label>Which teams interest you? (optional)</Label>
