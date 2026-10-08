@@ -139,7 +139,7 @@ export default function Events() {
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground flex justify-between">
                     <span>{counts[e.id] || 0} registered</span>
-                    <span>/e/{e.slug}</span>
+                    <span>{e.slug === "interest-meeting" ? "/interest-meeting" : `/e/${e.slug}`}</span>
                   </CardContent>
                 </Card>
               ))}
@@ -220,7 +220,7 @@ function EventEditor({ id, onBack }: { id: string; onBack: () => void }) {
             <div className="space-y-2"><Label>Date & time (Pacific)</Label><Input type="datetime-local" value={toLocalInput(e.start_at)} onChange={(x) => set({ start_at: fromLocalInput(x.target.value) })} /></div>
             <div className="space-y-2"><Label>Location</Label><Input value={e.location || ""} onChange={(x) => set({ location: x.target.value })} placeholder="e.g. Brenden Theatres Concord, 1985 Willow Pass Rd" /></div>
             <div className="space-y-2"><Label>Public link</Label>
-              <div className="flex items-center gap-1"><span className="text-sm text-muted-foreground">/e/</span>
+              <div className="flex items-center gap-1"><span className="text-sm text-muted-foreground">{ev.slug === "interest-meeting" ? "/" : "/e/"}</span>
                 <Input value={e.slug} disabled={ev.slug === "interest-meeting"} onChange={(x) => set({ slug: slugify(x.target.value) })} /></div>
             </div>
             <div className="space-y-2"><Label>Registrants are</Label>
