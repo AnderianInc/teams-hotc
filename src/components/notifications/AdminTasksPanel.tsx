@@ -47,7 +47,7 @@ export function AdminTasksPanel({ onNavigate }: Props) {
   if (!isAdmin || !data) return null;
 
   const rows: TaskRow[] = ([
-    { key: "approvals", icon: ClipboardCheck, label: "Outreach awaiting approval", count: data.approvals, url: "/admin?tab=dir-outreach", tone: "warning" as const },
+    { key: "approvals", icon: ClipboardCheck, label: "Outreach awaiting approval", count: data.approvals, url: "/events", tone: "warning" as const },
     { key: "overdue", icon: AlertTriangle, label: "Overdue follow-ups", count: data.overdueFu, url: "/team/first-impressions", tone: "destructive" as const },
     { key: "pending", icon: Clock, label: "Open follow-ups", count: data.pendingFu, url: "/team/first-impressions" },
     { key: "externalPending", icon: Inbox, label: "Incoming needs review", count: data.externalPending, url: "/team/first-impressions", tone: "warning" as const },
