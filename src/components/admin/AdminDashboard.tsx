@@ -223,7 +223,7 @@ export default function AdminDashboard() {
           value={isLoading ? "…" : data!.pendingApproval}
           icon={Cake}
           hint="Outreach messages queued"
-          onClick={go("/admin?tab=dir-outreach&sub=pending")}
+          onClick={go("/events")}
         />
       </div>
 
