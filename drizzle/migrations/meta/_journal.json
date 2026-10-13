@@ -71,6 +71,13 @@
       "when": 1791859486103,
       "tag": "0009_funnel_tracking_and_message_update",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791861139540,
+      "tag": "0010_allow_unsent_event_message_deletion",
+      "breakpoints": true
     }
   ]
 }
