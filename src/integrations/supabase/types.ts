@@ -900,6 +900,7 @@ export type Database = {
         Row: {
           adults_count: number
           attendee_id: string | null
+          client_info: Json
           created_at: string
           custom_answers: Json
           email: string | null
@@ -925,11 +926,13 @@ export type Database = {
           utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
+          utm_term: string | null
           visit_date: string
         }
         Insert: {
           adults_count?: number
           attendee_id?: string | null
+          client_info?: Json
           created_at?: string
           custom_answers?: Json
           email?: string | null
@@ -955,11 +958,13 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          utm_term?: string | null
           visit_date: string
         }
         Update: {
           adults_count?: number
           attendee_id?: string | null
+          client_info?: Json
           created_at?: string
           custom_answers?: Json
           email?: string | null
@@ -985,6 +990,7 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          utm_term?: string | null
           visit_date?: string
         }
         Relationships: [
