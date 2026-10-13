@@ -25,7 +25,6 @@ const BodySchema = z.object({
   utm_medium: z.string().max(120).optional().default(""),
   utm_campaign: z.string().max(120).optional().default(""),
   utm_content: z.string().max(120).optional().default(""),
-  website: z.string().optional().default(""),
 });
 
 function normalizePhone(p: string): string | null {
@@ -41,7 +40,6 @@ Deno.serve(async (req) => {
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) return json({ error: "Please check the form fields and try again." }, 400);
     const input = parsed.data;
-    if (input.website) return json({ ok: true });
 
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: event } = await sb.from("events").select("*")

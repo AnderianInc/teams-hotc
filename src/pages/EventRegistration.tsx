@@ -180,7 +180,6 @@ export default function EventRegistration({ slug: slugProp }: { slug?: string })
                 <Textarea id="message" value={form.message} onChange={(e) => update("message", e.target.value)} maxLength={2000} rows={3} />
               </div>
             )}
-            <input type="text" name="website" value={form.website} onChange={(e) => update("website", e.target.value)} className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" />
             {cfg.show_sms_consent && (
               <div className="rounded-md border-2 border-primary/30 bg-muted/30 p-4 space-y-2">
                 <div className="text-sm font-semibold">Text reminders (optional)</div>
