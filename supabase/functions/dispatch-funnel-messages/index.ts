@@ -41,6 +41,9 @@ Deno.serve(async (req) => {
         cancelled++;
         continue;
       }
+      const { data: claimed } = await sb.from("funnel_messages").update({ status: "sending" })
+        .eq("id", row.id).eq("status", "pending").select("id");
+      if (!claimed?.length) continue;
       try {
         const fnName = row.channel === "email" ? "send-email" : "send-sms";
         // Consent for funnel texts lives on funnel_leads (leads aren't in the directory yet).
@@ -87,7 +90,7 @@ Deno.serve(async (req) => {
         const attempts = (row.attempts ?? 0) + 1;
         if (!isTerminal(msg) && attempts < MAX_ATTEMPTS) {
           await sb.from("funnel_messages").update({
-            attempts,
+            attempts, status: "pending",
             scheduled_for: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
             error: msg,
           }).eq("id", row.id);

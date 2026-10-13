@@ -120,6 +120,10 @@ export async function sendDueMessagesForLead(sb: any, leadId: string) {
   let sent = 0, failed = 0;
   for (const row of due ?? []) {
     const lead = (row as any).funnel_leads;
+    // Claim the row so a concurrent dispatcher run can never send it twice.
+    const { data: claimed } = await sb.from("funnel_messages").update({ status: "sending" })
+      .eq("id", row.id).eq("status", "pending").select("id");
+    if (!claimed?.length) continue;
     try {
       if (row.channel === "sms" && !lead?.sms_opt_in) {
         throw new Error("NO_CONSENT: lead did not opt in to texts");
