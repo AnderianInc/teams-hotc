@@ -2,7 +2,7 @@
 // event's form_config; follow-ups come from the event's workflow steps + Comms templates.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3";
-import { churchDateStr, queueEventWorkflow } from "../_shared/eventWorkflow.ts";
+import { churchDateStr, queueEventWorkflow, sendDueMessagesForLead } from "../_shared/eventWorkflow.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,8 +84,14 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     await queueEventWorkflow(sb, event, lead);
-    // Kick the dispatcher so "immediately" steps go out now.
-    try { await sb.functions.invoke("dispatch-funnel-messages", { body: {} }); } catch (_) { /* cron will retry */ }
+    // Send due-now steps (e.g. the signup confirmation) directly — no waiting on a cron.
+    // send-email / send-sms record every send in email_log / sms_log.
+    try {
+      const r = await sendDueMessagesForLead(sb, lead.id);
+      console.log("event-register immediate sends", r);
+    } catch (e) {
+      console.error("event-register immediate send failed", e);
+    }
     return json({ ok: true, lead_id: lead.id });
   } catch (e) {
     console.error("event-register error", e);
