@@ -36,7 +36,7 @@ export default function EventRegistration({ slug: slugProp }: { slug?: string })
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "", message: "",
-    teamIds: [] as string[], smsOptIn: false, website: "", answers: {} as Record<string, string>,
+    teamIds: [] as string[], smsOptIn: false, answers: {} as Record<string, string>,
   });
 
   const { data: event, isLoading } = useQuery({
@@ -76,7 +76,7 @@ export default function EventRegistration({ slug: slugProp }: { slug?: string })
         body: {
           slug, first_name: form.firstName, last_name: form.lastName, email: form.email,
           phone: form.phone, team_ids: form.teamIds, message: form.message, answers: form.answers,
-          sms_opt_in: form.smsOptIn, website: form.website,
+          sms_opt_in: form.smsOptIn,
           utm_source: q.get("utm_source") || "", utm_medium: q.get("utm_medium") || "",
           utm_campaign: q.get("utm_campaign") || "", utm_content: q.get("utm_content") || "",
         },
@@ -180,7 +180,6 @@ export default function EventRegistration({ slug: slugProp }: { slug?: string })
                 <Textarea id="message" value={form.message} onChange={(e) => update("message", e.target.value)} maxLength={2000} rows={3} />
               </div>
             )}
-            <input type="text" name="website" value={form.website} onChange={(e) => update("website", e.target.value)} className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" />
             {cfg.show_sms_consent && (
               <div className="rounded-md border-2 border-primary/30 bg-muted/30 p-4 space-y-2">
                 <div className="text-sm font-semibold">Text reminders (optional)</div>

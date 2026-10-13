@@ -99,3 +99,72 @@ export async function queueEventWorkflow(sb: any, event: any, lead: any) {
   }
   return rows.length;
 }
+
+/**
+ * Immediately send every due, pending message for a lead (e.g. the signup
+ * confirmation). Renders the admin-editable Comms template at send time and
+ * hands off to send-email / send-sms, which record every send in
+ * email_log / sms_log. Message status is updated so the scheduled dispatcher
+ * never double-sends.
+ */
+export async function sendDueMessagesForLead(sb: any, leadId: string) {
+  const now = new Date().toISOString();
+  const { data: due, error } = await sb
+    .from("funnel_messages")
+    .select("*, funnel_leads!inner(status, sms_opt_in, sms_opt_in_at, first_name, last_name, preferred_team_ids)")
+    .eq("lead_id", leadId)
+    .eq("status", "pending")
+    .lte("scheduled_for", now);
+  if (error) { console.error("sendDueMessagesForLead fetch failed", error); return { sent: 0, failed: 0 }; }
+
+  let sent = 0, failed = 0;
+  for (const row of due ?? []) {
+    const lead = (row as any).funnel_leads;
+    try {
+      if (row.channel === "sms" && !lead?.sms_opt_in) {
+        throw new Error("NO_CONSENT: lead did not opt in to texts");
+      }
+      let subject = row.subject;
+      let text = row.body || "";
+      if (row.template_id) {
+        const tbl = row.channel === "email" ? "email_templates" : "sms_templates";
+        const { data: tpl } = await sb.from(tbl).select("*").eq("id", row.template_id).maybeSingle();
+        if (!tpl) throw new Error("INVALID: template was deleted");
+        const { data: ev } = row.event_id
+          ? await sb.from("events").select("*").eq("id", row.event_id).maybeSingle()
+          : { data: null };
+        let teamNames: string[] = [];
+        if (lead?.preferred_team_ids?.length) {
+          const { data: t } = await sb.from("teams").select("name").in("id", lead.preferred_team_ids);
+          teamNames = (t || []).map((x: any) => x.name);
+        }
+        const ctx = eventContext(ev, lead, teamNames);
+        if (row.channel === "email") { subject = render(tpl.subject, ctx, true); text = render(tpl.body_html, ctx); }
+        else text = render(tpl.body, ctx, true);
+        await sb.from("funnel_messages").update({ subject, body: text }).eq("id", row.id);
+      }
+      const body = row.channel === "email"
+        ? { to: row.recipient, subject, html: row.template_id ? text : text.replace(/\n/g, "<br/>") }
+        : {
+            to: row.recipient, body: text, override_consent: true,
+            consent_note: `Event registration opt-in${lead?.sms_opt_in_at ? ` at ${lead.sms_opt_in_at}` : ""}`,
+          };
+      const res = await sb.functions.invoke(row.channel === "email" ? "send-email" : "send-sms", { body });
+      if (res.error || (res.data as any)?.error) {
+        throw new Error(res.error?.message || (res.data as any)?.error);
+      }
+      await sb.from("funnel_messages").update({
+        status: "sent", sent_at: new Date().toISOString(), error: null,
+      }).eq("id", row.id);
+      sent++;
+    } catch (e) {
+      const msg = (e as Error).message;
+      console.error("sendDueMessagesForLead send failed", row.id, msg);
+      await sb.from("funnel_messages").update({
+        status: "failed", attempts: (row.attempts ?? 0) + 1, error: msg,
+      }).eq("id", row.id);
+      failed++;
+    }
+  }
+  return { sent, failed };
+}
