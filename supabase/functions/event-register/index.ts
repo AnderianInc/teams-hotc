@@ -25,6 +25,8 @@ const BodySchema = z.object({
   utm_medium: z.string().max(120).optional().default(""),
   utm_campaign: z.string().max(120).optional().default(""),
   utm_content: z.string().max(120).optional().default(""),
+  utm_term: z.string().max(120).optional().default(""),
+  client_info: z.record(z.union([z.string().max(1000), z.number(), z.boolean(), z.null()])).optional().default({}),
 });
 
 function normalizePhone(p: string): string | null {
@@ -78,6 +80,8 @@ Deno.serve(async (req) => {
       sms_opt_in_text: optIn ? (cfg.sms_consent_text || `Opted in via ${event.name} registration to receive texts.`) : null,
       utm_source: input.utm_source || null, utm_medium: input.utm_medium || null,
       utm_campaign: input.utm_campaign || null, utm_content: input.utm_content || null,
+      utm_term: input.utm_term || null,
+      client_info: { ...input.client_info, user_agent: req.headers.get("user-agent") || input.client_info.user_agent || null },
     }).select("*").single();
     if (error) throw error;
 
