@@ -545,7 +545,7 @@ function Registrations({ eventId }: { eventId: string }) {
             <div><Label>Status</Label>
               <Select value={editing.status} onValueChange={(v) => setEditing({ ...editing, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{["new", "contacted", "confirmed", "attended", "no_show", "cancelled"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+                <SelectContent>{["planned", "contacted", "confirmed", "attended", "no_show", "cancelled"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {Object.keys(editing.custom_answers || {}).map((k) => (
