@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ArrowDown, ArrowLeft, ArrowUp, CalendarDays, Copy, ExternalLink, Mail, MessageSquare, Plus, Sparkles, Trash2, UserCheck, Zap } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { parseUserAgent, referrerSource } from "@/lib/clientInfo";
 import EventAiWizard from "@/components/events/EventAiWizard";
 import type { FormConfig } from "./EventRegistration";
 
@@ -457,8 +459,21 @@ function WorkflowBuilder({ eventId }: { eventId: string }) {
   );
 }
 
+function sourceOf(l: any) {
+  const ci = l.client_info || {};
+  const ua = ci.user_agent ? parseUserAgent(ci.user_agent) : { device: "", os: "", browser: "", in_app: "" };
+  return {
+    origin: l.utm_source ? `${l.utm_source}${l.utm_medium ? ` / ${l.utm_medium}` : ""}` : referrerSource(ci.referrer || "", null) + (ci.referrer ? "" : l.client_info?.user_agent ? "" : ""),
+    campaign: [l.utm_campaign, l.utm_content, l.utm_term].filter(Boolean).join(" · "),
+    device: [ci.device || ua.device, ci.os || ua.os].filter(Boolean).join(" · "),
+    browser: ci.browser || ua.browser,
+    social: ci.in_app || ua.in_app,
+    referrer: ci.referrer || "",
+  };
+}
+
 function Registrations({ eventId }: { eventId: string }) {
-  const [tagInput, setTagInput] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<any | null>(null);
   const { data: leads = [], refetch } = useQuery({
     queryKey: ["event-leads", eventId],
     queryFn: async () => ((await db.from("funnel_leads").select("*").eq("event_id", eventId).order("created_at", { ascending: false })).data || []),
@@ -468,58 +483,143 @@ function Registrations({ eventId }: { eventId: string }) {
     if (error) return toast.error(error.message);
     toast.success("Added to the Church Directory"); refetch();
   };
-  const addTag = async (l: any) => {
-    const t = (tagInput[l.id] || "").trim().toLowerCase(); if (!t) return;
-    await db.from("funnel_leads").update({ tags: Array.from(new Set([...(l.tags || []), t])) }).eq("id", l.id);
-    setTagInput((p) => ({ ...p, [l.id]: "" })); refetch();
+  const save = async () => {
+    const e = editing;
+    const { error } = await db.from("funnel_leads").update({
+      first_name: e.first_name, last_name: e.last_name, email: e.email || null, phone: e.phone || null,
+      message: e.message || null, notes: e.notes || null, status: e.status, sms_opt_in: e.sms_opt_in,
+      tags: String(e.tagsText || "").split(",").map((t: string) => t.trim().toLowerCase()).filter(Boolean),
+      custom_answers: e.custom_answers || {},
+    }).eq("id", e.id);
+    if (error) return toast.error(error.message);
+    toast.success("Registration updated"); setEditing(null); refetch();
   };
   if (!leads.length) return <p className="text-sm text-muted-foreground py-6">No registrations yet.</p>;
+  const answerKeys = Array.from(new Set(leads.flatMap((l: any) => Object.keys(l.custom_answers || {})))) as string[];
   return (
-    <div className="space-y-2">
-      {leads.map((l: any) => (
-        <Card key={l.id}><CardContent className="pt-4 flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <div className="font-medium">{l.first_name} {l.last_name} <Badge variant="secondary" className="ml-1">{l.status}</Badge></div>
-            <div className="text-xs text-muted-foreground">{[l.email, l.phone].filter(Boolean).join(" · ")}{l.sms_opt_in ? " · texts OK" : ""}</div>
-            {l.message && <div className="text-xs italic">"{l.message}"</div>}
-            {Object.entries(l.custom_answers || {}).map(([k, v]) => <div key={k} className="text-xs"><b>{k}:</b> {String(v)}</div>)}
-            <div className="flex flex-wrap gap-1 items-center">
-              {(l.tags || []).map((t: string) => <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>)}
-              <Input className="h-6 w-28 text-xs" placeholder="+ tag" value={tagInput[l.id] || ""} onChange={(x) => setTagInput((p) => ({ ...p, [l.id]: x.target.value }))} onKeyDown={(x) => x.key === "Enter" && addTag(l)} />
+    <div className="rounded-md border overflow-x-auto">
+      <Table>
+        <TableHeader><TableRow>
+          <TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Phone</TableHead><TableHead>Texts</TableHead>
+          <TableHead>Status</TableHead><TableHead>Registered</TableHead><TableHead>Source</TableHead><TableHead>Campaign</TableHead>
+          <TableHead>Device</TableHead><TableHead>Browser / App</TableHead><TableHead>Referrer</TableHead>
+          {answerKeys.map((k) => <TableHead key={k}>{k}</TableHead>)}
+          <TableHead>Message</TableHead><TableHead>Notes</TableHead><TableHead>Tags</TableHead><TableHead className="text-right">Actions</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {leads.map((l: any) => { const s = sourceOf(l); return (
+            <TableRow key={l.id} className="text-xs align-top">
+              <TableCell className="font-medium whitespace-nowrap">{l.first_name} {l.last_name}</TableCell>
+              <TableCell>{l.email || "—"}</TableCell>
+              <TableCell className="whitespace-nowrap">{l.phone || "—"}</TableCell>
+              <TableCell>{l.sms_opt_in ? "Yes" : "No"}</TableCell>
+              <TableCell><Badge variant="secondary">{l.status}</Badge>{l.attendee_id && <Badge className="ml-1">In directory</Badge>}</TableCell>
+              <TableCell className="whitespace-nowrap">{fmt(l.created_at)}</TableCell>
+              <TableCell>{s.origin || "Unknown"}</TableCell>
+              <TableCell>{s.campaign || "—"}</TableCell>
+              <TableCell>{s.device || "Unknown"}</TableCell>
+              <TableCell>{s.browser || "—"}{s.social ? ` (${s.social})` : ""}</TableCell>
+              <TableCell className="max-w-[180px] truncate" title={s.referrer}>{s.referrer || "Direct"}</TableCell>
+              {answerKeys.map((k) => <TableCell key={k}>{String(l.custom_answers?.[k] ?? "—")}</TableCell>)}
+              <TableCell className="max-w-[200px]">{l.message || "—"}</TableCell>
+              <TableCell className="max-w-[200px]">{l.notes || "—"}</TableCell>
+              <TableCell>{(l.tags || []).map((t: string) => <Badge key={t} variant="outline" className="text-[10px] mr-1 mb-1">{t}</Badge>)}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">
+                <Button size="sm" variant="ghost" onClick={() => setEditing({ ...l, tagsText: (l.tags || []).join(", ") })}>Edit</Button>
+                {!l.attendee_id && <Button size="sm" variant="outline" onClick={() => markAttended(l.id)}><UserCheck className="h-4 w-4 mr-1" />Attended</Button>}
+              </TableCell>
+            </TableRow>); })}
+        </TableBody>
+      </Table>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit registration</DialogTitle></DialogHeader>
+          {editing && <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>First name</Label><Input value={editing.first_name || ""} onChange={(x) => setEditing({ ...editing, first_name: x.target.value })} /></div>
+              <div><Label>Last name</Label><Input value={editing.last_name || ""} onChange={(x) => setEditing({ ...editing, last_name: x.target.value })} /></div>
             </div>
-          </div>
-          {l.attendee_id ? <Badge>In directory</Badge> : <Button size="sm" onClick={() => markAttended(l.id)}><UserCheck className="h-4 w-4 mr-1" />Mark attended</Button>}
-        </CardContent></Card>
-      ))}
+            <div><Label>Email</Label><Input value={editing.email || ""} onChange={(x) => setEditing({ ...editing, email: x.target.value })} /></div>
+            <div><Label>Phone</Label><Input value={editing.phone || ""} onChange={(x) => setEditing({ ...editing, phone: x.target.value })} /></div>
+            <div className="flex items-center gap-2"><Switch checked={!!editing.sms_opt_in} onCheckedChange={(v) => setEditing({ ...editing, sms_opt_in: v })} /><Label>OK to text</Label></div>
+            <div><Label>Status</Label>
+              <Select value={editing.status} onValueChange={(v) => setEditing({ ...editing, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{["new", "contacted", "confirmed", "attended", "no_show", "cancelled"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            {Object.keys(editing.custom_answers || {}).map((k) => (
+              <div key={k}><Label>{k}</Label><Input value={String(editing.custom_answers[k] ?? "")} onChange={(x) => setEditing({ ...editing, custom_answers: { ...editing.custom_answers, [k]: x.target.value } })} /></div>
+            ))}
+            <div><Label>Message</Label><Textarea value={editing.message || ""} onChange={(x) => setEditing({ ...editing, message: x.target.value })} /></div>
+            <div><Label>Notes</Label><Textarea value={editing.notes || ""} onChange={(x) => setEditing({ ...editing, notes: x.target.value })} /></div>
+            <div><Label>Tags (comma separated)</Label><Input value={editing.tagsText} onChange={(x) => setEditing({ ...editing, tagsText: x.target.value })} /></div>
+          </div>}
+          <DialogFooter><Button variant="ghost" onClick={() => setEditing(null)}>Close</Button><Button onClick={save}>Save</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function EventMessages({ eventId }: { eventId: string }) {
+  const [editing, setEditing] = useState<any | null>(null);
   const { data: rows = [], refetch } = useQuery({
     queryKey: ["event-messages", eventId],
     queryFn: async () => ((await db.from("funnel_messages").select("*, funnel_leads(first_name,last_name)").eq("event_id", eventId).order("scheduled_for")).data || []),
   });
-  const review = useMemo(() => rows.filter((r: any) => r.status === "review"), [rows]);
-  const setStatus = async (id: string, status: string) => { await db.from("funnel_messages").update({ status }).eq("id", id); refetch(); };
+  const update = async (id: string, patch: Record<string, unknown>, msg: string) => {
+    const { data, error } = await db.from("funnel_messages").update(patch).eq("id", id).select("id");
+    if (error) return toast.error(error.message);
+    if (!data?.length) return toast.error("You don't have permission to change this message.");
+    toast.success(msg); refetch();
+  };
+  const saveEdit = async () => {
+    await update(editing.id, { scheduled_for: new Date(editing.when).toISOString(), recipient: editing.recipient }, "Message updated");
+    setEditing(null);
+  };
   if (!rows.length) return <p className="text-sm text-muted-foreground py-6">No messages scheduled yet.</p>;
+  const open = (s: string) => s === "review" || s === "pending" || s === "failed";
+  const toLocal = (iso: string) => { const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
   return (
-    <div className="space-y-2">
-      {review.length > 0 && <p className="text-sm font-medium">{review.length} waiting for review</p>}
-      {rows.map((r: any) => (
-        <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
-          {r.channel === "email" ? <Mail className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
-          <span className="font-medium">{r.step}</span>
-          <span className="text-muted-foreground">to {r.funnel_leads?.first_name} {r.funnel_leads?.last_name}</span>
-          <span className="text-muted-foreground">· {fmt(r.scheduled_for)}</span>
-          <Badge variant={r.status === "sent" ? "default" : r.status === "failed" ? "destructive" : "secondary"}>{r.status}</Badge>
-          {r.error && <span className="text-xs text-destructive">{r.error}</span>}
-          <div className="ml-auto flex gap-1">
-            {r.status === "review" && <Button size="sm" onClick={() => setStatus(r.id, "pending")}>Approve</Button>}
-            {(r.status === "review" || r.status === "pending") && <Button size="sm" variant="ghost" onClick={() => setStatus(r.id, "cancelled")}>Cancel</Button>}
-          </div>
-        </div>
-      ))}
+    <div className="rounded-md border overflow-x-auto">
+      <Table>
+        <TableHeader><TableRow>
+          <TableHead>Type</TableHead><TableHead>Step</TableHead><TableHead>To</TableHead><TableHead>Recipient</TableHead>
+          <TableHead>Scheduled</TableHead><TableHead>Sent</TableHead><TableHead>Status</TableHead><TableHead>Error</TableHead><TableHead className="text-right">Actions</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {rows.map((r: any) => (
+            <TableRow key={r.id} className="text-xs">
+              <TableCell>{r.channel === "email" ? <Mail className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}</TableCell>
+              <TableCell className="font-medium">{r.step}</TableCell>
+              <TableCell>{r.funnel_leads?.first_name} {r.funnel_leads?.last_name}</TableCell>
+              <TableCell>{r.recipient}</TableCell>
+              <TableCell className="whitespace-nowrap">{fmt(r.scheduled_for)}</TableCell>
+              <TableCell className="whitespace-nowrap">{r.sent_at ? fmt(r.sent_at) : "—"}</TableCell>
+              <TableCell><Badge variant={r.status === "sent" ? "default" : r.status === "failed" ? "destructive" : "secondary"}>{r.status}</Badge></TableCell>
+              <TableCell className="text-destructive max-w-[200px]">{r.error || ""}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">
+                {r.status === "review" && <Button size="sm" onClick={() => update(r.id, { status: "pending" }, "Approved")}>Approve</Button>}
+                {(r.status === "cancelled" || r.status === "failed") && <Button size="sm" variant="outline" onClick={() => update(r.id, { status: "pending", error: null }, "Re-queued")}>Re-queue</Button>}
+                {open(r.status) && <Button size="sm" variant="ghost" onClick={() => setEditing({ ...r, when: toLocal(r.scheduled_for) })}>Edit</Button>}
+                {(r.status === "review" || r.status === "pending") && <Button size="sm" variant="ghost" onClick={() => update(r.id, { status: "cancelled" }, "Message cancelled")}>Cancel</Button>}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit scheduled message</DialogTitle></DialogHeader>
+          {editing && <div className="grid gap-3">
+            <div><Label>Send to</Label><Input value={editing.recipient} onChange={(x) => setEditing({ ...editing, recipient: x.target.value })} /></div>
+            <div><Label>Send at</Label><Input type="datetime-local" value={editing.when} onChange={(x) => setEditing({ ...editing, when: x.target.value })} /></div>
+            <p className="text-xs text-muted-foreground">Wording comes from the step's template — use "Edit wording" in the Follow-up workflow tab.</p>
+          </div>}
+          <DialogFooter><Button variant="ghost" onClick={() => setEditing(null)}>Close</Button><Button onClick={saveEdit}>Save</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
