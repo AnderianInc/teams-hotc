@@ -1,5 +1,11 @@
 # Roadmap
 
+## Current — Simplified tables and legacy outreach
+- [ ] Three-dot edit/delete menus in Events registrations and messages
+- [ ] Compact shared table styling without removing details
+- [ ] Read and export legacy outreach safely without sending messages or changing originals
+- [ ] Verify menus, exports, and deletion safeguards
+
 ## Phase 1 — Automation fixes
 - [x] Fix outreach-dispatch cron (headers via net.http_post, remove duplicate hourly job)
 - [x] Welcome follow-up SMS: sent-marker instead of 22–26h window, hourly Pacific
