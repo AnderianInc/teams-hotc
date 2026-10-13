@@ -79,6 +79,8 @@ export default function EventRegistration({ slug: slugProp }: { slug?: string })
           sms_opt_in: form.smsOptIn,
           utm_source: q.get("utm_source") || "", utm_medium: q.get("utm_medium") || "",
           utm_campaign: q.get("utm_campaign") || "", utm_content: q.get("utm_content") || "",
+          utm_term: q.get("utm_term") || "",
+          client_info: collectClientInfo(),
         },
       });
       if (fnError) throw fnError;
