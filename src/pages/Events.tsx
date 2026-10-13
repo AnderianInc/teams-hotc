@@ -11,6 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { TableRowActions } from "@/components/ui/table-row-actions";
+import { canDeleteEventMessage } from "@/lib/legacyOutreach";
+import LegacyOutreachArchive from "@/components/events/LegacyOutreachArchive";
 import { toast } from "sonner";
 import { ArrowDown, ArrowLeft, ArrowUp, CalendarDays, Copy, ExternalLink, Mail, MessageSquare, Plus, Sparkles, Trash2, UserCheck, Zap } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -151,6 +155,7 @@ export default function Events() {
       ))}
 
       <SourceMappings events={real} />
+      <LegacyOutreachArchive />
 
       <div className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Event templates</h2>
@@ -474,6 +479,19 @@ function sourceOf(l: any) {
 
 function Registrations({ eventId }: { eventId: string }) {
   const [editing, setEditing] = useState<any | null>(null);
+  const [removing, setRemoving] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const qc = useQueryClient();
+  const remove = async () => {
+    if (!removing) return;
+    setDeleting(true);
+    const { data, error } = await db.from("funnel_leads").delete().eq("id", removing.id).eq("event_id", eventId).select("id");
+    setDeleting(false);
+    if (error || !data?.length) return toast.error(error?.message || "Registration could not be deleted.");
+    toast.success("Registration deleted"); setRemoving(null); refetch();
+    qc.invalidateQueries({ queryKey: ["event-messages", eventId] });
+    qc.invalidateQueries({ queryKey: ["events-reg-counts"] });
+  };
   const { data: leads = [], refetch } = useQuery({
     queryKey: ["event-leads", eventId],
     queryFn: async () => ((await db.from("funnel_leads").select("*").eq("event_id", eventId).order("created_at", { ascending: false })).data || []),
@@ -485,6 +503,7 @@ function Registrations({ eventId }: { eventId: string }) {
   };
   const save = async () => {
     const e = editing;
+    if (!e) return;
     const { error } = await db.from("funnel_leads").update({
       first_name: e.first_name, last_name: e.last_name, email: e.email || null, phone: e.phone || null,
       message: e.message || null, notes: e.notes || null, status: e.status, sms_opt_in: e.sms_opt_in,
@@ -525,8 +544,11 @@ function Registrations({ eventId }: { eventId: string }) {
               <TableCell className="max-w-[200px]">{l.notes || "—"}</TableCell>
               <TableCell>{(l.tags || []).map((t: string) => <Badge key={t} variant="outline" className="text-[10px] mr-1 mb-1">{t}</Badge>)}</TableCell>
               <TableCell className="text-right whitespace-nowrap">
-                <Button size="sm" variant="ghost" onClick={() => setEditing({ ...l, tagsText: (l.tags || []).join(", ") })}>Edit</Button>
-                {!l.attendee_id && <Button size="sm" variant="outline" onClick={() => markAttended(l.id)}><UserCheck className="h-4 w-4 mr-1" />Attended</Button>}
+                <TableRowActions label={`${l.first_name} ${l.last_name}`} actions={[
+                  { label: "Edit", onSelect: () => setEditing({ ...l, tagsText: (l.tags || []).join(", ") }) },
+                  ...(!l.attendee_id ? [{ label: "Mark attended", onSelect: () => { void markAttended(l.id); } }] : []),
+                  { label: "Delete registration", destructive: true, onSelect: () => setRemoving(l) },
+                ]} />
               </TableCell>
             </TableRow>); })}
         </TableBody>
@@ -558,25 +580,40 @@ function Registrations({ eventId }: { eventId: string }) {
           <DialogFooter><Button variant="ghost" onClick={() => setEditing(null)}>Close</Button><Button onClick={save}>Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!removing} onOpenChange={(open) => !deleting && !open && setRemoving(null)}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this registration?</AlertDialogTitle><AlertDialogDescription>This removes {removing?.first_name} {removing?.last_name} from this event and removes their event messages, including pending follow-ups. Any linked Church Directory entry and sent Email/SMS Logs are kept. This cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleting}>Keep registration</AlertDialogCancel><AlertDialogAction disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); void remove(); }}>{deleting ? "Deleting…" : "Delete registration"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 function EventMessages({ eventId }: { eventId: string }) {
   const [editing, setEditing] = useState<any | null>(null);
+  const [removing, setRemoving] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const remove = async () => {
+    if (!removing) return;
+    setDeleting(true);
+    const { data, error } = await db.from("funnel_messages").delete().eq("id", removing.id).eq("event_id", eventId).in("status", ["pending", "review", "failed", "cancelled", "skipped"]).select("id");
+    setDeleting(false);
+    if (error || !data?.length) return toast.error(error?.message || "This message cannot be deleted; it may have already been sent.");
+    toast.success("Message deleted"); setRemoving(null); refetch();
+  };
   const { data: rows = [], refetch } = useQuery({
     queryKey: ["event-messages", eventId],
     queryFn: async () => ((await db.from("funnel_messages").select("*, funnel_leads(first_name,last_name)").eq("event_id", eventId).order("scheduled_for")).data || []),
   });
   const update = async (id: string, patch: Record<string, unknown>, msg: string) => {
     const { data, error } = await db.from("funnel_messages").update(patch).eq("id", id).select("id");
-    if (error) return toast.error(error.message);
-    if (!data?.length) return toast.error("You don't have permission to change this message.");
-    toast.success(msg); refetch();
+    if (error) { toast.error(error.message); return false; }
+    if (!data?.length) { toast.error("You don't have permission to change this message."); return false; }
+    toast.success(msg); refetch(); return true;
   };
   const saveEdit = async () => {
-    await update(editing.id, { scheduled_for: new Date(editing.when).toISOString(), recipient: editing.recipient }, "Message updated");
-    setEditing(null);
+    if (!editing) return;
+    const when = new Date(editing.when);
+    if (!editing.recipient.trim() || Number.isNaN(when.getTime())) return toast.error("Enter a recipient and valid send time.");
+    if (await update(editing.id, { scheduled_for: when.toISOString(), recipient: editing.recipient }, "Message updated")) setEditing(null);
   };
   if (!rows.length) return <p className="text-sm text-muted-foreground py-6">No messages scheduled yet.</p>;
   const open = (s: string) => s === "review" || s === "pending" || s === "failed";
@@ -600,10 +637,13 @@ function EventMessages({ eventId }: { eventId: string }) {
               <TableCell><Badge variant={r.status === "sent" ? "default" : r.status === "failed" ? "destructive" : "secondary"}>{r.status}</Badge></TableCell>
               <TableCell className="text-destructive max-w-[200px]">{r.error || ""}</TableCell>
               <TableCell className="text-right whitespace-nowrap">
-                {r.status === "review" && <Button size="sm" onClick={() => update(r.id, { status: "pending" }, "Approved")}>Approve</Button>}
-                {(r.status === "cancelled" || r.status === "failed") && <Button size="sm" variant="outline" onClick={() => update(r.id, { status: "pending", error: null }, "Re-queued")}>Re-queue</Button>}
-                {open(r.status) && <Button size="sm" variant="ghost" onClick={() => setEditing({ ...r, when: toLocal(r.scheduled_for) })}>Edit</Button>}
-                {(r.status === "review" || r.status === "pending") && <Button size="sm" variant="ghost" onClick={() => update(r.id, { status: "cancelled" }, "Message cancelled")}>Cancel</Button>}
+                <TableRowActions label={`${r.step} to ${r.recipient}`} actions={[
+                  { label: "Edit", disabled: !open(r.status), onSelect: () => setEditing({ ...r, when: toLocal(r.scheduled_for) }) },
+                  ...(r.status === "review" ? [{ label: "Approve", onSelect: () => { void update(r.id, { status: "pending" }, "Approved"); } }] : []),
+                  ...(["cancelled", "failed"].includes(r.status) ? [{ label: "Re-queue", onSelect: () => { void update(r.id, { status: "pending", error: null }, "Re-queued"); } }] : []),
+                  ...(["review", "pending"].includes(r.status) ? [{ label: "Cancel", onSelect: () => { void update(r.id, { status: "cancelled" }, "Message cancelled"); } }] : []),
+                  { label: "Delete message", destructive: true, disabled: !canDeleteEventMessage(r.status), onSelect: () => setRemoving(r) },
+                ]} />
               </TableCell>
             </TableRow>
           ))}
@@ -620,6 +660,7 @@ function EventMessages({ eventId }: { eventId: string }) {
           <DialogFooter><Button variant="ghost" onClick={() => setEditing(null)}>Close</Button><Button onClick={saveEdit}>Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!removing} onOpenChange={(open) => !deleting && !open && setRemoving(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this message?</AlertDialogTitle><AlertDialogDescription>This removes the unsent message to {removing?.recipient} and stops that scheduled send. Sent Email/SMS Logs are kept. This cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleting}>Keep message</AlertDialogCancel><AlertDialogAction disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); void remove(); }}>{deleting ? "Deleting…" : "Delete message"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   );
 }
