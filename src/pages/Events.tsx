@@ -258,6 +258,18 @@ function EventEditor({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             ))}
             <div className="space-y-2 pt-2">
+              <Label>"What to expect" points (shown above the form)</Label>
+              {(e.form_config?.what_to_expect || []).map((item: string, i: number) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <Input value={item} onChange={(x) => {
+                    const list = [...(e.form_config.what_to_expect || [])]; list[i] = x.target.value; setCfg({ what_to_expect: list } as any);
+                  }} />
+                  <Button size="icon" variant="ghost" onClick={() => setCfg({ what_to_expect: (e.form_config.what_to_expect || []).filter((_: string, j: number) => j !== i) } as any)}><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              ))}
+              <Button size="sm" variant="outline" onClick={() => setCfg({ what_to_expect: [...(e.form_config?.what_to_expect || []), "New point"] } as any)}><Plus className="h-4 w-4 mr-1" />Add point</Button>
+            </div>
+            <div className="space-y-2 pt-2">
               <Label>Custom questions</Label>
               {(e.form_config?.custom_questions || []).map((q, i) => (
                 <div key={q.id} className="flex gap-2 items-center">
