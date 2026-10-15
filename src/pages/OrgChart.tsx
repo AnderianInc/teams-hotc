@@ -22,10 +22,7 @@ export default function OrgChart() {
   const { data: profiles = [] } = useQuery({
     queryKey: ["org-profiles-public"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, email, is_staff, staff_role_id, staff_title, reports_to_user_id, org_team_id")
-        .order("full_name");
+      const { data, error } = await supabase.rpc("public_org_chart" as any);
       if (error) throw error;
       return (data || []) as unknown as ProfileRow[];
     },
@@ -43,7 +40,7 @@ export default function OrgChart() {
   const { data: roles = [] } = useQuery({
     queryKey: ["staff-roles-public"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff_roles" as any).select("id, name");
+      const { data, error } = await supabase.rpc("list_staff_role_names" as any);
       if (error) throw error;
       return (data || []) as unknown as StaffRole[];
     },
