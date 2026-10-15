@@ -7,8 +7,6 @@ import { Network, UserCircle2 } from "lucide-react";
 type ProfileRow = {
   user_id: string;
   full_name: string;
-  email: string;
-  is_staff: boolean;
   staff_role_id: string | null;
   staff_title: string | null;
   reports_to_user_id: string | null;
