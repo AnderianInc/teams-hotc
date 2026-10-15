@@ -19,6 +19,7 @@ export type FormConfig = {
   show_sms_consent?: boolean;
   sms_consent_text?: string;
   custom_questions?: { id: string; label: string; required?: boolean }[];
+  what_to_expect?: string[];
 };
 
 const fmtWhen = (iso: string | null) =>
@@ -133,11 +134,26 @@ export default function EventRegistration({ slug: slugProp }: { slug?: string })
           </div>
           <CardTitle className="text-2xl font-display">{event.name}</CardTitle>
           <CardDescription>{event.description || "House of Transformation Church"}</CardDescription>
+          {event.start_at && (
+            <div className="flex justify-center gap-2 text-sm font-medium text-foreground"><CalendarDays className="h-4 w-4 shrink-0 mt-0.5" />{fmtWhen(event.start_at)}</div>
+          )}
           {event.location && (
-            <div className="flex justify-center gap-2 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{event.location}</div>
+            <div className="flex justify-center gap-2 text-sm text-muted-foreground"><MapPin className="h-4 w-4 shrink-0 mt-0.5" />{event.location}</div>
           )}
         </CardHeader>
         <CardContent>
+          {(cfg.what_to_expect || []).length > 0 && (
+            <div className="mb-5 rounded-lg bg-muted/50 p-4">
+              <div className="mb-2 text-sm font-semibold">What to expect</div>
+              <ul className="space-y-1.5">
+                {cfg.what_to_expect!.map((item, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-primary" />{item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
