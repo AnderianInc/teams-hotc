@@ -71,7 +71,7 @@ export default function OrgChart() {
               <p className="text-sm font-medium truncate">{p.full_name}</p>
               {titleFor(p) && <p className="text-xs text-muted-foreground truncate">{titleFor(p)}</p>}
             </div>
-            {p.is_staff && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Staff</Badge>}
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Staff</Badge>
           </div>
           {kids.length > 0 && (
             <div className="ml-4 pl-4 border-l-2 border-muted flex flex-col gap-2">
