@@ -2623,7 +2623,25 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      list_staff_role_names: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       promote_funnel_lead: { Args: { _lead_id: string }; Returns: string }
+      public_org_chart: {
+        Args: never
+        Returns: {
+          full_name: string
+          org_team_id: string
+          reports_to_user_id: string
+          staff_role_id: string
+          staff_title: string
+          user_id: string
+        }[]
+      }
       purge_old_check_ins: { Args: { _days?: number }; Returns: number }
       purge_outreach_runs: {
         Args: { _older_than_days?: number; _status?: string }
