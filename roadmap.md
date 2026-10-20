@@ -1,8 +1,8 @@
 # Roadmap
 
 ## Current — Order of Service guests
-- [ ] Add guest-name assignments without creating Directory entries
-- [ ] Verify guest names save, display in print view, and can be removed
+- [x] Add guest-name assignments without creating Directory entries
+- [x] Verify guest names save, display in print view, and can be removed
 
 ## Current — Simplified tables and legacy outreach
 - [x] Three-dot edit/delete menus in Events registrations and messages
