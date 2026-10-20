@@ -1,4 +1,5 @@
 - Events own all automated comms: copy lives in email_templates/sms_templates, timing/order in event_workflow_steps, rendered at send time by _shared/eventWorkflow.ts — never hard-code message text or schedules in edge functions, so admins can see and edit everything.
 - Management row actions use the shared TableRowActions dropdown so keyboard, touch, and desktop access stay consistent.
+- Order of Service guest names are stored on slot assignments without directory or roster records, so occasional guests do not become church contacts or volunteers.
 - Legacy outreach is exposed as a read-only, fully paginated archive with JSON/CSV backups; reviewing/exporting it never enrolls contacts or sends messages.
 - Event message deletion is restricted to unsent states in both the UI and database; registration deletion preserves separate directory entries and delivery logs.

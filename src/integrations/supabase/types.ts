@@ -1907,6 +1907,7 @@ export type Database = {
           attendee_id: string | null
           created_at: string
           created_by: string | null
+          guest_name: string | null
           id: string
           profile_id: string | null
           role_label: string | null
@@ -1920,6 +1921,7 @@ export type Database = {
           attendee_id?: string | null
           created_at?: string
           created_by?: string | null
+          guest_name?: string | null
           id?: string
           profile_id?: string | null
           role_label?: string | null
@@ -1933,6 +1935,7 @@ export type Database = {
           attendee_id?: string | null
           created_at?: string
           created_by?: string | null
+          guest_name?: string | null
           id?: string
           profile_id?: string | null
           role_label?: string | null
