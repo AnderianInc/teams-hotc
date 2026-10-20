@@ -55,7 +55,8 @@ export interface InstanceSlot {
 export interface SlotAssignment {
   id: string;
   slot_id: string;
-  assignee_type: "profile" | "attendee";
+  assignee_type: "profile" | "attendee" | "guest";
+  guest_name: string | null;
   profile_id: string | null;
   attendee_id: string | null;
   role_label: string | null;

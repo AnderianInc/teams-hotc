@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { UserPlus, Users, Search } from "lucide-react";
 import { useAllTeams } from "@/hooks/useTeams";
 import { useInvalidateOoS, type InstanceSlot } from "@/hooks/useOrderOfService";
+import { guestAssignment } from "@/lib/serviceGuests";
 
 interface Props {
   slot: InstanceSlot;
@@ -30,7 +31,8 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
   const { data: teams = [] } = useAllTeams();
   const [open, setOpen] = useState(false);
   const [teamId, setTeamIdState] = useState<string>(slot.team_id || "");
-  const [mode, setMode] = useState<"team" | "everyone">(slot.team_id ? "team" : "everyone");
+  const [mode, setMode] = useState<"team" | "everyone" | "guest">(slot.team_id ? "team" : "everyone");
+  const [guestName, setGuestName] = useState("");
   const [search, setSearch] = useState("");
   const [roleLabel, setRoleLabel] = useState("");
 
@@ -57,7 +59,7 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
   // Load candidates
   const { data: candidates = [] } = useQuery({
     queryKey: ["slot-candidates", mode, teamId, search],
-    enabled: open,
+    enabled: open && mode !== "guest",
     queryFn: async (): Promise<Candidate[]> => {
       if (mode === "team" && teamId) {
         if (allowedTeamIds?.length && !allowedTeamIds.includes(teamId)) return [];
@@ -155,6 +157,22 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const addGuest = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("service_slot_assignments")
+        .insert(guestAssignment(slot.id, guestName, roleLabel));
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidate();
+      setOpen(false);
+      setGuestName("");
+      setRoleLabel("");
+      toast.success("Guest assigned");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -164,7 +182,7 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
         <div className="space-y-3">
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             <Button
               size="sm"
               variant={mode === "team" ? "default" : "outline"}
@@ -182,9 +200,19 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
               <Search className="h-3 w-3 mr-1" /> Search directory
             </Button>
 
+            <Button size="sm" variant={mode === "guest" ? "default" : "outline"}
+              className="w-full" onClick={() => setMode("guest")}>
+              <UserPlus className="h-3 w-3 mr-1" /> Guest name
+            </Button>
           </div>
 
-          {mode === "team" ? (
+          {mode === "guest" ? (
+            <div>
+              <Label htmlFor={`guest-name-${slot.id}`} className="text-xs">Guest name</Label>
+              <Input id={`guest-name-${slot.id}`} value={guestName}
+                onChange={(e) => setGuestName(e.target.value)} placeholder="Full name" />
+            </div>
+          ) : mode === "team" ? (
             <Select value={teamId} onValueChange={setTeamId}>
               <SelectTrigger>
                 <SelectValue placeholder="Pick a team" />
@@ -212,7 +240,12 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
             />
           </div>
 
-          <div className="max-h-60 overflow-y-auto space-y-1 border-t pt-2">
+          {mode === "guest" ? (
+            <Button className="w-full" disabled={!guestName.trim() || addGuest.isPending}
+              onClick={() => addGuest.mutate()}>
+              <UserPlus className="h-4 w-4 mr-1" /> {addGuest.isPending ? "Adding…" : "Add guest"}
+            </Button>
+          ) : <div className="max-h-60 overflow-y-auto space-y-1 border-t pt-2">
             {candidates.length === 0 ? (
               <p className="text-xs text-muted-foreground p-2">
                 {mode === "team" ? "Pick a team to see members" : "Type at least 2 characters"}
@@ -230,7 +263,7 @@ export default function SlotAssignPopover({ slot, rosterEventId, serviceDate, al
                 </button>
               ))
             )}
-          </div>
+          </div>}
         </div>
       </PopoverContent>
     </Popover>
