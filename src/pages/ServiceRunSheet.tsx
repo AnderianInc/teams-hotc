@@ -402,13 +402,14 @@ export default function ServiceRunSheet() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         {slotAssignments.map((a) => {
                           const key = a.profile_id ? `p:${a.profile_id}` : `a:${a.attendee_id}`;
-                          const name = nameMap[key] || "…";
+                          const name = a.assignee_type === "guest" ? a.guest_name : nameMap[key] || "…";
                           return (
                             <Badge key={a.id} variant="secondary" className="gap-1">
                               {name}
                               {a.role_label && <span className="opacity-70">· {a.role_label}</span>}
                               {canEdit && (
                                 <button
+                                  aria-label={`Remove ${name}`}
                                   onClick={() => removeAssignment.mutate({ id: a.id, roster_entry_id: a.roster_entry_id })}
                                   className="ml-1 opacity-60 hover:opacity-100"
                                 >
