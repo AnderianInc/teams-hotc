@@ -111,6 +111,17 @@ export default function YoungAdultStudents() {
                     {c.families?.parent1_name ?? "—"}
                     {c.families?.parent1_phone ? <span className="text-muted-foreground"> · {c.families.parent1_phone}</span> : null}
                   </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost" size="icon" className="h-8 w-8"
+                      disabled={printTag.isPending}
+                      onClick={() => printTag.mutate(c)}
+                      aria-label={`Print name tag for ${c.first_name}`}
+                      title={`Print name tag for ${c.first_name}`}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
