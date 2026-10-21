@@ -331,22 +331,33 @@ export function tryRestoreAirPrint(): PrinterStatus | null {
 }
 
 async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
-  const urls = labels.map((l) => {
+  // Each label gets an exact page size (62mm x its own length) so the
+  // printer dialog produces one page per label instead of splitting
+  // them across many Letter/A4-sized sheets ("auto" height is ignored by Chrome).
+  const pages = labels.map((l, i) => {
     const c = renderLabelCanvas(l, { mirror: false });
-    // Child label is drawn rotated along the tape; keep 62mm width.
-    return c.toDataURL("image/png");
+    const heightMm = Math.max(20, Math.round((62 * c.height) / c.width * 10) / 10);
+    return { url: c.toDataURL("image/png"), heightMm, name: `lbl${i}` };
   });
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument!;
   doc.open();
+  const pageRules = pages
+    .map((p) => `@page ${p.name} { size: 62mm ${p.heightMm}mm; margin: 0; }
+    .${p.name} { page: ${p.name}; width:62mm; height:${p.heightMm}mm; }`)
+    .join("\n");
   doc.write(`<!doctype html><html><head><style>
-    @page { size: 62mm auto; margin: 0; }
+    @page { size: 62mm ${pages[0]?.heightMm ?? 100}mm; margin: 0; }
+    ${pageRules}
     html,body { margin:0; padding:0; }
-    img { display:block; width:62mm; height:auto; page-break-after:always; break-after:page; }
-    img:last-child { page-break-after:auto; break-after:auto; }
-  </style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}</body></html>`);
+    .lbl { overflow:hidden; break-after:page; page-break-after:always; break-inside:avoid; }
+    .lbl:last-child { break-after:auto; page-break-after:auto; }
+    .lbl img { display:block; width:100%; height:100%; object-fit:contain; }
+  </style></head><body>${pages
+    .map((p) => `<div class="lbl ${p.name}"><img src="${p.url}"></div>`)
+    .join("")}</body></html>`);
   doc.close();
   await Promise.all(
     Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; }))
