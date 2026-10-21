@@ -28,7 +28,7 @@ export default function QRCodeDisplay() {
           Visitor QR Code
         </CardTitle>
         <CardDescription>
-          Print this QR code for welcome desks, bulletins, and signage. First-time visitors scan it to register.
+          Welcome registration and returning-attendee check-in.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6">

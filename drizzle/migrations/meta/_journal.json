@@ -85,6 +85,13 @@
       "when": 1792534027792,
       "tag": "0011_allow_guest_service_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792542584920,
+      "tag": "0012_welcome_identity_and_atomic_attendance",
+      "breakpoints": true
     }
   ]
 }

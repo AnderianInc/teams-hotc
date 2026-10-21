@@ -1,5 +1,11 @@
 # Roadmap
 
+## Current — Welcome QR and attendance
+- [x] Shared /welcome: signed-in, remembered device, phone lookup, first registration
+- [x] Secure device recognition, duplicate-safe registration, atomic bidirectional attendance
+- [x] Correct paginated, deduplicated attendance trends and refresh after changes
+- [x] Align both QR codes and verify real check-in flows
+
 ## Current — Order of Service guests
 - [x] Add guest-name assignments without creating Directory entries
 - [x] Verify guest names save, display in print view, and can be removed
