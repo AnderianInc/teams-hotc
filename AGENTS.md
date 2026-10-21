@@ -10,3 +10,4 @@
 - A database check-in trigger rejects ineligible birth dates and derives the room at insertion (including offline sync); checkout updates leave historical assignments unchanged.
 - Children's printing separates sending labels from operator-confirmed completion before saving attendance; browser print dismissal and transport acknowledgments do not prove physical printing.
 - Browser labels use one uniform physical page size with breaks only before subsequent labels; this avoids mixed named-page transitions and trailing blank sheets without changing bridge raster output.
+- ReprintLabels is shared by today's check-ins, search confirmation, and success; its print-only helper preserves stored pickup codes and rooms without attendance writes.
