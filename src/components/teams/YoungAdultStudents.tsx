@@ -54,6 +54,22 @@ export default function YoungAdultStudents() {
     onError: (e: Error) => toast.error(`Could not update attendance: ${e.message}`),
   });
 
+  const printTag = useMutation({
+    mutationFn: async (c: any) => {
+      if (!getPrinterStatus().connected) throw new Error("Connect a printer first (Check-In page or Printer settings).");
+      await printNameTag({
+        copy: "child",
+        childName: `${c.first_name} ${c.last_name}`.trim(),
+        roomName: "Young Adults",
+        securityCode: "",
+        parentName: c.families?.parent1_name ?? null,
+        date: format(new Date(), "EEE, MMM d yyyy"),
+      });
+    },
+    onSuccess: () => toast.success("Name tag sent to printer."),
+    onError: (e: Error) => toast.error(`Print failed: ${e.message}`),
+  });
+
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
