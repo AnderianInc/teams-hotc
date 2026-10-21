@@ -21,7 +21,7 @@ const BROTHER_BLE_WRITE_CHAR = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
 const BRIDGE_URL_KEY = "hotc.printBridgeUrl";
 
-export type PrinterConnectionType = "usb" | "bluetooth" | "bridge";
+export type PrinterConnectionType = "usb" | "bluetooth" | "bridge" | "airprint";
 
 export interface PrinterStatus {
   connected: boolean;
@@ -309,6 +309,53 @@ export async function disconnectPrinter(): Promise<void> {
   }
 }
 
+/**
+ * AirPrint mode (QL-820NWB on the same wifi). Labels are rendered with the
+ * same canvas drawing, then handed to the system print dialog — the bridge,
+ * USB and raster paths are left untouched.
+ */
+const AIRPRINT_KEY = "hotc.printAirPrint";
+export function connectAirPrint(): PrinterStatus {
+  currentConnection = {
+    type: "airprint",
+    name: "AirPrint",
+    send: async () => { throw new Error("AirPrint does not accept raw data"); },
+    disconnect: async () => { localStorage.removeItem(AIRPRINT_KEY); currentConnection = null; },
+  };
+  localStorage.setItem(AIRPRINT_KEY, "1");
+  return getPrinterStatus();
+}
+export function tryRestoreAirPrint(): PrinterStatus | null {
+  if (typeof localStorage === "undefined" || localStorage.getItem(AIRPRINT_KEY) !== "1") return null;
+  return connectAirPrint();
+}
+
+async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
+  const urls = labels.map((l) => {
+    const c = renderLabelCanvas(l, { mirror: false });
+    // Child label is drawn rotated along the tape; keep 62mm width.
+    return c.toDataURL("image/png");
+  });
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(`<!doctype html><html><head><style>
+    @page { size: 62mm auto; margin: 0; }
+    html,body { margin:0; padding:0; }
+    img { display:block; width:62mm; height:auto; page-break-after:always; break-after:page; }
+    img:last-child { page-break-after:auto; break-after:auto; }
+  </style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}</body></html>`);
+  doc.close();
+  await Promise.all(
+    Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; }))
+  );
+  iframe.contentWindow!.focus();
+  iframe.contentWindow!.print();
+  setTimeout(() => iframe.remove(), 60_000);
+}
+
 // ---------------- Label rendering ----------------
 export type LabelCopy = "child" | "parent" | "teacher";
 
@@ -362,7 +409,7 @@ export function setTwoColorMode(on: boolean): void {
  * Render a label to a canvas. Pure — no printer I/O. Used by both the print
  * path and the on-screen preview so what you see is exactly what is sent.
  */
-export function renderLabelCanvas(opts: NameTagOptions): HTMLCanvasElement {
+export function renderLabelCanvas(opts: NameTagOptions, render: { mirror?: boolean } = {}): HTMLCanvasElement {
   const WIDTH = 720;
   const isLandscape = opts.copy === "child";
   const HEIGHT = isLandscape ? 1200 : 600;
@@ -373,7 +420,7 @@ export function renderLabelCanvas(opts: NameTagOptions): HTMLCanvasElement {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  const mirror = getMirrorPrint();
+  const mirror = render.mirror ?? getMirrorPrint();
   if (mirror) {
     // Flip horizontally so bytes packed MSB-first land as a mirrored image
     // on printers that read pins in the opposite direction.
@@ -402,6 +449,7 @@ export function renderLabelPreviewDataUrl(opts: NameTagOptions): string {
 
 export async function printNameTag(opts: NameTagOptions): Promise<void> {
   if (!currentConnection) throw new Error("No printer connected");
+  if (currentConnection.type === "airprint") return airPrintLabels([opts]);
   const canvas = renderLabelCanvas(opts);
   const ctx = canvas.getContext("2d")!;
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -412,6 +460,9 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
 /** Print child + parent + teacher copies for a single check-in. */
 export async function printCheckInLabels(base: Omit<NameTagOptions, "copy">): Promise<void> {
   const copies: LabelCopy[] = ["child", "parent", "teacher"];
+  if (currentConnection?.type === "airprint") {
+    return airPrintLabels(copies.map((copy) => ({ ...base, copy })));
+  }
   for (const copy of copies) {
     await printNameTag({ ...base, copy });
     await new Promise((r) => setTimeout(r, 400));

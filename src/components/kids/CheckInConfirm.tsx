@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterIcon } from "lucide-react";
 import EditFamily from "./EditFamily";
 import { printCheckInLabels, getPrinterStatus, verifyPrinterOnline, generateSecurityCode } from "@/lib/brotherPrinter";
+import { roomForAge } from "@/lib/kidsClasses";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 import LabelPreviewDialog from "./LabelPreviewDialog";
 
@@ -65,10 +66,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
     },
   });
 
-  // Auto-assign room based on grade
-  const assignedRoom = rooms?.find(
-    (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
-  );
+  // Auto-assign class by age (date of birth); fall back to a matching manual class name.
+  const assignedRoom =
+    roomForAge(rooms as any, child.date_of_birth) ||
+    rooms?.find(
+      (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
+    );
 
   // Check for existing open check-in for this child + service (prevents duplicates)
   const { data: existingCheckIn } = useQuery({
@@ -88,7 +91,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const alreadyCheckedIn = !!existingCheckIn;
 
   // Room label = child's grade / age group from directory (per admin spec).
-  const roomName = child.grade_group || assignedRoom?.name || "TBD";
+  const roomName = assignedRoom?.name || child.grade_group || "TBD";
   const previewBase = {
     childName: `${child.first_name} ${child.last_name}`,
     roomName,
