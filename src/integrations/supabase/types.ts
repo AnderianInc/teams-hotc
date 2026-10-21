@@ -2564,6 +2564,41 @@ export type Database = {
           },
         ]
       }
+      welcome_device_tokens: {
+        Row: {
+          attendee_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+          user_id: string | null
+        }
+        Insert: {
+          attendee_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash: string
+          user_id?: string | null
+        }
+        Update: {
+          attendee_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welcome_device_tokens_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "attendees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       member_engagement: {
@@ -2649,6 +2684,10 @@ export type Database = {
       purge_outreach_runs: {
         Args: { _older_than_days?: number; _status?: string }
         Returns: number
+      }
+      record_welcome_attendance: {
+        Args: { _attendee_id?: string; _user_id?: string }
+        Returns: Json
       }
       resolve_contact_group: {
         Args: { _group_id: string }
