@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Current — Young Adults mobile printing
-- [ ] Bound the print dialog to the viewport, scroll its contents, and keep print/cancel visible
-- [ ] Constrain the app content width and wrap team tabs/printer controls on phones and tablets
-- [ ] Verify the signed-in student dialog on phone, tablet, and reduced-size zoom-equivalent views without sending labels or writing attendance
+- [x] Bound the print dialog to the viewport, scroll its contents, and keep print/cancel visible
+- [x] Constrain the app content width and wrap team tabs/printer controls on phones and tablets
+- [x] Verify the signed-in student dialog on phone, tablet, and reduced-size zoom-equivalent views without sending labels or writing attendance
 
 ## Current — Checked-in label recovery
 - [x] Add reprint from today's check-ins, existing-child search, and check-in success
