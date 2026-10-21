@@ -1,5 +1,11 @@
 # Roadmap
 
+## Current — Children's check-in corrections
+- [ ] Enforce ages 0–14 and assign the matching class from date of birth
+- [ ] Remove trailing blank AirPrint page without changing bridge output
+- [ ] Require confirmed printed labels before saving AirPrint check-in
+- [ ] Verify age rules, cancellation, and print pagination; physical printer settings remain hardware-tested by user
+
 ## Current — Monitoring fixes
 - [x] Verify outreach address and current connection health — health 200; all three sources succeeded at 21:00 UTC
 - [x] Match welcome registrations by submitted name as well as shared contact details
