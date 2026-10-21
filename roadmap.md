@@ -67,3 +67,7 @@
 - Open item: service time(s) + address for confirmations (placeholders in use)
 - Open item: interest meeting default location text
 - Social media posting feature (deferred)
+
+- [x] Add AirPrint option for QL-820NWB (bridge kept as-is)
+- [x] Children classes by age: Little Lambs 0-4, Kingdom Kids 5-9, Young Leaders 10-14; Kids Ministry renamed Young Adults (15-19)
+- [ ] Hide USB/bridge options after AirPrint testing (waiting on user)
