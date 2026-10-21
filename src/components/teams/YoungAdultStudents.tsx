@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ageInYears } from "@/lib/kidsClasses";
-import { getPrinterStatus, printNameTag } from "@/lib/brotherPrinter";
+import YoungAdultCheckInDialog, { type YoungAdultStudent } from "./YoungAdultCheckInDialog";
 
 /** Young Adults (15–19) roster with simple per-day attendance check-in. */
 export default function YoungAdultStudents() {
@@ -54,21 +54,7 @@ export default function YoungAdultStudents() {
     onError: (e: Error) => toast.error(`Could not update attendance: ${e.message}`),
   });
 
-  const printTag = useMutation({
-    mutationFn: async (c: any) => {
-      if (!getPrinterStatus().connected) throw new Error("Connect a printer first (Check-In page or Printer settings).");
-      await printNameTag({
-        copy: "child",
-        childName: `${c.first_name} ${c.last_name}`.trim(),
-        roomName: "Young Adults",
-        securityCode: "",
-        parentName: c.families?.parent1_name ?? null,
-        date: format(new Date(), "EEE, MMM d yyyy"),
-      });
-    },
-    onSuccess: () => toast.success("Name tag sent to printer."),
-    onError: (e: Error) => toast.error(`Print failed: ${e.message}`),
-  });
+  const [dialogStudent, setDialogStudent] = useState<YoungAdultStudent | null>(null);
 
   return (
     <Card>
@@ -113,13 +99,12 @@ export default function YoungAdultStudents() {
                   </TableCell>
                   <TableCell>
                     <Button
-                      variant="ghost" size="icon" className="h-8 w-8"
-                      disabled={printTag.isPending}
-                      onClick={() => printTag.mutate(c)}
-                      aria-label={`Print name tag for ${c.first_name}`}
-                      title={`Print name tag for ${c.first_name}`}
+                      variant="outline" size="sm" className="h-8 gap-1"
+                      onClick={() => setDialogStudent(c)}
+                      aria-label={`Check in and print tag for ${c.first_name}`}
                     >
-                      <Printer className="h-4 w-4" />
+                      <Printer className="h-3.5 w-3.5" />
+                      {present?.has(c.id) ? "Reprint" : "Check in"}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -127,6 +112,13 @@ export default function YoungAdultStudents() {
             </TableBody>
           </Table>
         )}
+        <YoungAdultCheckInDialog
+          student={dialogStudent}
+          date={date}
+          alreadyPresent={!!dialogStudent && !!present?.has(dialogStudent.id)}
+          open={!!dialogStudent}
+          onOpenChange={(open) => !open && setDialogStudent(null)}
+        />
       </CardContent>
     </Card>
   );
