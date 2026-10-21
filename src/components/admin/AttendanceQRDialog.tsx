@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { QrCode, Download } from "lucide-react";
 
-const CHECK_IN_URL = "https://teams-hotc.lovable.app/check-in";
+const CHECK_IN_URL = "https://teams.hotc.life/welcome";
 
 export default function AttendanceQRDialog() {
   const handlePrint = () => {
