@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Printer, PrinterCheck, PrinterIcon } from "lucide-react";
 import EditFamily from "./EditFamily";
 import { printCheckInLabels, getPrinterStatus, verifyPrinterOnline, generateSecurityCode } from "@/lib/brotherPrinter";
-import { roomForAge } from "@/lib/kidsClasses";
+import { roomForAge, kidsCheckInError, ageInYears } from "@/lib/kidsClasses";
+import { runKidsPrintFlow } from "@/lib/kidsPrintFlow";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 import LabelPreviewDialog from "./LabelPreviewDialog";
 
@@ -37,6 +39,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const [success, setSuccess] = useState(false);
   const [phase, setPhase] = useState<"idle" | "verifying" | "printing" | "saving">("idle");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [awaitingPrintConfirmation, setAwaitingPrintConfirmation] = useState(false);
   const [issuedCode, setIssuedCode] = useState<string | null>(null);
   const securityCode = useMemo(() => generateSecurityCode(), [child.id]);
   const isOnline = navigator.onLine;
@@ -45,9 +48,10 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   // Find matching room by grade_group
   const { data: rooms } = useQuery({
     queryKey: ["rooms"],
-    enabled: isOnline,
     queryFn: async () => {
-      const { data } = await supabase.from("rooms").select("*");
+      if (!isOnline) return getRoomsOffline();
+      const { data, error } = await supabase.from("rooms").select("*");
+      if (error) throw error;
       return data || [];
     },
   });
@@ -66,23 +70,23 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
     },
   });
 
-  // Auto-assign class by age (date of birth); fall back to a matching manual class name.
-  const assignedRoom =
-    roomForAge(rooms as any, child.date_of_birth) ||
-    rooms?.find(
-      (r) => r.grade_group && child.grade_group && r.grade_group.toLowerCase() === child.grade_group.toLowerCase()
-    );
+  // A stale manual group must never override age eligibility.
+  const ageError = kidsCheckInError(child.date_of_birth);
+  const age = ageInYears(child.date_of_birth);
+  const assignedRoom = ageError ? undefined : roomForAge(rooms, child.date_of_birth);
+  const eligibilityError = ageError || (!assignedRoom ? "No class available for this age. Check the class settings." : null);
 
   // Check for existing open check-in for this child + service (prevents duplicates)
   const { data: existingCheckIn } = useQuery({
     queryKey: ["existing-check-in", child.id, activeService?.id],
     enabled: !!activeService?.id && isOnline,
     queryFn: async () => {
+      if (!activeService?.id) return null;
       const { data } = await supabase
         .from("check_ins")
         .select("id, checked_in_at")
         .eq("child_id", child.id)
-        .eq("service_id", activeService!.id)
+        .eq("service_id", activeService.id)
         .is("checked_out_at", null)
         .maybeSingle();
       return data;
@@ -91,7 +95,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const alreadyCheckedIn = !!existingCheckIn;
 
   // Room label = child's grade / age group from directory (per admin spec).
-  const roomName = assignedRoom?.name || child.grade_group || "TBD";
+  const roomName = assignedRoom?.name || "No age-matched class";
   const previewBase = {
     childName: `${child.first_name} ${child.last_name}`,
     roomName,
@@ -114,7 +118,10 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       });
 
   const checkIn = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (printedConfirmed: boolean) => {
+      if (eligibilityError || !assignedRoom) throw new Error(eligibilityError || "No class assigned.");
+      if (isOnline && !activeService?.id) throw new Error("Today's service is not ready. Please try again.");
+      if (printedConfirmed && !awaitingPrintConfirmation) throw new Error("Print the labels before confirming check-in.");
       const checkInData = {
         id: crypto.randomUUID(),
         child_id: child.id,
@@ -126,30 +133,29 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
 
       // STEP 0: Never double check-in the same child for the same service.
       if (isOnline && activeService?.id) {
-        const { data: dup } = await supabase
+        const { data: dup, error } = await supabase
           .from("check_ins")
           .select("id")
           .eq("child_id", child.id)
           .eq("service_id", activeService.id)
           .is("checked_out_at", null)
           .maybeSingle();
+        if (error) throw error;
         if (dup) throw new Error(`${child.first_name} is already checked in for this service.`);
       }
 
       // STEP 1: Printer is mandatory. Verify it's actually reachable right now
       // (a stale connection object is not enough — the bridge PC may have slept,
       // the printer may be powered off, etc.).
-      setPhase("verifying");
-      await verifyPrinterOnline();
-
-      // STEP 2: Print the label. If this throws, we do NOT save the check-in
-      // so staff can fix the printer and retry.
-      setPhase("printing");
-      await printCheckInLabels(previewBase);
-
-      // STEP 3: Only after the printer confirms the send, record the check-in.
-      setPhase("saving");
-      if (isOnline) {
+      return runKidsPrintFlow(printedConfirmed, async () => {
+        setPhase("verifying");
+        await verifyPrinterOnline();
+        setPhase("printing");
+        await printCheckInLabels(previewBase);
+      }, async () => {
+        // System Print and Cancel both return without physical completion status.
+        setPhase("saving");
+        if (isOnline) {
         const { error } = await supabase.from("check_ins").insert({
           child_id: checkInData.child_id,
           service_id: checkInData.service_id as any,
@@ -158,12 +164,18 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           security_code: securityCode,
         } as any);
         if (error) throw error;
-      } else {
-        await queueCheckIn({ ...checkInData, security_code: securityCode } as any);
-      }
+        } else {
+          await queueCheckIn({ ...checkInData, security_code: securityCode } as any);
+        }
+      });
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       setPhase("idle");
+      if (result === "awaiting-confirmation") {
+        setAwaitingPrintConfirmation(true);
+        return;
+      }
+      setAwaitingPrintConfirmation(false);
       setIssuedCode(securityCode);
       setSuccess(true);
       queryClient.invalidateQueries({ queryKey: ["check-ins-today"] });
@@ -208,7 +220,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   return (
     <div className="max-w-md space-y-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={onBack} className="gap-2">
+        <Button variant="ghost" onClick={onBack} disabled={checkIn.isPending} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to search
         </Button>
         <EditFamily familyId={child.family_id} />
@@ -225,7 +237,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
               {child.first_name} {child.last_name}
             </p>
             <p className="text-muted-foreground">
-              {child.grade_group || "No grade"} · {child.families?.parent1_name} ({child.families?.parent1_phone})
+              {age === null ? "Date of birth needed" : `Age ${age}`} · {child.families?.parent1_name} ({child.families?.parent1_phone})
             </p>
           </div>
 
@@ -236,6 +248,8 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
               </p>
             </div>
           )}
+
+          {eligibilityError && <p role="alert" className="rounded-md border border-destructive p-3 text-sm text-destructive">{eligibilityError}</p>}
 
           {child.allergies && (
             <Badge variant="destructive" className="gap-1 text-sm py-1 px-3">
@@ -250,12 +264,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             </Badge>
           )}
 
-          {alreadyCheckedIn && (
+          {existingCheckIn && (
             <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-sm">
               <CheckCircle2 className="h-4 w-4 text-warning" />
               <span>
                 Already checked in for this service at{" "}
-                <b>{new Date(existingCheckIn!.checked_in_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</b>.
+                <b>{new Date(existingCheckIn.checked_in_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</b>.
               </span>
             </div>
           )}
@@ -271,7 +285,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             {printerStatus.connected ? (
               <>
                 <PrinterCheck className="h-4 w-4 text-success" />
-                <span>Printer ready: <b>{printerStatus.name}</b></span>
+                <span>{printerStatus.type === "airprint" ? "Print dialog selected" : "Printer ready"}: <b>{printerStatus.name}</b></span>
               </>
             ) : (
               <>
@@ -284,7 +298,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
           <Button
             className="w-full h-12 text-base"
             onClick={() => setPreviewOpen(true)}
-            disabled={checkIn.isPending || !printerStatus.connected || alreadyCheckedIn}
+            disabled={checkIn.isPending || !printerStatus.connected || alreadyCheckedIn || !!eligibilityError || (isOnline && !activeService?.id)}
           >
             <Printer className="h-5 w-5 mr-2" />
             {alreadyCheckedIn
@@ -305,9 +319,20 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             printing={checkIn.isPending}
             onConfirm={() => {
               setPreviewOpen(false);
-              checkIn.mutate();
+              checkIn.mutate(false);
             }}
           />
+
+          <Dialog open={awaitingPrintConfirmation} onOpenChange={(open) => !checkIn.isPending && setAwaitingPrintConfirmation(open)}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Have all three labels finished printing?</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">{child.first_name} is not checked in yet.</p>
+              <DialogFooter>
+                <Button variant="outline" disabled={checkIn.isPending} onClick={() => setAwaitingPrintConfirmation(false)}>Canceled / Not printed</Button>
+                <Button disabled={checkIn.isPending} onClick={() => checkIn.mutate(true)}><CheckCircle2 className="mr-2 h-4 w-4" />{checkIn.isPending ? "Saving…" : "Labels printed — Check in"}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
         </CardContent>
       </Card>

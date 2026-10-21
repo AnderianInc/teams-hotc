@@ -10,6 +10,8 @@ import {
   setMirrorPrint,
   type NameTagOptions,
   type LabelCopy,
+  getPrinterStatus,
+  renderLabelCanvas,
 } from "@/lib/brotherPrinter";
 
 interface Props {
@@ -24,12 +26,13 @@ const COPIES: LabelCopy[] = ["child", "parent", "teacher"];
 
 export default function LabelPreviewDialog({ open, onOpenChange, base, onConfirm, printing }: Props) {
   const [mirror, setMirror] = useState<boolean>(getMirrorPrint());
+  const isAirPrint = getPrinterStatus().type === "airprint";
   // Re-render previews whenever mirror or open toggles (bitmap depends on mirror).
   const previews = useMemo(() => {
     if (!open) return [];
     return COPIES.map((copy) => ({
       copy,
-      url: renderLabelPreviewDataUrl({ ...base, copy }),
+      url: isAirPrint ? renderLabelCanvas({ ...base, copy }, { mirror: false }).toDataURL("image/png") : renderLabelPreviewDataUrl({ ...base, copy }),
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mirror, base.childName, base.roomName, base.securityCode, base.allergies, base.parentName, base.parentPhone]);
@@ -46,7 +49,8 @@ export default function LabelPreviewDialog({ open, onOpenChange, base, onConfirm
           <DialogTitle>Label preview — exactly what will print</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center justify-between rounded-md border p-3">
+        {isAirPrint && <p className="text-sm text-muted-foreground">Paper: 62 mm continuous roll, 62 × 104 mm page. Margins: none. Scale: 100%. Not 12 × 12 mm.</p>}
+        {!isAirPrint && <div className="flex items-center justify-between rounded-md border p-3">
           <div>
             <Label htmlFor="mirror" className="font-medium">Mirror horizontally</Label>
             <p className="text-xs text-muted-foreground">
@@ -54,7 +58,7 @@ export default function LabelPreviewDialog({ open, onOpenChange, base, onConfirm
             </p>
           </div>
           <Switch id="mirror" checked={mirror} onCheckedChange={toggleMirror} />
-        </div>
+        </div>}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[60vh] overflow-auto">
           {previews.map((p) => (
@@ -65,7 +69,7 @@ export default function LabelPreviewDialog({ open, onOpenChange, base, onConfirm
               <img
                 src={p.url}
                 alt={`${p.copy} label preview`}
-                className="w-full h-auto bg-white"
+                className="w-full h-auto bg-background"
               />
             </div>
           ))}
