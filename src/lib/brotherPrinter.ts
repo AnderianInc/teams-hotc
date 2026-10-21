@@ -596,8 +596,10 @@ function drawLabel(
   ctx.font = "700 44px Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(`Class: ${opts.roomName}`, padding + innerW / 2, contentBottom - 110);
-  ctx.font = "800 52px 'Courier New', monospace";
-  ctx.fillText(`Code ${opts.securityCode}`, padding + innerW / 2, contentBottom - 56);
+  if (opts.securityCode.trim()) {
+    ctx.font = "800 52px 'Courier New', monospace";
+    ctx.fillText(`Code ${opts.securityCode}`, padding + innerW / 2, contentBottom - 56);
+  }
   ctx.textAlign = "left";
 }
 

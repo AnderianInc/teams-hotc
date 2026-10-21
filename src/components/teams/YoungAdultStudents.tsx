@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { Printer } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ageInYears } from "@/lib/kidsClasses";
+import { getPrinterStatus, printNameTag } from "@/lib/brotherPrinter";
 
 /** Young Adults (15–19) roster with simple per-day attendance check-in. */
 export default function YoungAdultStudents() {
@@ -51,6 +54,22 @@ export default function YoungAdultStudents() {
     onError: (e: Error) => toast.error(`Could not update attendance: ${e.message}`),
   });
 
+  const printTag = useMutation({
+    mutationFn: async (c: any) => {
+      if (!getPrinterStatus().connected) throw new Error("Connect a printer first (Check-In page or Printer settings).");
+      await printNameTag({
+        copy: "child",
+        childName: `${c.first_name} ${c.last_name}`.trim(),
+        roomName: "Young Adults",
+        securityCode: "",
+        parentName: c.families?.parent1_name ?? null,
+        date: format(new Date(), "EEE, MMM d yyyy"),
+      });
+    },
+    onSuccess: () => toast.success("Name tag sent to printer."),
+    onError: (e: Error) => toast.error(`Print failed: ${e.message}`),
+  });
+
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
@@ -72,6 +91,7 @@ export default function YoungAdultStudents() {
                 <TableHead>Name</TableHead>
                 <TableHead>Age</TableHead>
                 <TableHead>Parent</TableHead>
+                <TableHead className="w-16">Tag</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -90,6 +110,17 @@ export default function YoungAdultStudents() {
                   <TableCell className="text-sm">
                     {c.families?.parent1_name ?? "—"}
                     {c.families?.parent1_phone ? <span className="text-muted-foreground"> · {c.families.parent1_phone}</span> : null}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost" size="icon" className="h-8 w-8"
+                      disabled={printTag.isPending}
+                      onClick={() => printTag.mutate(c)}
+                      aria-label={`Print name tag for ${c.first_name}`}
+                      title={`Print name tag for ${c.first_name}`}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
