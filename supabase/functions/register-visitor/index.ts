@@ -67,7 +67,6 @@ serve(async (req) => {
         email: email?.trim() || null,
         phone: normalized.e164 || null,
         phone_raw: phone || null,
-        phone_last10: normalized.e164?.replace(/\D/g, "").slice(-10) || null,
         address: address?.trim() || null,
         how_heard: howHeard?.trim() || null,
         prayer_requests: prayerRequests?.trim() || null,
