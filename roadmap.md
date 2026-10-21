@@ -1,5 +1,10 @@
 # Roadmap
 
+## Current — Monitoring fixes
+- [ ] Verify outreach address and current connection health
+- [ ] Match welcome registrations by submitted name as well as shared contact details
+- [ ] Verify family registration and repeat-registration behavior without live alerts
+
 ## Current — Welcome QR and attendance
 - [x] Shared /welcome: signed-in, remembered device, phone lookup, first registration
 - [x] Secure device recognition, duplicate-safe registration, atomic bidirectional attendance

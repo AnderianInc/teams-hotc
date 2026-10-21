@@ -1,5 +1,6 @@
 - Events own all automated comms: copy lives in email_templates/sms_templates, timing/order in event_workflow_steps, rendered at send time by _shared/eventWorkflow.ts — never hard-code message text or schedules in edge functions, so admins can see and edit everything.
 - Welcome device recognition uses opaque hashed tokens, never directory IDs; signed-in check-ins validate the caller so browser storage cannot impersonate account sessions.
+- Welcome registration deduplication requires submitted name and contact details together; phone-only check-in must reject ambiguous matches so relatives sharing contact details are not mistaken for each other.
 - Linked weekly attendance is synchronized by an atomic database trigger; trends deduplicate by linked person and paginate source data so both views stay consistent without double counts.
 - Management row actions use the shared TableRowActions dropdown so keyboard, touch, and desktop access stay consistent.
 - Order of Service guest names are stored on slot assignments without directory or roster records, so occasional guests do not become church contacts or volunteers.

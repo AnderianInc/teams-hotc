@@ -49,7 +49,7 @@ serve(async (req) => {
     const { firstName, lastName, email, phone, address, howHeard, prayerRequests, smsOptIn } = parsed.data;
     const normalized = normalizePhone(phone);
     if (phone && !normalized.valid) throw new Error('Please enter a valid phone number.');
-    const existing = await findWelcomePerson(adminClient, phone, email);
+    const existing = await findWelcomePerson(adminClient, phone, email, { firstName, lastName });
     if (existing) {
       const result = await recordWelcome(adminClient, existing);
       return new Response(JSON.stringify({ success: true, returning: true, ...result, token: await issueWelcomeToken(adminClient, existing) }), {
