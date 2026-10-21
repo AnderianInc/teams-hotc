@@ -100,7 +100,8 @@ export default function KidsCheckIn() {
       const unique = merged.filter((c) => {
         if (seen.has(c.id)) return false;
         seen.add(c.id);
-        return true;
+        // Students who aged out (15+) belong to Young Adults, not Children's check-in.
+        return c.grade_group !== "Young Adults" && c.grade_group !== "Adult";
       });
       return unique as unknown as ChildResult[];
     },
