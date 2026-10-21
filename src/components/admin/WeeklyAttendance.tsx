@@ -99,7 +99,7 @@ export default function WeeklyAttendance() {
         email: p.email,
         teamNames: userTeamMap.get(p.user_id) || [],
         status: att?.status || null,
-        attendanceId: att?.id || null,
+        attendanceId: userAttMap.get(p.user_id)?.id || null,
         isSelfReported: att?.selfReported || false,
         attendee_id: p.attendee_id || null,
       };

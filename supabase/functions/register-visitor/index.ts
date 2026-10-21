@@ -127,37 +127,20 @@ serve(async (req) => {
 
       if (twilioApiKey && twilioFrom && lovableApiKey) {
         try {
-          // Normalize to E.164
-          let toPhone = phone.trim();
-          if (!toPhone.startsWith("+")) {
-            const digits = toPhone.replace(/\D/g, "");
-            toPhone = digits.length === 10 ? `+1${digits}` : `+${digits}`;
-          }
-
+          const toPhone = normalized.e164;
           const { data: smsTemplate, error: templateError } = await adminClient.from('sms_templates').select('body').eq('slug', 'welcome-visitor-sms').single();
           if (templateError || !smsTemplate) throw new Error('Welcome SMS template is missing.');
           const smsBody = renderTemplate(smsTemplate.body, { firstName, fullName });
 
-          const smsRes = await fetch("https://connector-gateway.lovable.dev/twilio/Messages.json", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${lovableApiKey}`,
-              "X-Connection-Api-Key": twilioApiKey,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({ To: toPhone, From: twilioFrom, Body: smsBody }),
+          const smsRes = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: toPhone, body: smsBody, to_name: fullName, related_attendee_id: attendee.id }),
           });
           const smsData = await smsRes.json();
-
-          await adminClient.from("sms_log").insert({
-            to_phone: toPhone,
-            to_name: fullName,
-            body: smsBody,
-            related_attendee_id: attendee.id,
-            status: smsRes.ok ? "sent" : "failed",
-            provider_message_id: smsData.sid || null,
-            error: smsRes.ok ? null : (smsData.message || JSON.stringify(smsData)),
-          });
+          if (!smsRes.ok) {
+            await adminClient.from('sms_log').insert({ to_phone: toPhone, to_name: fullName, body: smsBody,
+              related_attendee_id: attendee.id, status: 'failed', error: smsData.error || 'Welcome SMS failed' });
+          }
 
           // Mark the outreach follow-up as contacted since welcome SMS was already sent
           if (smsRes.ok) {
