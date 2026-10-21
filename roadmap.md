@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Current — Checked-in label recovery
-- [ ] Add reprint from today's check-ins, existing-child search, and check-in success
-- [ ] Preserve original pickup code and assigned room; never create attendance during reprint
-- [ ] Verify retry/cancel behavior without physical printing or live data changes
+- [x] Add reprint from today's check-ins, existing-child search, and check-in success
+- [x] Preserve original pickup code and assigned room; never create attendance during reprint
+- [x] Verify signed-in reprint for an existing check-in, three labels, preview cancel, retry enabled, and zero attendance writes; 15 safety tests passed (physical printer not exercised)
 
 ## Current — Children's check-in corrections
 - [x] Enforce ages 0–14 and assign the matching class from date of birth, including database/offline insert enforcement
