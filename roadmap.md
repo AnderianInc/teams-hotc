@@ -4,7 +4,8 @@
 - [x] Enforce ages 0–14 and assign the matching class from date of birth, including database/offline insert enforcement
 - [x] Remove mixed-size page transitions and use uniform 62 × 104 mm AirPrint pages without changing bridge output
 - [x] Require confirmed printed labels before saving check-in; cancel never saves
-- [ ] Verify age rules, cancellation, and print pagination; physical printer settings remain hardware-tested by user
+- [x] Verify age rules in signed-in UI/database, cancellation with zero attendance writes (isolated displayed child), and exactly three 62 × 104 mm PDF pages; 13 safety tests passed
+- [ ] Confirm physical printer output after selecting correct 62 mm stock on PC (requires user's printer; app cannot override driver defaults or detect physical completion)
 
 ## Current — Monitoring fixes
 - [x] Verify outreach address and current connection health — health 200; all three sources succeeded at 21:00 UTC
