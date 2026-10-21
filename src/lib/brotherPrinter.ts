@@ -339,32 +339,53 @@ async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
     const heightMm = Math.max(20, Math.round((62 * c.height) / c.width * 10) / 10);
     return { url: c.toDataURL("image/png"), heightMm, name: `lbl${i}` };
   });
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument!;
-  doc.open();
-  const pageRules = pages
-    .map((p) => `@page ${p.name} { size: 62mm ${p.heightMm}mm; margin: 0; }
-    .${p.name} { page: ${p.name}; width:62mm; height:${p.heightMm}mm; }`)
-    .join("\n");
-  doc.write(`<!doctype html><html><head><style>
-    @page { size: 62mm ${pages[0]?.heightMm ?? 100}mm; margin: 0; }
-    ${pageRules}
-    html,body { margin:0; padding:0; }
-    .lbl { overflow:hidden; break-after:page; page-break-after:always; break-inside:avoid; }
-    .lbl:last-child { break-after:auto; page-break-after:auto; }
-    .lbl img { display:block; width:100%; height:100%; object-fit:contain; }
-  </style></head><body>${pages
-    .map((p) => `<div class="lbl ${p.name}"><img src="${p.url}"></div>`)
-    .join("")}</body></html>`);
-  doc.close();
+  // Print from the main window (not an iframe): Chrome on PC throws
+  // "The provided callback is no longer runnable" when printing a
+  // detached/zero-size iframe. A print-only container hides the app.
+  document.getElementById("hotc-airprint-root")?.remove();
+  document.getElementById("hotc-airprint-style")?.remove();
+  const style = document.createElement("style");
+  style.id = "hotc-airprint-style";
+  style.textContent = `
+    #hotc-airprint-root { display:none; }
+    @media print {
+      @page { size: 62mm ${pages[0]?.heightMm ?? 100}mm; margin: 0; }
+      ${pages
+        .map((p) => `@page ${p.name} { size: 62mm ${p.heightMm}mm; margin: 0; }
+      #hotc-airprint-root .${p.name} { page: ${p.name}; width:62mm; height:${p.heightMm}mm; }`)
+        .join("\n")}
+      html, body { margin:0 !important; padding:0 !important; background:#fff !important; }
+      body > *:not(#hotc-airprint-root) { display:none !important; }
+      #hotc-airprint-root { display:block !important; }
+      #hotc-airprint-root .lbl { overflow:hidden; break-after:page; page-break-after:always; break-inside:avoid; }
+      #hotc-airprint-root .lbl:last-child { break-after:auto; page-break-after:auto; }
+      #hotc-airprint-root img { display:block; width:100%; height:100%; object-fit:contain; }
+    }`;
+  const root = document.createElement("div");
+  root.id = "hotc-airprint-root";
+  root.innerHTML = pages
+    .map((p) => `<div class="lbl ${p.name}"><img src="${p.url}" alt=""></div>`)
+    .join("");
+  document.head.appendChild(style);
+  document.body.appendChild(root);
   await Promise.all(
-    Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; }))
+    Array.from(root.querySelectorAll("img")).map((img) =>
+      img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; })
+    )
   );
-  iframe.contentWindow!.focus();
-  iframe.contentWindow!.print();
-  setTimeout(() => iframe.remove(), 60_000);
+  const cleanup = () => {
+    root.remove();
+    style.remove();
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+  // Let any closing dialog finish before opening the print window.
+  await new Promise((r) => setTimeout(r, 300));
+  try {
+    window.print();
+  } finally {
+    setTimeout(cleanup, 1000);
+  }
 }
 
 // ---------------- Label rendering ----------------
