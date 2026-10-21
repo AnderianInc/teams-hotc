@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ageInYears } from "@/lib/kidsClasses";
-import { getPrinterStatus, printNameTag } from "@/lib/brotherPrinter";
+import YoungAdultCheckInDialog, { type YoungAdultStudent } from "./YoungAdultCheckInDialog";
 
 /** Young Adults (15–19) roster with simple per-day attendance check-in. */
 export default function YoungAdultStudents() {
