@@ -127,8 +127,8 @@ export default function PrinterConnect() {
 
   if (status.connected) {
     return (
-      <div className="flex items-center gap-2">
-        <Badge variant="default" className="gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Badge variant="default" className="max-w-full gap-1 break-words">
           <Printer className="h-3 w-3" />
           {status.name} ({status.type?.toUpperCase()})
         </Badge>
@@ -168,7 +168,7 @@ export default function PrinterConnect() {
             <Wifi className="h-3.5 w-3.5" /> Network bridge
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 space-y-3" align="end">
+        <PopoverContent className="w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain space-y-3" align="end">
           <div className="space-y-1">
             <p className="text-sm font-medium">Print bridge</p>
             <p className="text-xs text-muted-foreground">

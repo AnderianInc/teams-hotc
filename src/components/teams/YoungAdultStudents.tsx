@@ -57,12 +57,12 @@ export default function YoungAdultStudents() {
   const [dialogStudent, setDialogStudent] = useState<YoungAdultStudent | null>(null);
 
   return (
-    <Card>
-      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
+    <Card className="min-w-0">
+      <CardHeader className="pb-2 flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row sm:items-center">
         <CardTitle className="text-base">
           Students check-in (ages 15–19){present ? ` · ${present.size} present` : ""}
         </CardTitle>
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8" aria-label="Attendance date" />
+        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 shrink-0" aria-label="Attendance date" />
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -76,7 +76,7 @@ export default function YoungAdultStudents() {
                 <TableHead className="w-12">Here</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Age</TableHead>
-                <TableHead>Parent</TableHead>
+                <TableHead className="hidden sm:table-cell">Parent</TableHead>
                 <TableHead className="w-16">Tag</TableHead>
               </TableRow>
             </TableHeader>
@@ -91,20 +91,26 @@ export default function YoungAdultStudents() {
                       aria-label={`Mark ${c.first_name} present`}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{c.first_name} {c.last_name}</TableCell>
+                  <TableCell className="font-medium">
+                    {c.first_name} {c.last_name}
+                    <div className="mt-1 break-words text-xs font-normal text-muted-foreground sm:hidden">
+                      {c.families?.parent1_name ?? "—"}
+                      {c.families?.parent1_phone ? <div>{c.families.parent1_phone}</div> : null}
+                    </div>
+                  </TableCell>
                   <TableCell>{ageInYears(c.date_of_birth) ?? "—"}</TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="hidden text-sm sm:table-cell">
                     {c.families?.parent1_name ?? "—"}
                     {c.families?.parent1_phone ? <span className="text-muted-foreground"> · {c.families.parent1_phone}</span> : null}
                   </TableCell>
                   <TableCell>
                     <Button
-                      variant="outline" size="sm" className="h-8 gap-1"
+                      variant="outline" size="sm" className="h-10 w-10 shrink-0 gap-1 p-0 sm:h-8 sm:w-auto sm:px-3"
                       onClick={() => setDialogStudent(c)}
                       aria-label={`Check in and print tag for ${c.first_name}`}
                     >
                       <Printer className="h-3.5 w-3.5" />
-                      {present?.has(c.id) ? "Reprint" : "Check in"}
+                      <span className="sr-only sm:not-sr-only">{present?.has(c.id) ? "Reprint" : "Check in"}</span>
                     </Button>
                   </TableCell>
                 </TableRow>
