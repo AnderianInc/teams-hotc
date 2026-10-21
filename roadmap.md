@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Current — Monitoring fixes
-- [ ] Verify outreach address and current connection health
-- [ ] Match welcome registrations by submitted name as well as shared contact details
-- [ ] Verify family registration and repeat-registration behavior without live alerts
+- [x] Verify outreach address and current connection health — health 200; all three sources succeeded at 21:00 UTC
+- [x] Match welcome registrations by submitted name as well as shared contact details
+- [x] Verify family registration and repeat-registration behavior without live alerts — isolated handler and matching tests passed; deployed both welcome functions
 
 ## Current — Welcome QR and attendance
 - [x] Shared /welcome: signed-in, remembered device, phone lookup, first registration
