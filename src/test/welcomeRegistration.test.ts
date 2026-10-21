@@ -1,10 +1,10 @@
 import { expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { transpileModule, ModuleKind, ScriptTarget } from 'typescript';
+import { z } from 'zod';
+import { findWelcomePerson, issueWelcomeToken, recordWelcome } from '../../supabase/functions/_shared/welcomeIdentity';
 
 const runtime = vi.hoisted(() => ({ handler: null as ((req: Request) => Promise<Response>) | null, db: null as any }));
-vi.mock('https://deno.land/std@0.168.0/http/server.ts', () => ({ serve: (handler: typeof runtime.handler) => { runtime.handler = handler; } }));
-vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({ createClient: () => runtime.db }));
-vi.mock('npm:@supabase/supabase-js@2/cors', () => ({ corsHeaders: {} }));
-vi.mock('https://esm.sh/zod@3.25.76', async () => ({ z: (await import('zod')).z }));
 vi.mock('../../supabase/functions/_shared/phone.ts', () => ({ normalizePhone: () => ({ e164: '+12025550198', valid: true }) }));
 
 it('saves a new family member, queues follow-up, logs welcome email, and reuses only that person on repeat submission', async () => {
@@ -47,9 +47,14 @@ it('saves a new family member, queues follow-up, logs welcome email, and reuses 
   };
   const send = vi.fn(async () => new Response('{}', { status: 200 }));
   vi.stubGlobal('fetch', send);
-  vi.stubGlobal('Deno', { env: { get: (key: string) => ({ SUPABASE_URL: 'https://backend.example.test', SUPABASE_SERVICE_ROLE_KEY: 'test-only', RESEND_API_KEY: 'test-only' }[key]) } });
   try {
-    await import('../../supabase/functions/register-visitor/index');
+    // Execute the actual Deno handler with isolated dependencies; no live database or messaging calls.
+    const source = readFileSync(new URL('../../supabase/functions/register-visitor/index.ts', import.meta.url), 'utf8').replace(/^import .*;\r?\n/gm, '');
+    const compiled = transpileModule(source, { compilerOptions: { module: ModuleKind.None, target: ScriptTarget.ES2022 } }).outputText;
+    const install = new Function('serve', 'createClient', 'corsHeaders', 'z', 'findWelcomePerson', 'issueWelcomeToken', 'recordWelcome', 'normalizePhone', 'Deno', compiled);
+    install((handler: typeof runtime.handler) => { runtime.handler = handler; }, () => runtime.db, {}, z,
+      findWelcomePerson, issueWelcomeToken, recordWelcome, () => ({ e164: phone, valid: true }),
+      { env: { get: (key: string) => ({ SUPABASE_URL: 'https://backend.example.test', SUPABASE_SERVICE_ROLE_KEY: 'test-only', RESEND_API_KEY: 'test-only' } as Record<string, string>)[key] } });
     const handler = runtime.handler;
     if (!handler) throw new Error('Registration handler was not installed');
     const submit = () => handler(new Request('https://backend.example.test/register-visitor', {
