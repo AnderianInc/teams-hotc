@@ -2599,6 +2599,38 @@ export type Database = {
           },
         ]
       }
+      young_adult_attendance: {
+        Row: {
+          child_id: string
+          created_at: string
+          id: string
+          marked_by: string | null
+          service_date: string
+        }
+        Insert: {
+          child_id: string
+          created_at?: string
+          id?: string
+          marked_by?: string | null
+          service_date?: string
+        }
+        Update: {
+          child_id?: string
+          created_at?: string
+          id?: string
+          marked_by?: string | null
+          service_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "young_adult_attendance_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       member_engagement: {
@@ -2665,6 +2697,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      is_young_adults_member: { Args: { _user_id: string }; Returns: boolean }
       list_staff_role_names: {
         Args: never
         Returns: {
