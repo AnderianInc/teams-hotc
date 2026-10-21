@@ -413,7 +413,6 @@ function AttendanceTrendChart({ end }: { end: Date }) {
       return attendanceTotals(weeks, rows, links);
     },
     staleTime: 0,
-    refetchInterval: 60000,
   });
 
   return (
