@@ -99,25 +99,26 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-w-md flex-col gap-0 overflow-hidden p-0" aria-describedby={undefined}>
+        <DialogHeader className="shrink-0 border-b px-4 py-4 pr-10 text-left">
           <DialogTitle>{done ? "Checked in" : "Young Adults check-in"}</DialogTitle>
         </DialogHeader>
 
         {student && done ? (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <div className="min-h-0 overflow-y-auto overscroll-contain flex flex-col items-center gap-3 px-4 py-6 text-center">
             <CheckCircle2 className="h-12 w-12 text-success" />
-            <p className="text-lg font-semibold">{name}</p>
+            <p className="break-words text-lg font-semibold">{name}</p>
             <p className="text-sm text-muted-foreground">
               {alreadyPresent ? "Tag reprinted." : "Checked in and tag printed."}
             </p>
             <Button onClick={() => close(false)} className="mt-2">Done</Button>
           </div>
         ) : student ? (
-          <div className="space-y-4">
+          <>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3 [-webkit-overflow-scrolling:touch]">
             <div>
-              <p className="text-xl font-display font-bold">{name}</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="break-words text-lg font-display font-bold">{name}</p>
+              <p className="break-words text-sm text-muted-foreground">
                 {age === null ? "Age unknown" : `Age ${age}`}
                 {student.families?.parent1_name ? ` · ${student.families.parent1_name}` : ""}
                 {student.families?.parent1_phone ? ` (${student.families.parent1_phone})` : ""}
@@ -134,7 +135,7 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
             )}
 
             <div
-              className={`flex items-center gap-2 rounded-md border p-2 text-sm ${
+              className={`flex items-center gap-2 rounded-md border p-2 text-sm [&_svg]:shrink-0 [&_span]:min-w-0 [&_span]:break-words ${
                 printerStatus.connected
                   ? "border-success/40 bg-success/5 text-success"
                   : "border-destructive/40 bg-destructive/5 text-destructive"
@@ -154,8 +155,8 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
             </div>
 
             {!isAirPrint && (
-              <div className="flex items-center justify-between rounded-md border p-3">
-                <div>
+              <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+                <div className="min-w-0">
                   <Label htmlFor="ya-mirror" className="font-medium">Mirror horizontally</Label>
                   <p className="text-xs text-muted-foreground">Toggle if labels come out reversed.</p>
                 </div>
@@ -166,18 +167,19 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
             {previewUrl && (
               <div className="rounded-md border bg-muted p-2">
                 <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Tag preview</p>
-                <img src={previewUrl} alt="Name tag preview" className="w-full h-auto bg-background" />
+                <img src={previewUrl} alt="Name tag preview" className="mx-auto max-h-48 w-full object-contain bg-background" />
               </div>
             )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => close(false)} disabled={checkIn.isPending}>Cancel</Button>
-              <Button onClick={() => checkIn.mutate()} disabled={checkIn.isPending || !printerStatus.connected}>
+          </div>
+            <DialogFooter className="shrink-0 flex-col gap-2 border-t bg-background px-4 py-3 sm:space-x-0">
+              <Button variant="outline" className="min-h-10" onClick={() => close(false)} disabled={checkIn.isPending}>Cancel</Button>
+              <Button className="min-h-10 whitespace-normal" onClick={() => checkIn.mutate()} disabled={checkIn.isPending || !printerStatus.connected}>
                 <Printer className="h-4 w-4 mr-2" />
                 {checkIn.isPending ? "Printing…" : alreadyPresent ? "Print tag again" : "Print tag & check in"}
               </Button>
             </DialogFooter>
-          </div>
+          </>
         ) : null}
       </DialogContent>
     </Dialog>

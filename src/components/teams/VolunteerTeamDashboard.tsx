@@ -55,7 +55,7 @@ export default function VolunteerTeamDashboard({ teamId, teamName, teamSlug, hid
       )}
 
       <Tabs defaultValue="members" className="w-full">
-        <TabsList className="flex-wrap">
+        <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="members">
             <Users className="h-4 w-4 mr-2" />
             Members

@@ -57,12 +57,12 @@ export default function YoungAdultStudents() {
   const [dialogStudent, setDialogStudent] = useState<YoungAdultStudent | null>(null);
 
   return (
-    <Card>
-      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
+    <Card className="min-w-0">
+      <CardHeader className="pb-2 flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row sm:items-center">
         <CardTitle className="text-base">
           Students check-in (ages 15–19){present ? ` · ${present.size} present` : ""}
         </CardTitle>
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8" aria-label="Attendance date" />
+        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-8 shrink-0" aria-label="Attendance date" />
       </CardHeader>
       <CardContent>
         {isLoading ? (
