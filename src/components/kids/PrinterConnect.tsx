@@ -7,6 +7,8 @@ import {
 } from "@/components/ui/popover";
 import {
   connectUSB,
+  connectAirPrint,
+  tryRestoreAirPrint,
   connectBluetooth,
   connectBridge,
   disconnectPrinter,
@@ -34,6 +36,8 @@ export default function PrinterConnect() {
 
   // On mount: try saved bridge, then auto-discover via mDNS `.local` names.
   useEffect(() => {
+    const air = !status.connected ? tryRestoreAirPrint() : null;
+    if (air) { setStatus(air); return; }
     if (!status.connected) {
       tryAutoConnectBridge().then((s) => {
         if (s) {
@@ -140,6 +144,14 @@ export default function PrinterConnect() {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1"
+        onClick={() => { setStatus(connectAirPrint()); toast.success("AirPrint selected — pick your QL-820NWB in the print dialog"); }}
+      >
+        <Printer className="h-3.5 w-3.5" /> AirPrint
+      </Button>
       {isUSBAvailable() && (
         <Button variant="outline" size="sm" onClick={handleUSB} className="gap-1">
           <Usb className="h-3.5 w-3.5" /> USB
