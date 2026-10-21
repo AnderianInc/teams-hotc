@@ -49,7 +49,7 @@ it('saves a new family member, queues follow-up, logs welcome email, and reuses 
   vi.stubGlobal('fetch', send);
   try {
     // Execute the actual Deno handler with isolated dependencies; no live database or messaging calls.
-    const source = readFileSync(new URL('../../supabase/functions/register-visitor/index.ts', import.meta.url), 'utf8').replace(/^import .*;\r?\n/gm, '');
+    const source = readFileSync('supabase/functions/register-visitor/index.ts', 'utf8').replace(/^import .*;\r?\n/gm, '');
     const compiled = transpileModule(source, { compilerOptions: { module: ModuleKind.None, target: ScriptTarget.ES2022 } }).outputText;
     const install = new Function('serve', 'createClient', 'corsHeaders', 'z', 'findWelcomePerson', 'issueWelcomeToken', 'recordWelcome', 'normalizePhone', 'Deno', compiled);
     install((handler: typeof runtime.handler) => { runtime.handler = handler; }, () => runtime.db, {}, z,
