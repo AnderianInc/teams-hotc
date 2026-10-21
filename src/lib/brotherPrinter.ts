@@ -21,7 +21,7 @@ const BROTHER_BLE_WRITE_CHAR = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
 const BRIDGE_URL_KEY = "hotc.printBridgeUrl";
 
-export type PrinterConnectionType = "usb" | "bluetooth" | "bridge";
+export type PrinterConnectionType = "usb" | "bluetooth" | "bridge" | "airprint";
 
 export interface PrinterStatus {
   connected: boolean;
@@ -307,6 +307,53 @@ export async function disconnectPrinter(): Promise<void> {
     await currentConnection.disconnect();
     currentConnection = null;
   }
+}
+
+/**
+ * AirPrint mode (QL-820NWB on the same wifi). Labels are rendered with the
+ * same canvas drawing, then handed to the system print dialog — the bridge,
+ * USB and raster paths are left untouched.
+ */
+const AIRPRINT_KEY = "hotc.printAirPrint";
+export function connectAirPrint(): PrinterStatus {
+  currentConnection = {
+    type: "airprint",
+    name: "AirPrint",
+    send: async () => { throw new Error("AirPrint does not accept raw data"); },
+    disconnect: async () => { localStorage.removeItem(AIRPRINT_KEY); currentConnection = null; },
+  };
+  localStorage.setItem(AIRPRINT_KEY, "1");
+  return getPrinterStatus();
+}
+export function tryRestoreAirPrint(): PrinterStatus | null {
+  if (typeof localStorage === "undefined" || localStorage.getItem(AIRPRINT_KEY) !== "1") return null;
+  return connectAirPrint();
+}
+
+async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
+  const urls = labels.map((l) => {
+    const c = renderLabelCanvas(l, { mirror: false });
+    // Child label is drawn rotated along the tape; keep 62mm width.
+    return c.toDataURL("image/png");
+  });
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(`<!doctype html><html><head><style>
+    @page { size: 62mm auto; margin: 0; }
+    html,body { margin:0; padding:0; }
+    img { display:block; width:62mm; height:auto; page-break-after:always; break-after:page; }
+    img:last-child { page-break-after:auto; break-after:auto; }
+  </style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}</body></html>`);
+  doc.close();
+  await Promise.all(
+    Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; }))
+  );
+  iframe.contentWindow!.focus();
+  iframe.contentWindow!.print();
+  setTimeout(() => iframe.remove(), 60_000);
 }
 
 // ---------------- Label rendering ----------------

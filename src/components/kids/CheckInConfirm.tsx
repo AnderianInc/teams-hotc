@@ -91,7 +91,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
   const alreadyCheckedIn = !!existingCheckIn;
 
   // Room label = child's grade / age group from directory (per admin spec).
-  const roomName = child.grade_group || assignedRoom?.name || "TBD";
+  const roomName = assignedRoom?.name || child.grade_group || "TBD";
   const previewBase = {
     childName: `${child.first_name} ${child.last_name}`,
     roomName,
