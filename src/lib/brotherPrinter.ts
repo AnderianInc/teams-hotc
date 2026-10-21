@@ -409,7 +409,7 @@ export function setTwoColorMode(on: boolean): void {
  * Render a label to a canvas. Pure — no printer I/O. Used by both the print
  * path and the on-screen preview so what you see is exactly what is sent.
  */
-export function renderLabelCanvas(opts: NameTagOptions): HTMLCanvasElement {
+export function renderLabelCanvas(opts: NameTagOptions, render: { mirror?: boolean } = {}): HTMLCanvasElement {
   const WIDTH = 720;
   const isLandscape = opts.copy === "child";
   const HEIGHT = isLandscape ? 1200 : 600;
@@ -420,7 +420,7 @@ export function renderLabelCanvas(opts: NameTagOptions): HTMLCanvasElement {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  const mirror = getMirrorPrint();
+  const mirror = render.mirror ?? getMirrorPrint();
   if (mirror) {
     // Flip horizontally so bytes packed MSB-first land as a mirrored image
     // on printers that read pins in the opposite direction.
@@ -449,6 +449,7 @@ export function renderLabelPreviewDataUrl(opts: NameTagOptions): string {
 
 export async function printNameTag(opts: NameTagOptions): Promise<void> {
   if (!currentConnection) throw new Error("No printer connected");
+  if (currentConnection.type === "airprint") return airPrintLabels([opts]);
   const canvas = renderLabelCanvas(opts);
   const ctx = canvas.getContext("2d")!;
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -459,6 +460,9 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
 /** Print child + parent + teacher copies for a single check-in. */
 export async function printCheckInLabels(base: Omit<NameTagOptions, "copy">): Promise<void> {
   const copies: LabelCopy[] = ["child", "parent", "teacher"];
+  if (currentConnection?.type === "airprint") {
+    return airPrintLabels(copies.map((copy) => ({ ...base, copy })));
+  }
   for (const copy of copies) {
     await printNameTag({ ...base, copy });
     await new Promise((r) => setTimeout(r, 400));
