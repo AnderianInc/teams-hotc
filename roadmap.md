@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Current — Children's check-in corrections
-- [ ] Enforce ages 0–14 and assign the matching class from date of birth
-- [ ] Remove trailing blank AirPrint page without changing bridge output
-- [ ] Require confirmed printed labels before saving AirPrint check-in
+- [x] Enforce ages 0–14 and assign the matching class from date of birth, including database/offline insert enforcement
+- [x] Remove mixed-size page transitions and use uniform 62 × 104 mm AirPrint pages without changing bridge output
+- [x] Require confirmed printed labels before saving check-in; cancel never saves
 - [ ] Verify age rules, cancellation, and print pagination; physical printer settings remain hardware-tested by user
 
 ## Current — Monitoring fixes
