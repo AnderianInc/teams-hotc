@@ -31,6 +31,8 @@ export interface OfflineRoom {
   name: string;
   grade_group: string | null;
   capacity: number | null;
+  min_age: number | null;
+  max_age: number | null;
 }
 
 export interface PendingCheckIn {
@@ -49,7 +51,7 @@ export async function syncDataToLocal(): Promise<{ children: number; families: n
     const [childrenRes, familiesRes, roomsRes] = await Promise.all([
       supabase.from("children").select("id, first_name, last_name, date_of_birth, grade_group, allergies, medical_notes, family_id"),
       supabase.from("families").select("id, family_name, parent1_name, parent1_phone, parent2_name, parent2_phone"),
-      supabase.from("rooms").select("id, name, grade_group, capacity"),
+      supabase.from("rooms").select("id, name, grade_group, capacity, min_age, max_age"),
     ]);
 
     const children = (childrenRes.data || []) as OfflineChild[];

@@ -2621,6 +2621,10 @@ export type Database = {
     Functions: {
       auto_close_stale_check_ins: { Args: never; Returns: number }
       call_outreach_dispatch: { Args: never; Returns: undefined }
+      children_room_for_dob: {
+        Args: { _dob: string; _on: string }
+        Returns: string
+      }
       ensure_todays_service: {
         Args: never
         Returns: {

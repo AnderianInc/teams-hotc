@@ -92,6 +92,13 @@
       "when": 1792542584920,
       "tag": "0012_welcome_identity_and_atomic_attendance",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792622776488,
+      "tag": "0013_enforce_children_checkin_age_and_room",
+      "breakpoints": true
     }
   ]
 }

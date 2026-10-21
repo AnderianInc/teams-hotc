@@ -6,3 +6,7 @@
 - Order of Service guest names are stored on slot assignments without directory or roster records, so occasional guests do not become church contacts or volunteers.
 - Legacy outreach is exposed as a read-only, fully paginated archive with JSON/CSV backups; reviewing/exporting it never enrolls contacts or sends messages.
 - Event message deletion is restricted to unsent states in both the UI and database; registration deletion preserves separate directory entries and delivery logs.
+- Children's check-in validates DOB-based eligibility without manual-class fallback, including cached room age ranges; this prevents stale grades bypassing age limits.
+- A database check-in trigger rejects ineligible birth dates and derives the room at insertion (including offline sync); checkout updates leave historical assignments unchanged.
+- Children's printing separates sending labels from operator-confirmed completion before saving attendance; browser print dismissal and transport acknowledgments do not prove physical printing.
+- Browser labels use one uniform physical page size with breaks only before subsequent labels; this avoids mixed named-page transitions and trailing blank sheets without changing bridge raster output.

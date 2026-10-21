@@ -331,14 +331,15 @@ export function tryRestoreAirPrint(): PrinterStatus | null {
 }
 
 async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
-  // Each label gets an exact page size (62mm x its own length) so the
-  // printer dialog produces one page per label instead of splitting
-  // them across many Letter/A4-sized sheets ("auto" height is ignored by Chrome).
-  const pages = labels.map((l, i) => {
+  // A single stock size avoids Chromium adding blank pages when named
+  // page sizes change. Keep each bitmap at its original 62mm scale.
+  const pages = labels.map((l) => {
     const c = renderLabelCanvas(l, { mirror: false });
     const heightMm = Math.max(20, Math.round((62 * c.height) / c.width * 10) / 10);
-    return { url: c.toDataURL("image/png"), heightMm, name: `lbl${i}` };
+    return { url: c.toDataURL("image/png"), heightMm };
   });
+  if (!pages.length) return;
+  const pageHeight = Math.ceil(Math.max(...pages.map((p) => p.heightMm)));
   // Print from the main window (not an iframe): Chrome on PC throws
   // "The provided callback is no longer runnable" when printing a
   // detached/zero-size iframe. A print-only container hides the app.
@@ -349,22 +350,18 @@ async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
   style.textContent = `
     #hotc-airprint-root { display:none; }
     @media print {
-      @page { size: 62mm ${pages[0]?.heightMm ?? 100}mm; margin: 0; }
-      ${pages
-        .map((p) => `@page ${p.name} { size: 62mm ${p.heightMm}mm; margin: 0; }
-      #hotc-airprint-root .${p.name} { page: ${p.name}; width:62mm; height:${p.heightMm}mm; }`)
-        .join("\n")}
-      html, body { margin:0 !important; padding:0 !important; background:#fff !important; }
+      @page { size: 62mm ${pageHeight}mm; margin: 0; }
+      html, body { margin:0 !important; padding:0 !important; min-height:0 !important; height:auto !important; background:#fff !important; }
       body > *:not(#hotc-airprint-root) { display:none !important; }
-      #hotc-airprint-root { display:block !important; }
-      #hotc-airprint-root .lbl { overflow:hidden; break-after:page; page-break-after:always; break-inside:avoid; }
-      #hotc-airprint-root .lbl:last-child { break-after:auto; page-break-after:auto; }
-      #hotc-airprint-root img { display:block; width:100%; height:100%; object-fit:contain; }
+      #hotc-airprint-root { display:block !important; width:62mm !important; margin:0 !important; padding:0 !important; }
+      #hotc-airprint-root .lbl { box-sizing:border-box; width:62mm; height:${pageHeight - 0.5}mm; margin:0; padding:0; overflow:hidden; break-inside:avoid; }
+      #hotc-airprint-root .lbl + .lbl { break-before:page; page-break-before:always; }
+      #hotc-airprint-root img { display:block; width:62mm; height:auto; margin:0; padding:0; max-width:none; }
     }`;
   const root = document.createElement("div");
   root.id = "hotc-airprint-root";
   root.innerHTML = pages
-    .map((p) => `<div class="lbl ${p.name}"><img src="${p.url}" alt=""></div>`)
+    .map((p) => `<div class="lbl"><img src="${p.url}" alt=""></div>`)
     .join("");
   document.head.appendChild(style);
   document.body.appendChild(root);
@@ -383,8 +380,9 @@ async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
   await new Promise((r) => setTimeout(r, 300));
   try {
     window.print();
-  } finally {
-    setTimeout(cleanup, 1000);
+  } catch (error) {
+    cleanup();
+    throw error;
   }
 }
 
@@ -448,7 +446,8 @@ export function renderLabelCanvas(opts: NameTagOptions, render: { mirror?: boole
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Label rendering is unavailable in this browser.");
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
@@ -483,7 +482,8 @@ export async function printNameTag(opts: NameTagOptions): Promise<void> {
   if (!currentConnection) throw new Error("No printer connected");
   if (currentConnection.type === "airprint") return airPrintLabels([opts]);
   const canvas = renderLabelCanvas(opts);
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Label rendering is unavailable in this browser.");
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const rasterData = buildBrotherRaster(imageData, canvas.width, canvas.height);
   await currentConnection.send(rasterData);
