@@ -12,6 +12,7 @@ import KidsCheckOut from "@/components/kids/KidsCheckOut";
 import FirstImpressionsDashboard from "@/components/first-impressions/FirstImpressionsDashboard";
 import VolunteerTeamDashboard from "@/components/teams/VolunteerTeamDashboard";
 import YoungAdultStudents from "@/components/teams/YoungAdultStudents";
+import PrinterConnect from "@/components/kids/PrinterConnect";
 
 export default function TeamDashboard() {
   const { slug } = useParams<{ slug: string }>();
@@ -156,6 +157,7 @@ export default function TeamDashboard() {
     return (
       <div className="space-y-6">
         <VolunteerTeamDashboard teamId={team.id} teamName={team.name} teamSlug={team.slug} />
+        <PrinterConnect />
         <YoungAdultStudents />
       </div>
     );
