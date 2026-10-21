@@ -1,0 +1,1 @@
+SELECT cron.schedule('refresh-children-ministry-groups', '15 7 * * *', 'SELECT public.refresh_children_ministry_groups()');

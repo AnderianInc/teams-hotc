@@ -2672,6 +2672,10 @@ export type Database = {
           name: string
         }[]
       }
+      ministry_group_for_dob: {
+        Args: { _dob: string; _on?: string }
+        Returns: string
+      }
       promote_funnel_lead: { Args: { _lead_id: string }; Returns: string }
       public_org_chart: {
         Args: never
@@ -2693,6 +2697,7 @@ export type Database = {
         Args: { _attendee_id?: string; _user_id?: string }
         Returns: Json
       }
+      refresh_children_ministry_groups: { Args: never; Returns: number }
       resolve_contact_group: {
         Args: { _group_id: string }
         Returns: {

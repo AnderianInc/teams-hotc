@@ -360,8 +360,17 @@ async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
     }`;
   const root = document.createElement("div");
   root.id = "hotc-airprint-root";
-  root.innerHTML = pages
-    .map((p) => `<div class="lbl"><img src="${p.url}" alt=""></div>`)
+  // Pack short tags (parent + teacher, ~51mm each) onto one sheet so
+  // the uniform page size doesn't waste half a label of tape on each.
+  const sheets: (typeof pages)[] = [];
+  for (const p of pages) {
+    const last = sheets[sheets.length - 1];
+    const used = last ? last.reduce((s, x) => s + x.heightMm, 0) : Infinity;
+    if (last && used + p.heightMm <= pageHeight + 0.5) last.push(p);
+    else sheets.push([p]);
+  }
+  root.innerHTML = sheets
+    .map((s) => `<div class="lbl">${s.map((p) => `<img src="${p.url}" alt="">`).join("")}</div>`)
     .join("");
   document.head.appendChild(style);
   document.body.appendChild(root);
