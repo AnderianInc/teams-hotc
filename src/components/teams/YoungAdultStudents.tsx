@@ -91,6 +91,7 @@ export default function YoungAdultStudents() {
                 <TableHead>Name</TableHead>
                 <TableHead>Age</TableHead>
                 <TableHead>Parent</TableHead>
+                <TableHead className="w-16">Tag</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
