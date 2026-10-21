@@ -1,10 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "https://esm.sh/zod@3.25.76";
+import { findWelcomePerson, issueWelcomeToken, recordWelcome } from "../_shared/welcomeIdentity.ts";
+import { normalizePhone } from "../_shared/phone.ts";
+
+const registrationSchema = z.object({
+  firstName: z.string().trim().min(1).max(50), lastName: z.string().trim().min(1).max(50),
+  email: z.union([z.literal(''), z.string().trim().email().max(255)]).optional(),
+  phone: z.string().trim().max(30).optional(), address: z.string().trim().max(200).optional(),
+  howHeard: z.string().trim().max(100).optional(), prayerRequests: z.string().trim().max(1000).optional(),
+  smsOptIn: z.boolean().optional(),
+});
 
 /**
  * Render a template that supports:
@@ -30,14 +38,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
+    if (!supabaseUrl || !serviceRoleKey) throw new Error('Registration temporarily unavailable.');
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { firstName, lastName, email, phone, address, howHeard, prayerRequests, smsOptIn } = await req.json();
-
-    if (!firstName || !lastName) throw new Error("First name and last name are required");
+    const parsed = registrationSchema.safeParse(await req.json());
+    if (!parsed.success) throw new Error('Please check your name, email and phone.');
+    const { firstName, lastName, email, phone, address, howHeard, prayerRequests, smsOptIn } = parsed.data;
+    const normalized = normalizePhone(phone);
+    if (phone && !normalized.valid) throw new Error('Please enter a valid phone number.');
+    const existing = await findWelcomePerson(adminClient, phone, email);
+    if (existing) {
+      const result = await recordWelcome(adminClient, existing);
+      return new Response(JSON.stringify({ success: true, returning: true, ...result, token: await issueWelcomeToken(adminClient, existing) }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const optInTimestamp = smsOptIn && phone?.trim() ? new Date().toISOString() : null;
 
@@ -47,7 +65,9 @@ serve(async (req) => {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email?.trim() || null,
-        phone: phone?.trim() || null,
+        phone: normalized.e164 || null,
+        phone_raw: phone || null,
+        phone_last10: normalized.e164?.replace(/\D/g, "").slice(-10) || null,
         address: address?.trim() || null,
         how_heard: howHeard?.trim() || null,
         prayer_requests: prayerRequests?.trim() || null,
@@ -65,6 +85,8 @@ serve(async (req) => {
       .single();
     if (attendeeError) throw attendeeError;
 
+    const attendanceResult = await recordWelcome(adminClient, { attendeeId: attendee.id });
+    const deviceToken = await issueWelcomeToken(adminClient, { attendeeId: attendee.id });
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
     const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
@@ -112,10 +134,9 @@ serve(async (req) => {
             toPhone = digits.length === 10 ? `+1${digits}` : `+${digits}`;
           }
 
-          const smsBody =
-            `Hi ${firstName.trim()}, welcome to House of Transformation Church! ` +
-            `We're so glad you joined us today. Someone from our team will be in touch soon. ` +
-            `Reply STOP to unsubscribe, HELP for help. Msg & data rates may apply.`;
+          const { data: smsTemplate, error: templateError } = await adminClient.from('sms_templates').select('body').eq('slug', 'welcome-visitor-sms').single();
+          if (templateError || !smsTemplate) throw new Error('Welcome SMS template is missing.');
+          const smsBody = renderTemplate(smsTemplate.body, { firstName, fullName });
 
           const smsRes = await fetch("https://connector-gateway.lovable.dev/twilio/Messages.json", {
             method: "POST",
@@ -225,7 +246,7 @@ serve(async (req) => {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  from: "HOTC <community@hotc.life>",
+                  from: "HOTC <contact@hotc.life>",
                   to: adminEmails,
                   subject: adminSubject,
                   html: adminHtml,
@@ -284,8 +305,9 @@ serve(async (req) => {
         prayerRequests: prayerRequests?.trim() || "",
       };
 
-      const subject = tpl ? renderTemplate(tpl.subject, values) : "Welcome to House of Transformation Church!";
-      const html = tpl ? renderTemplate(tpl.body_html, values) : `<p>Welcome, ${firstName}!</p>`;
+      if (!tpl) throw new Error('Welcome email template is missing. Registration was saved; please contact the welcome team.');
+      const subject = renderTemplate(tpl.subject, values);
+      const html = renderTemplate(tpl.body_html, values);
 
       let welcomeOk = false;
       let welcomeErr: string | null = null;
@@ -294,7 +316,7 @@ serve(async (req) => {
           method: "POST",
           headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: "HOTC <community@hotc.life>",
+            from: "HOTC <contact@hotc.life>",
             to: [email.trim()],
             subject,
             html,
@@ -317,7 +339,7 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, attendeeId: attendee.id }), {
+    return new Response(JSON.stringify({ success: true, attendeeId: attendee.id, ...attendanceResult, token: deviceToken }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
