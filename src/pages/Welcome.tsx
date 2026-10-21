@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,8 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Church, Heart, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Welcome() {
+  const { user, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [recognizing, setRecognizing] = useState(true);
+  const [welcomeName, setWelcomeName] = useState('');
+  const [returning, setReturning] = useState(false);
+  const [lookupPhone, setLookupPhone] = useState('');
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [countdown, setCountdown] = useState(6);
+  const [switchedGuest, setSwitchedGuest] = useState(false);
+  const started = useRef(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,6 +37,57 @@ export default function Welcome() {
     smsOptIn: false,
   });
 
+  const acceptCheckIn = (data: { name?: string; token?: string; returning?: boolean }, isReturning = true) => {
+    if (data.token) { try { localStorage.setItem('hotc_visitor_identity', data.token); } catch { /* storage optional */ } }
+    setWelcomeName(data.name || '');
+    setReturning(data.returning ?? isReturning);
+    setSubmitted(true);
+    queryClient.invalidateQueries({ queryKey: ['attendance-trend'] });
+  };
+
+  useEffect(() => {
+    if (authLoading || started.current) return;
+    started.current = true;
+    let token: string | null = null;
+    try { token = localStorage.getItem('hotc_visitor_identity'); } catch { /* storage optional */ }
+    if (!user && !token) { setRecognizing(false); return; }
+    (async () => {
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke('self-check-in', {
+          body: user ? { type: 'signed_in' } : { type: 'device', token },
+        });
+        if (fnError || data?.error) {
+          if (!user) { try { localStorage.removeItem('hotc_visitor_identity'); } catch { /* optional */ } }
+          else setError('Unable to check you in. Please try your mobile number or ask the welcome team.');
+        } else acceptCheckIn(data);
+      } catch { setError('Unable to check in right now. Please try again.'); }
+      finally { setRecognizing(false); }
+    })();
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    if (!submitted || !user || switchedGuest) return;
+    setCountdown(6);
+    const interval = setInterval(() => setCountdown(n => Math.max(0, n - 1)), 1000);
+    const timer = setTimeout(() => navigate('/dashboard'), 6000);
+    return () => { clearInterval(interval); clearTimeout(timer); };
+  }, [submitted, user, navigate, switchedGuest]);
+
+  const phoneCheckIn = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setError('');
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('self-check-in', { body: { type: 'phone', phone: lookupPhone } });
+      if (fnError) {
+        const context = (fnError as { context?: Response }).context;
+        const detail = context ? await context.json().catch(() => null) : null;
+        throw new Error(detail?.error || 'Unable to check in. Please try again.');
+      }
+      if (data?.error) throw new Error(data.error);
+      acceptCheckIn(data);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to check in.'); }
+    finally { setLoading(false); }
+  };
+
   const update = (field: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -35,15 +100,27 @@ export default function Welcome() {
       const { data, error: fnError } = await supabase.functions.invoke("register-visitor", {
         body: form,
       });
-      if (fnError) throw fnError;
+      if (fnError) {
+        const context = (fnError as { context?: Response }).context;
+        const detail = context ? await context.json().catch(() => null) : null;
+        throw new Error(detail?.error || 'Unable to register. Please try again.');
+      }
       if (data?.error) throw new Error(data.error);
-      setSubmitted(true);
+      acceptCheckIn(data, false);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (recognizing || authLoading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4" role="status">
+      <Church className="h-10 w-10 text-primary mb-4" />
+      <p className="text-lg font-display">Welcome to HOTC!</p>
+      <p className="text-muted-foreground">Checking you in…</p>
+    </div>
+  );
 
   if (submitted) {
     return (
@@ -55,15 +132,14 @@ export default function Welcome() {
                 <CheckCircle2 className="h-8 w-8 text-accent-foreground" />
               </div>
             </div>
-            <h2 className="text-2xl font-display font-bold">Thank You!</h2>
-            <p className="text-muted-foreground">
-              Welcome to House of Transformation Church! We're so glad you're here.
-              {form.email && " Check your email for more info about getting connected."}
-            </p>
-            <div className="flex items-center justify-center gap-2 text-muted-foreground pt-4">
-              <Heart className="h-4 w-4 text-destructive" />
-              <span className="text-sm">See you next Sunday!</span>
-            </div>
+            <h2 className="text-2xl font-display font-bold">{returning ? `Welcome back${welcomeName ? `, ${welcomeName}` : ""}!` : "Welcome to HOTC!"}</h2>
+            <p className="text-lg">Thank you for coming to Church today.</p>
+            {!returning && <p className="text-muted-foreground">We're so glad you're here.</p>}
+            {user && !switchedGuest && <Button onClick={() => navigate('/dashboard')}>Go to Dashboard ({countdown})</Button>}
+            <Button variant="ghost" onClick={() => {
+              try { localStorage.removeItem('hotc_visitor_identity'); } catch { /* optional */ }
+              setSwitchedGuest(true); setSubmitted(false); setError(''); setLookupOpen(true);
+            }}>Not you? Switch guest</Button>
           </CardContent>
         </Card>
       </div>
@@ -85,6 +161,16 @@ export default function Welcome() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="border-b pb-4 mb-4 space-y-3">
+            <Button type="button" variant="outline" className="w-full" onClick={() => { setLookupOpen(v => !v); setError(''); }}>
+              Already registered? Check in
+            </Button>
+            {lookupOpen && <form onSubmit={phoneCheckIn} className="space-y-3">
+              <Label htmlFor="lookup-phone">Mobile number</Label>
+              <Input id="lookup-phone" type="tel" autoComplete="tel" value={lookupPhone} onChange={e => setLookupPhone(e.target.value)} required />
+              <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Checking in…' : 'Check In'}</Button>
+            </form>}
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -123,6 +209,8 @@ export default function Welcome() {
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
+                type="tel"
+                autoComplete="tel"
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
                 placeholder="(555) 123-4567"

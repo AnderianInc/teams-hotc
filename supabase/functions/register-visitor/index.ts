@@ -218,27 +218,11 @@ serve(async (req) => {
             .in("user_id", Array.from(recipientIds));
           const adminEmails = (profs ?? []).map((p: any) => p.email).filter(Boolean);
           if (adminEmails.length > 0) {
-            const adminSubject = `New first-time visitor: ${fullName}`;
-            const escapeHtml = (s: string) =>
-              s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-            const prayerBlock = prayerRequests?.trim()
-              ? `<div style="margin-top:12px;padding:12px;border-left:4px solid #6366f1;background:#f5f5ff;border-radius:4px">
-                    <div style="font-weight:600;margin-bottom:4px">🙏 Prayer request</div>
-                    <div style="white-space:pre-wrap">${escapeHtml(prayerRequests.trim())}</div>
-                  </div>`
-              : "";
-            const adminHtml = `<div style="font-family:sans-serif;max-width:520px">
-                  <h2>New first-time visitor 🎉</h2>
-                  <p><strong>${fullName}</strong> just registered via the welcome form.</p>
-                  <ul>
-                    ${email ? `<li>Email: ${email}</li>` : ""}
-                    ${phone ? `<li>Phone: ${phone}</li>` : ""}
-                    ${howHeard ? `<li>How they heard: ${howHeard}</li>` : ""}
-                    ${address ? `<li>Address: ${escapeHtml(address)}</li>` : ""}
-                  </ul>
-                  ${prayerBlock}
-                  <p>A follow-up has been auto-scheduled${phone ? " (including a text follow-up)" : ""}. Please review in the First Impressions dashboard.</p>
-                </div>`;
+            const { data: adminTemplate, error: adminTemplateError } = await adminClient.from('email_templates').select('subject,body_html').eq('slug', 'welcome-visitor-admin').single();
+            if (adminTemplateError || !adminTemplate) throw new Error('Admin welcome template missing.');
+            const escapeHtml = (value: string) => value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            const adminSubject = renderTemplate(adminTemplate.subject, { fullName });
+            const adminHtml = renderTemplate(adminTemplate.body_html, Object.fromEntries(Object.entries({ fullName, email, phone, address, howHeard, prayerRequests }).map(([key,value]) => [key,escapeHtml(value || '')])));
             let adminOk = false;
             let adminErr: string | null = null;
             try {

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { downloadCsv } from "@/lib/csvExport";
 import { format, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { toast } from "sonner";
 import AttendanceQRDialog from "./AttendanceQRDialog";
+import { attendanceTotals, attendanceWeeks, churchSunday } from '@/lib/attendance';
+import { getChurchTimezone } from '@/lib/timezone';
 
 interface VolunteerRow {
   user_id: string;
@@ -42,7 +44,8 @@ const STATUS_OPTIONS = [
 ];
 
 export default function WeeklyAttendance() {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const queryClient = useQueryClient();
+  const [weekStart, setWeekStart] = useState(() => churchSunday(new Date(), getChurchTimezone()));
   const [volunteers, setVolunteers] = useState<VolunteerRow[]>([]);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,8 @@ export default function WeeklyAttendance() {
       supabase.from("attendees").select("id, first_name, last_name").eq("is_member", true).lte("created_at", dayEnd),
     ]);
 
+    const readError = [profilesRes, teamMembersRes, attendanceRes, attendeesRes].find(r => r.error)?.error;
+    if (readError) { toast.error(readError.message); setLoading(false); return; }
     const profiles = profilesRes.data || [];
     const teamMembers = teamMembersRes.data || [];
     const attendance = attendanceRes.data || [];
@@ -87,7 +92,7 @@ export default function WeeklyAttendance() {
 
     // Volunteer rows: only people on a team as of that date
     const volRows: VolunteerRow[] = profiles.filter((p: any) => userTeamMap.has(p.user_id) || userAttMap.has(p.user_id)).map((p: any) => {
-      const att = userAttMap.get(p.user_id);
+      const att = userAttMap.get(p.user_id) || attendeeAttMap.get(p.attendee_id);
       return {
         user_id: p.user_id,
         full_name: p.full_name,
@@ -133,18 +138,9 @@ export default function WeeklyAttendance() {
       if (error) { toast.error(error.message); setSaving(null); return; }
     }
 
-    // If this volunteer is also a church member, sync their member attendance
-    if (existing?.attendee_id) {
-      const memberExisting = members.find((m) => m.attendee_id === existing.attendee_id);
-      if (memberExisting?.attendanceId) {
-        await supabase.from("weekly_attendance").update({ status }).eq("id", memberExisting.attendanceId);
-      } else {
-        await supabase.from("weekly_attendance").insert({ attendee_id: existing.attendee_id, service_date: serviceDate, status, is_self_reported: false });
-      }
-    }
-
     toast.success("Updated");
     setSaving(null);
+    queryClient.invalidateQueries({ queryKey: ["attendance-trend"] });
     fetchData();
   };
 
@@ -162,6 +158,7 @@ export default function WeeklyAttendance() {
       else toast.success("Recorded");
     }
     setSaving(null);
+    queryClient.invalidateQueries({ queryKey: ["attendance-trend"] });
     fetchData();
   };
 
@@ -387,53 +384,46 @@ export default function WeeklyAttendance() {
         </CardContent>
       </Card>
 
-      <AttendanceTrendChart />
+      <AttendanceTrendChart end={weekStart} />
     </div>
   );
 }
 
-function AttendanceTrendChart() {
-  const { data: chartData, isLoading } = useQuery({
-    queryKey: ["attendance-trend"],
+function AttendanceTrendChart({ end }: { end: Date }) {
+  const weeks = attendanceWeeks(end);
+  const { data: chartData, isLoading, error } = useQuery({
+    queryKey: ["attendance-trend", weeks[0], weeks[11]],
     queryFn: async () => {
-      // Last 12 weeks (Sundays, in local time to avoid UTC shift)
-      const weeks: string[] = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i * 7);
-        // Round to Sunday
-        d.setDate(d.getDate() - d.getDay());
-        weeks.push(format(d, "yyyy-MM-dd"));
+      const rows: { service_date: string; status: string; user_id: string | null; attendee_id: string | null }[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await supabase.from('weekly_attendance')
+          .select('id,service_date,status,user_id,attendee_id').in('service_date', weeks)
+          .order('id').range(offset, offset + 999);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if ((data || []).length < 1000) break;
       }
-
-      const { data, error } = await supabase
-        .from("weekly_attendance")
-        .select("service_date, status, user_id, attendee_id")
-        .in("service_date", weeks);
-      if (error) throw error;
-
-      return weeks.map((w) => {
-        const weekRows = (data ?? []).filter((r) => r.service_date === w);
-        return {
-          week: w.slice(5), // MM-DD
-          Present: weekRows.filter((r) => r.status === "present").length,
-          Late: weekRows.filter((r) => r.status === "late").length,
-          Absent: weekRows.filter((r) => r.status === "absent").length,
-          Excused: weekRows.filter((r) => r.status === "excused").length,
-        };
-      });
+      const links: { user_id: string; attendee_id: string | null }[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await supabase.from('profiles').select('user_id,attendee_id').order('user_id').range(offset, offset + 999);
+        if (error) throw error;
+        links.push(...(data || []));
+        if ((data || []).length < 1000) break;
+      }
+      return attendanceTotals(weeks, rows, links);
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchInterval: 60000,
   });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Attendance Trend — Last 12 Weeks</CardTitle>
-        <CardDescription>Volunteer and member attendance totals per week</CardDescription>
+        <CardTitle className="text-base">Attendance Trend — 12 Weeks</CardTitle>
+        <CardDescription>Unique people per week, ending {format(end, "MMM d, yyyy")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {error ? <p role="alert" className="text-destructive">Unable to load attendance totals. Please retry.</p> : isLoading ? (
           <p className="text-sm text-muted-foreground text-center py-8">Loading chart…</p>
         ) : (
           <ResponsiveContainer width="100%" height={260}>
