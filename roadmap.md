@@ -1,5 +1,10 @@
 # Roadmap
 
+## Current — Checked-in label recovery
+- [x] Add reprint from today's check-ins, existing-child search, and check-in success
+- [x] Preserve original pickup code and assigned room; never create attendance during reprint
+- [x] Verify signed-in reprint for an existing check-in, three labels, preview cancel, retry enabled, and zero attendance writes; 15 safety tests passed (physical printer not exercised)
+
 ## Current — Children's check-in corrections
 - [x] Enforce ages 0–14 and assign the matching class from date of birth, including database/offline insert enforcement
 - [x] Remove mixed-size page transitions and use uniform 62 × 104 mm AirPrint pages without changing bridge output

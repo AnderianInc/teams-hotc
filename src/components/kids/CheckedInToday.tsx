@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
+import ReprintLabels from "./ReprintLabels";
 
 export default function CheckedInToday() {
   const today = new Date().toISOString().slice(0, 10);
@@ -22,7 +23,7 @@ export default function CheckedInToday() {
       const { data, error } = await supabase
         .from("check_ins")
         .select(
-          "id, checked_in_at, checked_out_at, security_code, children(first_name, last_name, grade_group), rooms(name)"
+          "id, checked_in_at, checked_out_at, security_code, children(first_name, last_name, grade_group, allergies, families(parent1_name, parent1_phone)), rooms(name)"
         )
         .gte("checked_in_at", start)
         .lte("checked_in_at", end)
@@ -56,8 +57,8 @@ export default function CheckedInToday() {
           <p className="text-sm text-muted-foreground">No check-ins yet today.</p>
         ) : (
           <ul className="divide-y">
-            {data!.map((c: any) => (
-              <li key={c.id} className="flex items-center justify-between py-2 text-sm">
+            {data?.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <span className="font-medium">
                     {c.children?.first_name} {c.children?.last_name}
@@ -85,6 +86,15 @@ export default function CheckedInToday() {
                       Out
                     </Badge>
                   )}
+                  {!c.checked_out_at && c.children && <ReprintLabels base={{
+                    childName: `${c.children.first_name} ${c.children.last_name}`,
+                    roomName: c.rooms?.name || c.children.grade_group || "—",
+                    securityCode: c.security_code || "",
+                    allergies: c.children.allergies,
+                    parentName: c.children.families?.parent1_name,
+                    parentPhone: c.children.families?.parent1_phone,
+                    date: new Date(c.checked_in_at).toLocaleString(),
+                  }} />}
                 </div>
               </li>
             ))}

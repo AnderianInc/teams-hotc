@@ -14,6 +14,7 @@ import { runKidsPrintFlow } from "@/lib/kidsPrintFlow";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { queueCheckIn, getRoomsOffline } from "@/lib/offlineSync";
 import LabelPreviewDialog from "./LabelPreviewDialog";
+import ReprintLabels from "./ReprintLabels";
 
 interface CheckInConfirmProps {
   child: {
@@ -84,7 +85,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       if (!activeService?.id) return null;
       const { data } = await supabase
         .from("check_ins")
-        .select("id, checked_in_at")
+        .select("id, checked_in_at, security_code, rooms(name)")
         .eq("child_id", child.id)
         .eq("service_id", activeService.id)
         .is("checked_out_at", null)
@@ -180,6 +181,7 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
       setSuccess(true);
       queryClient.invalidateQueries({ queryKey: ["check-ins-today"] });
       queryClient.invalidateQueries({ queryKey: ["todays-checkins"] });
+      queryClient.invalidateQueries({ queryKey: ["existing-check-in", child.id] });
       toast.success(`${child.first_name} checked in & 3 labels printed!${!isOnline ? " (offline — will sync later)" : ""}`);
     },
     onError: (e: Error) => {
@@ -212,7 +214,10 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             <Badge variant="outline" className="mt-2">Queued for sync</Badge>
           )}
         </div>
-        <Button onClick={onBack}>Check in another child</Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <ReprintLabels base={{ ...previewBase, securityCode: issuedCode || securityCode }} />
+          <Button onClick={onBack}>Check in another child</Button>
+        </div>
       </div>
     );
   }
@@ -273,6 +278,12 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
               </span>
             </div>
           )}
+          {existingCheckIn && <ReprintLabels base={{
+            ...previewBase,
+            securityCode: existingCheckIn.security_code || "",
+            roomName: existingCheckIn.rooms?.name || roomName,
+            date: new Date(existingCheckIn.checked_in_at).toLocaleString(),
+          }} />}
 
           {/* Printer status — MUST be connected to check in */}
           <div
