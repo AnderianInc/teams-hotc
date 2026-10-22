@@ -21,6 +21,8 @@ kickstart) test -f "$HOME/loaded";;
 bootout) rm "$HOME/loaded";;
 esac
 `, { mode: 0o755 });
+    // Fake bridge health check: answers only while the service is loaded.
+    writeFileSync(join(bin, 'curl'), '#!/bin/bash\ntest -f "$HOME/loaded"\n', { mode: 0o755 });
     const run = (action: string) => execFileSync('bash', [resolve('print-bridge/bridge-ctl.command'), action], {
       env: { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}` },
     });
