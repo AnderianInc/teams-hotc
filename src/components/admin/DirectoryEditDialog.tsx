@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import TeamMembershipEditor from "@/components/teams/TeamMembershipEditor";
+import WelcomeDevices from "./WelcomeDevices";
 
 interface DirectoryEntry {
   id: string;
@@ -46,6 +47,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     staff_role_id: "" as string,
   });
   const [saving, setSaving] = useState(false);
+  const [detailsLoaded, setDetailsLoaded] = useState(entry.source === "family");
   const [initialSmsOptIn, setInitialSmsOptIn] = useState<boolean>(false);
   const [staffRoles, setStaffRoles] = useState<{ id: string; name: string }[]>([]);
 
@@ -75,6 +77,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
   // Load existing SMS opt-in + staff fields for attendee or profile
   useEffect(() => {
     if (!open || entry.source === "family") return;
+    setDetailsLoaded(false);
     (async () => {
       // Load staff roles catalog (always needed when not family)
       const { data: roles } = await supabase
@@ -84,9 +87,10 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
       setStaffRoles((roles || []) as any);
 
       if (entry.isVolunteerOnly) {
-        const { data } = await supabase.from("profiles")
+        const { data, error } = await supabase.from("profiles")
           .select("sms_opt_in, is_staff, staff_title, staff_role_id")
           .eq("user_id", entry.id).maybeSingle();
+        if (error) { toast.error("Unable to load profile details"); return; }
         const v = !!data?.sms_opt_in;
         setInitialSmsOptIn(v);
         setForm((f) => ({
@@ -96,15 +100,17 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           staff_role_id: data?.staff_role_id || "",
         }));
       } else {
-        const { data: att } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
+        const { data: att, error: attendeeError } = await supabase.from("attendees").select("sms_opt_in").eq("id", entry.id).maybeSingle();
+        if (attendeeError) { toast.error("Unable to load contact details"); return; }
         const v = !!att?.sms_opt_in;
         setInitialSmsOptIn(v);
         // Attempt to load linked profile (if any) for staff fields
-        const { data: prof } = await supabase
+        const { data: prof, error: profileError } = await supabase
           .from("profiles")
           .select("is_staff, staff_title, staff_role_id")
           .eq("attendee_id", entry.id)
           .maybeSingle();
+        if (profileError) { toast.error("Unable to load profile details"); return; }
         setForm((f) => ({
           ...f, sms_opt_in: v,
           is_staff: !!prof?.is_staff,
@@ -112,6 +118,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
           staff_role_id: prof?.staff_role_id || "",
         }));
       }
+      setDetailsLoaded(true);
     })();
   }, [open, entry.id, entry.source, entry.isVolunteerOnly]);
 
@@ -119,6 +126,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
     setForm((f) => ({ ...f, [field]: value }));
 
   const handleSave = async () => {
+    if (!detailsLoaded) return;
     setSaving(true);
     try {
       if (entry.source === "family") {
@@ -172,7 +180,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
         if (error) throw error;
         // If this attendee has a linked profile, update staff fields there too
         if (userId) {
-          await supabase
+          const { error: profileError } = await supabase
             .from("profiles")
             .update({
               is_staff: form.is_staff,
@@ -180,6 +188,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
               staff_role_id: form.staff_role_id || null,
             })
             .eq("user_id", userId);
+          if (profileError) throw profileError;
         }
       }
       toast.success("Entry updated");
@@ -286,6 +295,10 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
             </div>
           )}
 
+          {entry.source !== "family" && (
+            <WelcomeDevices attendeeId={entry.isVolunteerOnly ? undefined : entry.id} userId={userId} enabled={open} />
+          )}
+
           {/* Team Management Section */}
           {entry.source !== "family" && userId && (
             <>
@@ -296,7 +309,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !detailsLoaded}>
             {saving ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>

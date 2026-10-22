@@ -40,7 +40,7 @@ The bridge is open source: **[github.com/AnderianInc/teams-hotc](https://github.
 
 If you prefer GitHub: go to [Releases](https://github.com/AnderianInc/teams-hotc/releases) and grab the file for your OS:
    - Windows: `hotc-print-bridge-win.exe` — double-click to run.
-   - macOS Apple Silicon (M1/M2/M3): `hotc-print-bridge-macos-arm64.zip` — unzip, then **right-click** `run.command` → **Open** → **Open** (needed once because the app is unsigned).
+   - macOS Apple Silicon (M1/M2/M3): `hotc-print-bridge-macos-arm64.zip` — unzip, then **right-click** `Install Bridge.command` → **Open** (needed once because the app is unsigned).
    - macOS Intel: `hotc-print-bridge-macos-intel.zip` — same steps as Apple Silicon.
    - Linux: `hotc-print-bridge-linux.zip` — unzip, `chmod +x hotc-print-bridge-linux`, run.
 
@@ -57,20 +57,26 @@ Requires [Node.js 18+](https://nodejs.org).
 git clone https://github.com/AnderianInc/teams-hotc.git
 cd teams-hotc/print-bridge
 npm install
-./generate-cert.sh        # Windows: double-click start-bridge.bat
-npm start
+bash "Install Bridge.command"  # macOS one-time install
+# Windows: double-click start-bridge.bat
 ```
 
 You should see `HTTPS listening on 0.0.0.0:9443` and a list of LAN URLs like `https://192.168.1.50:9443`. Write down that IP as a fallback — normally auto-discovery finds it.
 
-### Make it start automatically
+### macOS: one-time setup and everyday controls
 
-You want this running whenever the PC is on.
+In new macOS downloads, right-click **Install Bridge.command → Open**. Setup installs the bridge in a permanent location, preserves your working settings and certificates, starts it in the background, and asks if you want it to start whenever you log in. macOS may require approval in **Privacy & Security** because the app is not Apple-notarized.
 
-- **Windows (binary)**: drop `hotc-print-bridge-win.exe` into `shell:startup` (Win+R → `shell:startup` → paste the file or a shortcut).
-- **Windows (source)**: Task Scheduler → Create Basic Task → Trigger "At log on" → Action "Start a program" → point at `start-bridge.bat`.
-- **macOS (binary)**: System Settings → General → Login Items → add `run.command` from the unzipped bridge folder.
-- **macOS (source)**: create a LaunchAgent that runs `npm start` inside the `print-bridge` folder at login, or just leave a shortcut on the desktop and double-click it on Sunday.
+Then use **Desktop → HOTC Bridge Control.command**:
+- **Start** or **Stop** the bridge whenever needed.
+- **Enable start at login** or **Disable start at login**. This does not start or stop it immediately.
+- **Status** or **Open logs** if it fails to start.
+
+No cloning, certificate generation, or start command is needed each Sunday. Keep the Mac logged in, awake, and on church Wi-Fi. Check the printer connection in the app before the first family arrives. Older downloads do not contain these controls; they require a new bridge release.
+
+For an existing source installation, run **Install Bridge.command** in the print-bridge folder once. Node.js is required for this source option; dependencies are installed once automatically. Your current settings and certificates are retained.
+
+**Windows:** put a shortcut to the binary or `start-bridge.bat` in `shell:startup` to start at login; close its window to stop it.
 
 ## 3. Set up the Brother QL printer
 

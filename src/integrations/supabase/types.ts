@@ -2705,6 +2705,10 @@ export type Database = {
           name: string
         }[]
       }
+      manage_welcome_devices: {
+        Args: { _attendee_id?: string; _revoke?: boolean; _user_id?: string }
+        Returns: number
+      }
       ministry_group_for_dob: {
         Args: { _dob: string; _on?: string }
         Returns: string

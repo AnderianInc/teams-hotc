@@ -120,6 +120,13 @@
       "when": 1792625264898,
       "tag": "0016_young_adult_attendance",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792639671901,
+      "tag": "0017_welcome_device_management_and_profile_update_policy",
+      "breakpoints": true
     }
   ]
 }
