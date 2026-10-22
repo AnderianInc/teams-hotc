@@ -8,13 +8,13 @@ export function prepareBrowserLabelPrint(labels: HTMLCanvasElement[]) {
   style.textContent = `
     #hotc-airprint-root { display: none; }
     @media print {
-      @page { size: 62mm 104mm; margin: 0; }
-      html, body { margin: 0 !important; padding: 0 !important; width: 62mm !important; min-width: 0 !important; min-height: 0 !important; height: auto !important; overflow: visible !important; position: static !important; transform: none !important; background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { size: 104mm 62mm; margin: 0; }
+      html, body { margin: 0 !important; padding: 0 !important; width: 104mm !important; min-width: 0 !important; min-height: 0 !important; height: auto !important; overflow: visible !important; position: static !important; transform: none !important; background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       body > *:not(#hotc-airprint-root) { display: none !important; }
-      #hotc-airprint-root { display: block !important; position: static !important; width: 62mm !important; margin: 0 !important; padding: 0 !important; }
-      #hotc-airprint-root .lbl { box-sizing: border-box; width: 62mm; height: 103mm; margin: 0; padding: 0; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+      #hotc-airprint-root { display: block !important; position: static !important; width: 104mm !important; margin: 0 !important; padding: 0 !important; }
+      #hotc-airprint-root .lbl { box-sizing: border-box; width: 104mm; height: 61mm; margin: 0; padding: 0; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
       #hotc-airprint-root .lbl + .lbl { break-before: page; page-break-before: always; }
-      #hotc-airprint-root canvas { display: block; width: 62mm; height: 103mm; margin: 0; padding: 0; max-width: none; }
+      #hotc-airprint-root canvas { display: block; width: 104mm; height: 61mm; margin: 0; padding: 0; max-width: none; }
     }`;
   const root = document.createElement("div");
   root.id = "hotc-airprint-root";

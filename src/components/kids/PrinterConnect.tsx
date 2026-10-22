@@ -84,7 +84,12 @@ export default function PrinterConnect() {
   };
 
   const openBridgeStatus = () => {
-    const normalized = normalizeBridgeUrl(bridgeUrl || "https://hotc-print-bridge.local:9443");
+    // Always open an absolute bridge address — never a path on this app.
+    const normalized = normalizeBridgeUrl(bridgeUrl) || "http://localhost:9999";
+    if (!/^https?:\/\/[^/]+/i.test(normalized)) {
+      toast.error("Enter the bridge address first, e.g. http://localhost:9999 or https://192.168.1.50:9443");
+      return;
+    }
     window.open(`${normalized}/status`, "_blank", "noopener,noreferrer");
   };
 

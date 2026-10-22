@@ -391,11 +391,11 @@ export function setTwoColorMode(on: boolean): void {
  * path and the on-screen preview so what you see is exactly what is sent.
  */
 export function renderLabelCanvas(opts: NameTagOptions, render: { mirror?: boolean; upright?: boolean } = {}): HTMLCanvasElement {
-  const WIDTH = 720;
-  // upright = AirPrint/browser page: every copy reads top-to-bottom on a
-  // uniform 62 x 104 mm portrait page (720 x 1208 px at 300 DPI).
+  // upright = AirPrint/browser page: every copy is drawn unrotated on a
+  // uniform 104 x 62 mm landscape page (1228 x 720 px at 300 DPI).
+  const WIDTH = render.upright ? 1228 : 720;
   const isLandscape = !render.upright && opts.copy === "child";
-  const HEIGHT = render.upright ? 1208 : isLandscape ? 1200 : 600;
+  const HEIGHT = render.upright ? 720 : isLandscape ? 1200 : 600;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
