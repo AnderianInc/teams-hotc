@@ -12,3 +12,5 @@
 - Browser labels use one uniform physical page size with breaks only before subsequent labels; this avoids mixed named-page transitions and trailing blank sheets without changing bridge raster output.
 - ReprintLabels is shared by today's check-ins, search confirmation, and success; its print-only helper preserves stored pickup codes and rooms without attendance writes.
 - Dialogs are viewport-bounded and scrollable; check-in dialogs keep actions outside the scrolling body so printing stays reachable on small or zoomed screens.
+- AirPrint previews prepare shared print-only upright canvas pages before the tap; the tap invokes window.print synchronously before async work or closing dialogs, preserving iPad activation and PC printing without changing bridge raster output.
+- Young Adults printing uses the shared operator-confirmed print flow; opening or canceling a browser print sheet never writes attendance or reports physical completion.

@@ -110,10 +110,12 @@ export default function PrinterConnect() {
 
 
   const handleTest = async () => {
-    setTesting(true);
     try {
-      await printTestLabel();
-      toast.success("Test label sent");
+      // Start synchronously in the click handler, including AirPrint.
+      const request = printTestLabel();
+      setTesting(true);
+      await request;
+      toast.info(status.type === "airprint" ? "Print requested. Check the printer for the test label." : "Test label sent");
     } catch (e: any) {
       toast.error(e.message || "Test print failed");
     } finally { setTesting(false); }

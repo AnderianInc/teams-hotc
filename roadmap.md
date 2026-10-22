@@ -1,5 +1,11 @@
 # Roadmap
 
+## Current — iPad-first AirPrint with PC support
+- [x] Prepare isolated upright label pages before the Print tap; retain PC and bridge support
+- [x] Require physical-print confirmation for Young Adults as well as Children; cancellation never saves
+- [x] Verify signed-in print requests with active user tap, cancellation with zero attendance writes, matching 720 × 1208 previews, and one/three 62 × 104 mm PDF pages on PC/tablet layouts; real iPadOS print sheet not available in sandbox
+- [ ] Confirm real iPad/PC printer output (requires user's Brother printers)
+
 ## Current — Young Adults mobile printing
 - [x] Bound the print dialog to the viewport, scroll its contents, and keep print/cancel visible
 - [x] Constrain the app content width and wrap team tabs/printer controls on phones and tablets

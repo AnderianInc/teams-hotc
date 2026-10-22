@@ -29,6 +29,11 @@ export default function ReprintLabels({ base }: { base: Omit<NameTagOptions, "co
       <Printer className="h-4 w-4 mr-1" /> Reprint
     </Button>
     <LabelPreviewDialog open={open} onOpenChange={(value) => !reprint.isPending && setOpen(value)}
-      base={base} printing={reprint.isPending} onConfirm={() => reprint.mutate()} />
+      base={base} printing={reprint.isPending} onConfirm={(airPrintRequested) => {
+        if (airPrintRequested) {
+          setOpen(false);
+          toast.info("Reprint requested. Attendance and pickup code are unchanged.");
+        } else reprint.mutate();
+      }} />
   </>;
 }

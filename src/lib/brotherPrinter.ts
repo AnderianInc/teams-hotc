@@ -11,6 +11,8 @@
  * transport differs.
  */
 
+import { prepareBrowserLabelPrint } from "./browserLabelPrint";
+
 const BROTHER_VENDOR_ID = 0x04f9;
 const QL_PRODUCT_IDS = [
   0x209b, 0x209c, 0x209d, // QL-800 / 810W / 820NWB
@@ -330,57 +332,9 @@ export function tryRestoreAirPrint(): PrinterStatus | null {
   return connectAirPrint();
 }
 
-async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
-  // A single stock size avoids Chromium adding blank pages when named
-  // page sizes change. Keep each bitmap at its original 62mm scale.
-  // iPad-first: every label is drawn upright (no raster rotation, no mirror)
-  // on one uniform 62 x 104 mm portrait page, one label per page. Safari and
-  // desktop Chrome then both print it at 100% without rotating or packing.
-  const PAGE_H = 104;
-  const pages = labels.map((l) => ({ url: renderLabelCanvas(l, { mirror: false, upright: true }).toDataURL("image/png") }));
-  if (!pages.length) return;
-  document.getElementById("hotc-airprint-root")?.remove();
-  document.getElementById("hotc-airprint-style")?.remove();
-  const style = document.createElement("style");
-  style.id = "hotc-airprint-style";
-  style.textContent = `
-    #hotc-airprint-root { display:none; }
-    @media print {
-      @page { size: 62mm ${PAGE_H}mm; margin: 0; }
-      html, body { margin:0 !important; padding:0 !important; min-height:0 !important; height:auto !important; background:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      body > *:not(#hotc-airprint-root) { display:none !important; }
-      #hotc-airprint-root { display:block !important; width:62mm !important; margin:0 !important; padding:0 !important; }
-      #hotc-airprint-root .lbl { box-sizing:border-box; width:62mm; height:${PAGE_H - 1}mm; margin:0; padding:0; overflow:hidden; break-inside:avoid; page-break-inside:avoid; }
-      #hotc-airprint-root .lbl + .lbl { break-before:page; page-break-before:always; }
-      #hotc-airprint-root img { display:block; width:62mm; height:${PAGE_H - 1}mm; object-fit:contain; object-position:top center; margin:0; padding:0; max-width:none; }
-    }`;
-  const root = document.createElement("div");
-  root.id = "hotc-airprint-root";
-  const sheets = pages.map((p) => [p]);
-  root.innerHTML = sheets
-    .map((s) => `<div class="lbl">${s.map((p) => `<img src="${p.url}" alt="">`).join("")}</div>`)
-    .join("");
-  document.head.appendChild(style);
-  document.body.appendChild(root);
-  await Promise.all(
-    Array.from(root.querySelectorAll("img")).map((img) =>
-      img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; })
-    )
-  );
-  const cleanup = () => {
-    root.remove();
-    style.remove();
-    window.removeEventListener("afterprint", cleanup);
-  };
-  window.addEventListener("afterprint", cleanup);
-  // Let any closing dialog finish before opening the print window.
-  await new Promise((r) => setTimeout(r, 300));
-  try {
-    window.print();
-  } catch (error) {
-    cleanup();
-    throw error;
-  }
+function airPrintLabels(labels: NameTagOptions[]): void {
+  prepareBrowserLabelPrint(labels.map((label) =>
+    renderLabelCanvas(label, { mirror: false, upright: true }))).print();
 }
 
 // ---------------- Label rendering ----------------

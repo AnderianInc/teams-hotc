@@ -328,9 +328,10 @@ export default function CheckInConfirm({ child, onBack }: CheckInConfirmProps) {
             onOpenChange={(v) => !checkIn.isPending && setPreviewOpen(v)}
             base={previewBase}
             printing={checkIn.isPending}
-            onConfirm={() => {
+            onConfirm={(airPrintRequested) => {
               setPreviewOpen(false);
-              checkIn.mutate(false);
+              if (airPrintRequested) setAwaitingPrintConfirmation(true);
+              else checkIn.mutate(false);
             }}
           />
 

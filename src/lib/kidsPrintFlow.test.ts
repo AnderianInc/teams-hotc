@@ -2,6 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { runKidsPrintFlow, reprintKidsLabels } from "./kidsPrintFlow";
 
 describe("check-in only after printed labels are confirmed", () => {
+  it("Young Adults print requests do not mark attendance until the operator confirms the tag", async () => {
+    const print = vi.fn().mockResolvedValue(undefined);
+    const markYoungAdultPresent = vi.fn().mockResolvedValue(undefined);
+    expect(await runKidsPrintFlow(false, print, markYoungAdultPresent)).toBe("awaiting-confirmation");
+    expect(markYoungAdultPresent).not.toHaveBeenCalled();
+    expect(await runKidsPrintFlow(true, print, markYoungAdultPresent)).toBe("saved");
+    expect(print).toHaveBeenCalledTimes(1);
+    expect(markYoungAdultPresent).toHaveBeenCalledTimes(1);
+  });
   it("closing or canceling the system dialog never saves attendance", async () => {
     const save = vi.fn();
     expect(await runKidsPrintFlow(false, vi.fn(), save)).toBe("awaiting-confirmation");
