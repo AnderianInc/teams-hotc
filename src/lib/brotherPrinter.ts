@@ -333,16 +333,12 @@ export function tryRestoreAirPrint(): PrinterStatus | null {
 async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
   // A single stock size avoids Chromium adding blank pages when named
   // page sizes change. Keep each bitmap at its original 62mm scale.
-  const pages = labels.map((l) => {
-    const c = renderLabelCanvas(l, { mirror: false });
-    const heightMm = Math.max(20, Math.round((62 * c.height) / c.width * 10) / 10);
-    return { url: c.toDataURL("image/png"), heightMm };
-  });
+  // iPad-first: every label is drawn upright (no raster rotation, no mirror)
+  // on one uniform 62 x 104 mm portrait page, one label per page. Safari and
+  // desktop Chrome then both print it at 100% without rotating or packing.
+  const PAGE_H = 104;
+  const pages = labels.map((l) => ({ url: renderLabelCanvas(l, { mirror: false, upright: true }).toDataURL("image/png") }));
   if (!pages.length) return;
-  const pageHeight = Math.ceil(Math.max(...pages.map((p) => p.heightMm)));
-  // Print from the main window (not an iframe): Chrome on PC throws
-  // "The provided callback is no longer runnable" when printing a
-  // detached/zero-size iframe. A print-only container hides the app.
   document.getElementById("hotc-airprint-root")?.remove();
   document.getElementById("hotc-airprint-style")?.remove();
   const style = document.createElement("style");
@@ -350,25 +346,17 @@ async function airPrintLabels(labels: NameTagOptions[]): Promise<void> {
   style.textContent = `
     #hotc-airprint-root { display:none; }
     @media print {
-      @page { size: 62mm ${pageHeight}mm; margin: 0; }
-      html, body { margin:0 !important; padding:0 !important; min-height:0 !important; height:auto !important; background:#fff !important; }
+      @page { size: 62mm ${PAGE_H}mm; margin: 0; }
+      html, body { margin:0 !important; padding:0 !important; min-height:0 !important; height:auto !important; background:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       body > *:not(#hotc-airprint-root) { display:none !important; }
       #hotc-airprint-root { display:block !important; width:62mm !important; margin:0 !important; padding:0 !important; }
-      #hotc-airprint-root .lbl { box-sizing:border-box; width:62mm; height:${pageHeight - 0.5}mm; margin:0; padding:0; overflow:hidden; break-inside:avoid; }
+      #hotc-airprint-root .lbl { box-sizing:border-box; width:62mm; height:${PAGE_H - 1}mm; margin:0; padding:0; overflow:hidden; break-inside:avoid; page-break-inside:avoid; }
       #hotc-airprint-root .lbl + .lbl { break-before:page; page-break-before:always; }
-      #hotc-airprint-root img { display:block; width:62mm; height:auto; margin:0; padding:0; max-width:none; }
+      #hotc-airprint-root img { display:block; width:62mm; height:${PAGE_H - 1}mm; object-fit:contain; object-position:top center; margin:0; padding:0; max-width:none; }
     }`;
   const root = document.createElement("div");
   root.id = "hotc-airprint-root";
-  // Pack short tags (parent + teacher, ~51mm each) onto one sheet so
-  // the uniform page size doesn't waste half a label of tape on each.
-  const sheets: (typeof pages)[] = [];
-  for (const p of pages) {
-    const last = sheets[sheets.length - 1];
-    const used = last ? last.reduce((s, x) => s + x.heightMm, 0) : Infinity;
-    if (last && used + p.heightMm <= pageHeight + 0.5) last.push(p);
-    else sheets.push([p]);
-  }
+  const sheets = pages.map((p) => [p]);
   root.innerHTML = sheets
     .map((s) => `<div class="lbl">${s.map((p) => `<img src="${p.url}" alt="">`).join("")}</div>`)
     .join("");
@@ -448,10 +436,12 @@ export function setTwoColorMode(on: boolean): void {
  * Render a label to a canvas. Pure — no printer I/O. Used by both the print
  * path and the on-screen preview so what you see is exactly what is sent.
  */
-export function renderLabelCanvas(opts: NameTagOptions, render: { mirror?: boolean } = {}): HTMLCanvasElement {
+export function renderLabelCanvas(opts: NameTagOptions, render: { mirror?: boolean; upright?: boolean } = {}): HTMLCanvasElement {
   const WIDTH = 720;
-  const isLandscape = opts.copy === "child";
-  const HEIGHT = isLandscape ? 1200 : 600;
+  // upright = AirPrint/browser page: every copy reads top-to-bottom on a
+  // uniform 62 x 104 mm portrait page (720 x 1208 px at 300 DPI).
+  const isLandscape = !render.upright && opts.copy === "child";
+  const HEIGHT = render.upright ? 1208 : isLandscape ? 1200 : 600;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
