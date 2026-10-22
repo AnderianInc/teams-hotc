@@ -1,5 +1,11 @@
 # Roadmap
 
+## Current — Bridge usability and AirPrint landscape
+- [x] Return AirPrint labels to landscape (104 × 62 mm pages)
+- [x] Open status always goes to the bridge, never back into the app
+- [x] Mac bridge: one double-click setup, runs in background, auto-starts at login, restarts if it stops; Desktop control uses Mac buttons
+- [ ] Publish new bridge release (tag print-bridge-v1.2.1) and test on a real Mac (needs user)
+
 ## Current — Device resets, Welcome errors, profile updates, bridge setup
 - [x] Add local device reset and admin paired-device count/revocation
 - [x] Keep phone lookup errors next to the input and reuse the number in registration
