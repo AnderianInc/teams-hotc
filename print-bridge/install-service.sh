@@ -21,7 +21,7 @@ else
   echo "Missing bridge files. Extract the complete download and try again."; exit 1
 fi
 
-AUTO=false
+AUTO=true
 if [[ -f "$PLIST" ]]; then AUTO=$(/usr/libexec/PlistBuddy -c 'Print :RunAtLoad' "$PLIST"); fi
 if launchctl print "$DOMAIN/life.hotc.print-bridge" >/dev/null 2>&1; then
   launchctl bootout "$DOMAIN/life.hotc.print-bridge"
@@ -54,7 +54,7 @@ const dir = get('HOTC_INSTALL_DIR');
 const args = get('HOTC_TARGET') === 'binary' ? [dir + '/hotc-print-bridge'] : [get('HOTC_NODE'), dir + '/server.js'];
 const config = {
   Label: 'life.hotc.print-bridge', ProgramArguments: args,
-  WorkingDirectory: dir, RunAtLoad: get('HOTC_AUTO') === 'true', KeepAlive: false,
+  WorkingDirectory: dir, RunAtLoad: get('HOTC_AUTO') === 'true', KeepAlive: { SuccessfulExit: false }, ThrottleInterval: 10,
   EnvironmentVariables: { PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin', CERT_DIR: dir + '/cert' },
   StandardOutPath: get('HOTC_LOG_DIR') + '/bridge.log', StandardErrorPath: get('HOTC_LOG_DIR') + '/error.log'
 };
@@ -63,6 +63,12 @@ if (!data || !data.writeToFileAtomically($(get('HOTC_PLIST')), true)) throw new 
 JXA
 mkdir -p "$HOME/Desktop"
 cp "$DIR/bridge-ctl.command" "$HOME/Desktop/HOTC Bridge Control.command"
-"$DIR/bridge-ctl.command" start
-echo "Installed. Desktop → HOTC Bridge Control lets you start, stop, or enable/disable start at login."
-echo "Certificates are prepared automatically on first start; trust the public certificate once on each kiosk."
+"$DIR/bridge-ctl.command" start >/dev/null
+# Confirm the bridge actually answers before reporting success.
+for _ in $(seq 1 15); do
+  if curl -fsS --max-time 1 http://localhost:9999/status >/dev/null 2>&1; then
+    echo "Installed and running."; exit 0
+  fi
+  sleep 1
+done
+echo "The bridge did not start. Open Desktop → HOTC Bridge Control → Logs for details."; exit 1
