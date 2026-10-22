@@ -35,11 +35,11 @@ router. Note it — e.g. `192.168.1.60`.
 [GitHub Releases](https://github.com/AnderianInc/teams-hotc/releases):
 
 - **Windows** — `hotc-print-bridge-win.exe`, double-click.
-- **macOS Apple Silicon (M1/M2/M3)** — `hotc-print-bridge-macos-arm64.zip`, unzip, then **right-click** `run.command` → **Open** → **Open** (needed once because the app is unsigned; macOS quarantines unsigned bare binaries and shows them as gibberish in TextEdit, which is why we ship a `.zip` with a launcher).
+- **macOS Apple Silicon (M1/M2/M3)** — `hotc-print-bridge-macos-arm64.zip`, unzip, then **right-click** `Install Bridge.command` → **Open**. Approve macOS security prompts if shown. Setup asks whether to start at login and adds **HOTC Bridge Control** to your Desktop.
 - **macOS Intel** — `hotc-print-bridge-macos-intel.zip`, same as above. For a USB printer installed on this Mac, no `.env` is usually needed; the bridge auto-detects a Brother/QL printer through macOS printing.
 - **Linux** — `hotc-print-bridge-linux.zip`, unzip, `chmod +x hotc-print-bridge-linux`, run.
 
-No Node.js required. Skip to the `.env` step.
+Prebuilt downloads need no Node.js. macOS setup preserves existing settings and certificates in `~/Library/Application Support/HOTC Print Bridge`. Login startup runs after you sign in, not before login. Keep the Mac awake while checking in.
 
 
 **B) From source (contributors / developers)**:
@@ -123,7 +123,14 @@ per device.
 ## 6. Auto-start at boot
 
 **Windows:** put a shortcut to `start-bridge.bat` in `shell:startup`.
-**macOS:** load the `com.hotc.printbridge.plist` (sample below) with `launchctl`.
+**macOS:** run **Install Bridge.command** once (available for binary and source installs). It copies the bridge into Application Support, preserves existing `.env` and `cert/`, prepares certificates automatically, and starts it in the background. Source installs require Node.js and install dependencies once; no manual certificate generation is needed.
+
+Double-click **Desktop → HOTC Bridge Control.command**:
+- **Start / Stop** controls the bridge now, without changing login startup.
+- **Enable / Disable start at login** controls future logins, without changing its current running state.
+- **Status / Open logs** helps diagnose a failed start. Start status does not prove the printer is reachable: use **Check connection** in the app.
+
+The agent does not continually restart a failed process or a manually stopped bridge. To update, close any old foreground bridge and run the new installer; saved certificates/settings are retained. macOS may still require normal security approval because these builds are not Apple-notarized. Never distribute `key.pem`; only the public `cert.pem` should be trusted by kiosks.
 **Linux:** systemd unit (sample below).
 
 ---

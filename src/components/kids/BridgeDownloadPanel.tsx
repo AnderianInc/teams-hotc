@@ -108,8 +108,9 @@ export default function BridgeDownloadPanel() {
 
 
         <p className="text-xs text-muted-foreground">
-          macOS: unzip, then right-click <code>run.command</code> → Open (one-time
-          approval for unsigned apps). Full setup steps are in the guide below.
+          New macOS releases: unzip, then right-click <code>Install Bridge.command</code> → Open.
+          Setup adds Desktop start/stop controls and optional start at login. Older downloads
+          may not include these controls yet. Full setup steps are in the guide below.
         </p>
       </CardContent>
     </Card>
