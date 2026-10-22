@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ageInYears } from "@/lib/kidsClasses";
+import { useAirPrintLabels } from "@/hooks/useAirPrintLabels";
+import { runKidsPrintFlow } from "@/lib/kidsPrintFlow";
 import {
   getMirrorPrint,
   setMirrorPrint,
@@ -41,11 +43,21 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
   const qc = useQueryClient();
   const [mirror, setMirror] = useState<boolean>(getMirrorPrint());
   const [done, setDone] = useState(false);
+  const [awaitingPrintConfirmation, setAwaitingPrintConfirmation] = useState(false);
   const printerStatus = getPrinterStatus();
   const isAirPrint = printerStatus.type === "airprint";
 
   const name = student ? `${student.first_name} ${student.last_name}`.trim() : "";
   const age = student ? ageInYears(student.date_of_birth) : null;
+  const tag = {
+    copy: "child" as const,
+    childName: name,
+    roomName: "Young Adults",
+    securityCode: "",
+    parentName: student?.families?.parent1_name ?? null,
+    date: format(new Date(date + "T00:00:00"), "EEE, MMM d yyyy"),
+  };
+  const airPrint = useAirPrintLabels(open && !!student && !done && !awaitingPrintConfirmation, [tag]);
 
   const previewUrl = useMemo(() => {
     if (!open || !student) return "";
@@ -64,26 +76,28 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
   }, [open, student?.id, mirror, isAirPrint, date]);
 
   const checkIn = useMutation({
-    mutationFn: async () => {
-      if (!student) return;
-      if (!getPrinterStatus().connected) throw new Error("Connect a printer first.");
-      await verifyPrinterOnline();
-      await printNameTag({
-        copy: "child",
-        childName: name,
-        roomName: "Young Adults",
-        securityCode: "",
-        parentName: student.families?.parent1_name ?? null,
-        date: format(new Date(date + "T00:00:00"), "EEE, MMM d yyyy"),
+    mutationFn: async (confirmed: boolean) => {
+      if (!student) throw new Error("Select a student first.");
+      if (confirmed && !awaitingPrintConfirmation) throw new Error("Print the tag before confirming.");
+      return runKidsPrintFlow(confirmed, async () => {
+        if (!getPrinterStatus().connected) throw new Error("Connect a printer first.");
+        await verifyPrinterOnline();
+        await printNameTag(tag);
+      }, async () => {
+        if (!alreadyPresent) {
+          const { error } = await supabase
+            .from("young_adult_attendance")
+            .insert({ child_id: student.id, service_date: date, marked_by: user?.id ?? null });
+          if (error) throw error;
+        }
       });
-      if (!alreadyPresent) {
-        const { error } = await supabase
-          .from("young_adult_attendance")
-          .insert({ child_id: student.id, service_date: date, marked_by: user?.id ?? null });
-        if (error) throw error;
-      }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result === "awaiting-confirmation") {
+        setAwaitingPrintConfirmation(true);
+        return;
+      }
+      setAwaitingPrintConfirmation(false);
       setDone(true);
       qc.invalidateQueries({ queryKey: ["young-adult-attendance", date] });
       toast.success(alreadyPresent ? `Name tag reprinted for ${student?.first_name}.` : `${student?.first_name} checked in & tag printed!`);
@@ -93,7 +107,7 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
 
   const close = (v: boolean) => {
     if (checkIn.isPending) return;
-    if (!v) setDone(false);
+    if (!v) { setDone(false); setAwaitingPrintConfirmation(false); }
     onOpenChange(v);
   };
 
@@ -113,6 +127,20 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
             </p>
             <Button onClick={() => close(false)} className="mt-2">Done</Button>
           </div>
+        ) : student && awaitingPrintConfirmation ? (
+          <>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
+              <p className="break-words text-lg font-semibold">{name}</p>
+              <p>Has the name tag finished printing?</p>
+              <p className="text-sm text-muted-foreground">{alreadyPresent ? "Attendance is unchanged." : "Not checked in yet."}</p>
+            </div>
+            <DialogFooter className="shrink-0 flex-col gap-2 border-t bg-background px-4 py-3 sm:space-x-0">
+              <Button variant="outline" className="min-h-10 whitespace-normal" disabled={checkIn.isPending} onClick={() => setAwaitingPrintConfirmation(false)}>Canceled / Not printed</Button>
+              <Button className="min-h-10 whitespace-normal" disabled={checkIn.isPending} onClick={() => checkIn.mutate(true)}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />{checkIn.isPending ? "Saving…" : alreadyPresent ? "Tag printed — Done" : "Tag printed — Check in"}
+              </Button>
+            </DialogFooter>
+          </>
         ) : student ? (
           <>
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3 [-webkit-overflow-scrolling:touch]">
@@ -170,13 +198,20 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
                 <img src={previewUrl} alt="Name tag preview" className="mx-auto max-h-48 w-full object-contain bg-background" />
               </div>
             )}
+            {airPrint.error && <p role="alert" className="text-sm text-destructive">{airPrint.error}</p>}
 
           </div>
             <DialogFooter className="shrink-0 flex-col gap-2 border-t bg-background px-4 py-3 sm:space-x-0">
               <Button variant="outline" className="min-h-10" onClick={() => close(false)} disabled={checkIn.isPending}>Cancel</Button>
-              <Button className="min-h-10 whitespace-normal" onClick={() => checkIn.mutate()} disabled={checkIn.isPending || !printerStatus.connected}>
+              <Button className="min-h-10 whitespace-normal" onClick={() => {
+                if (!isAirPrint) { checkIn.mutate(false); return; }
+                try {
+                  airPrint.print();
+                  setAwaitingPrintConfirmation(true);
+                } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open printing."); }
+              }} disabled={checkIn.isPending || !printerStatus.connected || (isAirPrint && !airPrint.ready)}>
                 <Printer className="h-4 w-4 mr-2" />
-                {checkIn.isPending ? "Printing…" : alreadyPresent ? "Print tag again" : "Print tag & check in"}
+                {checkIn.isPending ? "Printing…" : alreadyPresent ? "Print tag again" : "Print name tag"}
               </Button>
             </DialogFooter>
           </>
