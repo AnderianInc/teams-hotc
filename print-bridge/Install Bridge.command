@@ -1,12 +1,12 @@
 #!/bin/bash
-set -euo pipefail
+# One double-click setup. No typing; the Terminal window closes itself.
 cd "$(dirname "$0")"
-if bash ./install-service.sh; then
-  read -r -p "Start the bridge automatically whenever you log in? (y/N): " answer
-  if [[ "$answer" == y || "$answer" == Y ]]; then
-    "$HOME/Library/Application Support/HOTC Print Bridge/bridge-ctl.command" enable
-  fi
+say() { osascript -e "display dialog \"$1\" with title \"HOTC Print Bridge\" buttons {\"OK\"} default button 1 with icon $2" >/dev/null 2>&1; }
+if output=$(bash ./install-service.sh 2>&1); then
+  say "Setup complete. The print bridge is running in the background and starts automatically when this Mac logs in.\n\nYou can close everything now. Use 'HOTC Bridge Control' on the Desktop to start or stop it." note
 else
-  echo "Setup failed. Read the message above; the bridge was not confirmed running."
+  echo "$output" > "$HOME/Desktop/HOTC Bridge setup error.txt"
+  say "Setup did not finish. Details were saved to 'HOTC Bridge setup error.txt' on the Desktop." caution
 fi
-read -r -p "Press Enter to close…" ignored
+osascript -e 'tell application "Terminal" to close (every window whose name contains "Install Bridge")' >/dev/null 2>&1 &
+exit 0

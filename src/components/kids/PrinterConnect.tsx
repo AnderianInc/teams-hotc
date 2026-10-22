@@ -83,9 +83,12 @@ export default function PrinterConnect() {
     }
   };
 
-  const openBridgeStatus = () => {
-    const normalized = normalizeBridgeUrl(bridgeUrl || "https://hotc-print-bridge.local:9443");
-    window.open(`${normalized}/status`, "_blank", "noopener,noreferrer");
+  const bridgeStatusHref = `${normalizeBridgeUrl(bridgeUrl) || "http://localhost:9999"}/status`;
+  const openBridgeStatus = (e: React.MouseEvent) => {
+    if (!/^https?:\/\/[^/]+\/status$/i.test(bridgeStatusHref)) {
+      e.preventDefault();
+      toast.error("Enter the bridge address first, e.g. http://localhost:9999 or https://192.168.1.50:9443");
+    }
   };
 
   const handleScan = async () => {
@@ -191,8 +194,11 @@ export default function PrinterConnect() {
             <Button size="sm" onClick={handleBridge} className="flex-1">
               <Wifi className="h-3.5 w-3.5 mr-1" /> Connect
             </Button>
-            <Button size="sm" variant="outline" onClick={openBridgeStatus}>
-              Open status
+            <Button size="sm" variant="outline" asChild>
+              {/* A real link (not window.open) so installed/home-screen apps open the bridge, not this app */}
+              <a href={bridgeStatusHref} target="_blank" rel="noreferrer" onClick={openBridgeStatus}>
+                Open status
+              </a>
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
