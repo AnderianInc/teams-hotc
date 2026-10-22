@@ -58,7 +58,7 @@ export default function YoungAdultCheckInDialog({ student, date, alreadyPresent,
         parentName: student.families?.parent1_name ?? null,
         date: format(new Date(date + "T00:00:00"), "EEE, MMM d yyyy"),
       },
-      { mirror: isAirPrint ? false : mirror },
+      isAirPrint ? { mirror: false, upright: true } : { mirror },
     ).toDataURL("image/png");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, student?.id, mirror, isAirPrint, date]);

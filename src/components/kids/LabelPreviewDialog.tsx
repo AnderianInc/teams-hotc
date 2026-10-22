@@ -32,7 +32,7 @@ export default function LabelPreviewDialog({ open, onOpenChange, base, onConfirm
     if (!open) return [];
     return COPIES.map((copy) => ({
       copy,
-      url: isAirPrint ? renderLabelCanvas({ ...base, copy }, { mirror: false }).toDataURL("image/png") : renderLabelPreviewDataUrl({ ...base, copy }),
+      url: isAirPrint ? renderLabelCanvas({ ...base, copy }, { mirror: false, upright: true }).toDataURL("image/png") : renderLabelPreviewDataUrl({ ...base, copy }),
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mirror, base.childName, base.roomName, base.securityCode, base.allergies, base.parentName, base.parentPhone]);
