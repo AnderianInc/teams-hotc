@@ -1,11 +1,12 @@
 # Roadmap
 
 ## Current — Device resets, Welcome errors, profile updates, bridge setup
-- [ ] Add local device reset and admin paired-device count/revocation
-- [ ] Keep phone lookup errors next to the input and reuse the number in registration
-- [ ] Remove recursive profile update policy while retaining privilege guards
-- [ ] Package one-time macOS setup with manual start/stop and optional login startup; update guides
-- [ ] Verify rules, authenticated profile editing/device controls, and Welcome error/reset flows without live messages
+- [x] Add local device reset and admin paired-device count/revocation
+- [x] Keep phone lookup errors next to the input and reuse the number in registration
+- [x] Remove recursive profile update policy while retaining privilege guards
+- [x] Package one-time macOS setup with manual start/stop and optional login startup; update guides
+- [x] Verify rules, authenticated Kunle profile editing/device controls, and Welcome error/reset flows without live messages
+- [ ] Generate a new downloadable bridge release and confirm installer/login startup on macOS (requires GitHub release runner and a real Mac; existing downloads remain unchanged)
 
 ## Current — iPad-first AirPrint with PC support
 - [x] Prepare isolated upright label pages before the Print tap; retain PC and bridge support
