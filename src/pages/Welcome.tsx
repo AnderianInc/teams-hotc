@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { forgetWelcomeDevice } from '@/lib/welcomeDevice';
 
 export default function Welcome() {
   const { user, isLoading: authLoading } = useAuth();
@@ -26,6 +27,7 @@ export default function Welcome() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lookupError, setLookupError] = useState('');
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -74,7 +76,7 @@ export default function Welcome() {
   }, [submitted, user, navigate, switchedGuest]);
 
   const phoneCheckIn = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true); setError('');
+    e.preventDefault(); setLoading(true); setLookupError('');
     try {
       const { data, error: fnError } = await supabase.functions.invoke('self-check-in', { body: { type: 'phone', phone: lookupPhone } });
       if (fnError) {
@@ -84,12 +86,28 @@ export default function Welcome() {
       }
       if (data?.error) throw new Error(data.error);
       acceptCheckIn(data);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to check in.'); }
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : 'Unable to check in.');
+      setForm(prev => ({ ...prev, phone: lookupPhone }));
+    }
     finally { setLoading(false); }
   };
 
   const update = (field: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const resetDevice = () => {
+    try { forgetWelcomeDevice(); }
+    catch { setError('Unable to reset this device. Please allow browser storage and try again.'); return; }
+    setSwitchedGuest(true);
+    setSubmitted(false);
+    setWelcomeName('');
+    setError('');
+    setLookupError('');
+    setLookupPhone('');
+    setLookupOpen(true);
+    setForm({ firstName: '', lastName: '', email: '', phone: '', address: '', howHeard: '', prayerRequests: '', smsOptIn: false });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,10 +154,9 @@ export default function Welcome() {
             <p className="text-lg">Thank you for coming to Church today.</p>
             {!returning && <p className="text-muted-foreground">We're so glad you're here.</p>}
             {user && !switchedGuest && <Button onClick={() => navigate('/dashboard')}>Go to Dashboard ({countdown})</Button>}
-            <Button variant="ghost" onClick={() => {
-              try { localStorage.removeItem('hotc_visitor_identity'); } catch { /* optional */ }
-              setSwitchedGuest(true); setSubmitted(false); setError(''); setLookupOpen(true);
-            }}>Not you? Switch guest</Button>
+            <Button variant="ghost" onClick={resetDevice}>Not you? Switch guest</Button>
+            <Button variant="ghost" onClick={resetDevice}>Forget this device</Button>
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           </CardContent>
         </Card>
       </div>
@@ -162,13 +179,14 @@ export default function Welcome() {
         </CardHeader>
         <CardContent>
           <div className="border-b pb-4 mb-4 space-y-3">
-            <Button type="button" variant="outline" className="w-full" onClick={() => { setLookupOpen(v => !v); setError(''); }}>
+            <Button type="button" variant="outline" className="w-full" onClick={() => { setLookupOpen(v => !v); setLookupError(''); }}>
               Already registered? Check in
             </Button>
             {lookupOpen && <form onSubmit={phoneCheckIn} className="space-y-3">
               <Label htmlFor="lookup-phone">Mobile number</Label>
-              <Input id="lookup-phone" type="tel" autoComplete="tel" value={lookupPhone} onChange={e => setLookupPhone(e.target.value)} required />
+              <Input id="lookup-phone" type="tel" autoComplete="tel" value={lookupPhone} onChange={e => { setLookupPhone(e.target.value); setLookupError(''); }} aria-describedby={lookupError ? 'lookup-error' : undefined} required />
               <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Checking in…' : 'Check In'}</Button>
+              {lookupError && <p id="lookup-error" role="alert" className="text-sm text-destructive">{lookupError}</p>}
             </form>}
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -294,6 +312,7 @@ export default function Welcome() {
               {loading ? "Submitting..." : "Submit"}
             </Button>
           </form>
+          <Button type="button" variant="ghost" className="w-full mt-3" onClick={resetDevice} disabled={loading}>Forget this device</Button>
         </CardContent>
       </Card>
     </div>

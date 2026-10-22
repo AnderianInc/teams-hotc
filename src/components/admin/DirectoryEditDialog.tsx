@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import TeamMembershipEditor from "@/components/teams/TeamMembershipEditor";
+import WelcomeDevices from "./WelcomeDevices";
 
 interface DirectoryEntry {
   id: string;
@@ -172,7 +173,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
         if (error) throw error;
         // If this attendee has a linked profile, update staff fields there too
         if (userId) {
-          await supabase
+          const { error: profileError } = await supabase
             .from("profiles")
             .update({
               is_staff: form.is_staff,
@@ -180,6 +181,7 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
               staff_role_id: form.staff_role_id || null,
             })
             .eq("user_id", userId);
+          if (profileError) throw profileError;
         }
       }
       toast.success("Entry updated");
@@ -284,6 +286,10 @@ export default function DirectoryEditDialog({ entry, open, onOpenChange, onUpdat
                 </>
               )}
             </div>
+          )}
+
+          {entry.source !== "family" && (
+            <WelcomeDevices attendeeId={entry.isVolunteerOnly ? undefined : entry.id} userId={userId} enabled={open} />
           )}
 
           {/* Team Management Section */}
