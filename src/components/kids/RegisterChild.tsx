@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,35 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
     parent2Phone: "",
   });
   const [siblings, setSiblings] = useState<SiblingEntry[]>([]);
+  const [existingFamily, setExistingFamily] = useState<any | null>(null);
+  const familyTerm = form.familyName.trim();
+  const { data: familyMatches } = useQuery({
+    queryKey: ["family-lookup", familyTerm],
+    enabled: !existingFamily && familyTerm.length >= 2,
+    queryFn: async () => {
+      const t = `%${familyTerm.replace(/[%,()]/g, "")}%`;
+      const { data, error } = await supabase
+        .from("families")
+        .select("id, family_name, parent1_name, parent1_phone, parent2_name, parent2_phone")
+        .or(`family_name.ilike.${t},parent1_name.ilike.${t},parent1_phone.ilike.${t}`)
+        .order("family_name")
+        .limit(8);
+      if (error) throw error;
+      return data;
+    },
+  });
+  const pickFamily = (f: any) => {
+    setExistingFamily(f);
+    setForm((prev) => ({
+      ...prev,
+      familyName: f.family_name,
+      parent1Name: f.parent1_name,
+      parent1Phone: f.parent1_phone,
+      parent2Name: f.parent2_name || "",
+      parent2Phone: f.parent2_phone || "",
+      lastName: prev.lastName || f.family_name,
+    }));
+  };
 
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -133,7 +163,9 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
 
   const register = useMutation({
     mutationFn: async () => {
-      const { data: family, error: famErr } = await supabase
+      let family = existingFamily;
+      if (!family) {
+      const { data: created, error: famErr } = await supabase
         .from("families")
         .insert({
           family_name: form.familyName || form.lastName,
@@ -145,6 +177,8 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
         .select()
         .single();
       if (famErr) throw famErr;
+      family = created;
+      }
 
       const allChildren = [
         {
@@ -179,6 +213,7 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
       const count = 1 + siblings.length;
       toast.success(`${count} child${count > 1 ? "ren" : ""} registered!`);
       queryClient.invalidateQueries({ queryKey: ["children-search"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-families"] });
       onRegistered(child);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -192,7 +227,7 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
 
       <Card>
         <CardHeader>
-          <CardTitle>Register New Family</CardTitle>
+          <CardTitle>{existingFamily ? "Add Child to Family" : "Register Family"}</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -209,26 +244,47 @@ export default function RegisterChild({ onBack, onRegistered }: RegisterChildPro
               </h3>
               <div className="space-y-1">
                 <Label>Family Name</Label>
-                <Input placeholder="Defaults to child's last name" value={form.familyName} onChange={(e) => update("familyName", e.target.value)} />
+                <Input
+                  placeholder="Type to find an existing family, or enter a new name"
+                  value={form.familyName}
+                  disabled={!!existingFamily}
+                  onChange={(e) => update("familyName", e.target.value)}
+                />
+                {existingFamily ? (
+                  <div className="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                    <span>Adding to existing family: <strong>{existingFamily.family_name}</strong></span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setExistingFamily(null)}>Change</Button>
+                  </div>
+                ) : familyMatches && familyMatches.length > 0 ? (
+                  <div className="rounded-md border border-border divide-y divide-border">
+                    {familyMatches.map((f) => (
+                      <button type="button" key={f.id} onClick={() => pickFamily(f)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted">
+                        <span className="font-medium">{f.family_name}</span>
+                        <span className="text-muted-foreground"> · {f.parent1_name} · {f.parent1_phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Parent Name</Label>
-                  <Input value={form.parent1Name} onChange={(e) => update("parent1Name", e.target.value)} required />
+                  <Input value={form.parent1Name} disabled={!!existingFamily} onChange={(e) => update("parent1Name", e.target.value)} required />
                 </div>
                 <div className="space-y-1">
                   <Label>Phone</Label>
-                  <Input type="tel" value={form.parent1Phone} onChange={(e) => update("parent1Phone", e.target.value)} required />
+                  <Input type="tel" value={form.parent1Phone} disabled={!!existingFamily} onChange={(e) => update("parent1Phone", e.target.value)} required />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>2nd Parent (optional)</Label>
-                  <Input value={form.parent2Name} onChange={(e) => update("parent2Name", e.target.value)} />
+                  <Input value={form.parent2Name} disabled={!!existingFamily} onChange={(e) => update("parent2Name", e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label>Phone</Label>
-                  <Input type="tel" value={form.parent2Phone} onChange={(e) => update("parent2Phone", e.target.value)} />
+                  <Input type="tel" value={form.parent2Phone} disabled={!!existingFamily} onChange={(e) => update("parent2Phone", e.target.value)} />
                 </div>
               </div>
             </div>
