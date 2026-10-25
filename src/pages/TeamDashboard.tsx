@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import KidsSetupGuide from "@/components/kids/KidsSetupGuide";
 import KidsCheckIn from "@/components/kids/KidsCheckIn";
 import KidsCheckOut from "@/components/kids/KidsCheckOut";
+import KidsFamilies from "@/components/kids/KidsFamilies";
 import FirstImpressionsDashboard from "@/components/first-impressions/FirstImpressionsDashboard";
 import VolunteerTeamDashboard from "@/components/teams/VolunteerTeamDashboard";
 import YoungAdultStudents from "@/components/teams/YoungAdultStudents";
@@ -76,6 +77,10 @@ export default function TeamDashboard() {
               <LogOut className="h-4 w-4 mr-2" />
               Check-Out
             </TabsTrigger>
+            <TabsTrigger value="families">
+              <Home className="h-4 w-4 mr-2" />
+              Families
+            </TabsTrigger>
             <TabsTrigger value="volunteers">
               <Users className="h-4 w-4 mr-2" />
               Volunteers
@@ -90,6 +95,9 @@ export default function TeamDashboard() {
           </TabsContent>
           <TabsContent value="checkout">
             <KidsCheckOut />
+          </TabsContent>
+          <TabsContent value="families">
+            <KidsFamilies />
           </TabsContent>
           <TabsContent value="volunteers">
             <VolunteerTeamDashboard teamId={team.id} teamName={team.name} teamSlug={team.slug} hideHeader />

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 
 interface EditFamilyProps {
   familyId: string;
@@ -88,7 +88,22 @@ export default function EditFamily({ familyId, onUpdated }: EditFamilyProps) {
       if (famErr) throw famErr;
 
       // Update each child
-      for (const child of childForms) {
+      const newKids = childForms.filter((c) => c.isNew);
+      if (newKids.length) {
+        const { error } = await supabase.from("children").insert(
+          newKids.map((c) => ({
+            family_id: familyId,
+            first_name: c.first_name,
+            last_name: c.last_name,
+            date_of_birth: c.date_of_birth || null,
+            grade_group: c.grade_group || null,
+            allergies: c.allergies || null,
+            medical_notes: c.medical_notes || null,
+          }))
+        );
+        if (error) throw error;
+      }
+      for (const child of childForms.filter((c) => !c.isNew)) {
         const { error } = await supabase
           .from("children")
           .update({
@@ -108,6 +123,7 @@ export default function EditFamily({ familyId, onUpdated }: EditFamilyProps) {
       queryClient.invalidateQueries({ queryKey: ["family", familyId] });
       queryClient.invalidateQueries({ queryKey: ["family-children", familyId] });
       queryClient.invalidateQueries({ queryKey: ["children-search"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-families"] });
       setOpen(false);
       onUpdated?.();
     },
@@ -117,6 +133,12 @@ export default function EditFamily({ familyId, onUpdated }: EditFamilyProps) {
   const updateChild = (index: number, field: string, value: string) => {
     setChildForms((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
   };
+
+  const addChild = () =>
+    setChildForms((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), isNew: true, first_name: "", last_name: familyForm.family_name, date_of_birth: "", grade_group: "", allergies: "", medical_notes: "" },
+    ]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -169,9 +191,17 @@ export default function EditFamily({ familyId, onUpdated }: EditFamilyProps) {
           {/* Children */}
           {childForms.map((child, i) => (
             <div key={child.id} className="space-y-3 rounded-lg border border-border p-4">
+              <div className="flex items-center justify-between">
               <h3 className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                Child {i + 1}
+                {child.isNew ? "New child" : `Child ${i + 1}`}
               </h3>
+              {child.isNew && (
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remove new child"
+                  onClick={() => setChildForms((prev) => prev.filter((c) => c.id !== child.id))}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>First Name</Label>
@@ -203,6 +233,9 @@ export default function EditFamily({ familyId, onUpdated }: EditFamilyProps) {
             </div>
           ))}
 
+          <Button type="button" variant="outline" className="w-full gap-2" onClick={addChild}>
+            <Plus className="h-4 w-4" /> Add Child
+          </Button>
           <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
             {saveMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
