@@ -201,6 +201,7 @@ export default function EditFamily({ familyId, onUpdated }: EditFamilyProps) {
                   <X className="h-4 w-4" />
                 </Button>
               )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>First Name</Label>
